@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bap-postgres-local
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bap_lb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bap-web-local
+    ports:
+      - "8080:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bap_lb
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-d2126db26f868ed0422e83fb1d2726a49f78eed4501e3ee51052d09303518eff}
+      - BETTER_AUTH_URL=http://localhost:8080
+      - SIM_POLIJE_API_URL=${SIM_POLIJE_API_URL:-http://127.0.0.1:3000}
+      - SIM_POLIJE_API_KEY=${SIM_POLIJE_API_KEY:-secret}
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:
