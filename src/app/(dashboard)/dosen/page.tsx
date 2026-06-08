@@ -9,6 +9,8 @@ export default function Page() {
     <DosenMasterPage
       dosenList={appData.dosenList}
       onDosenListChange={updateDosenList}
+      weeks={appData.weeks}
+      scheduleTemplate={appData.scheduleTemplate}
     />
   );
 }

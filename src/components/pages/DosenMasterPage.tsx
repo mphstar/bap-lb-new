@@ -8,19 +8,24 @@ import {
   Award,
   PenTool,
   Check,
+  RefreshCw,
 } from "lucide-react";
-import type { MasterDosen } from "@/types";
+import type { MasterDosen, WeekData, ScheduleEntry } from "@/types";
 import SignaturePad from "@/components/SignaturePad";
 import { useDialog } from "@/context/DialogContext";
 
 interface DosenMasterPageProps {
   dosenList: MasterDosen[];
   onDosenListChange: (list: MasterDosen[]) => void;
+  weeks?: WeekData[];
+  scheduleTemplate?: ScheduleEntry[];
 }
 
 const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
   dosenList,
   onDosenListChange,
+  weeks = [],
+  scheduleTemplate = [],
 }) => {
   const { showAlert, showConfirm } = useDialog();
   const [searchQuery, setSearchQuery] = useState("");
@@ -29,6 +34,57 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
 
   // Track lecturer currently being edited
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const handleImportFromWeekly = async () => {
+    const uniqueNames = new Set<string>();
+
+    // Extract from weekly entries
+    weeks.forEach((w) => {
+      w.entries?.forEach((entry) => {
+        if (entry.pengajar && entry.pengajar.trim()) {
+          uniqueNames.add(entry.pengajar.trim());
+        }
+      });
+    });
+
+    // Extract from schedule templates (defaultPengajar)
+    scheduleTemplate.forEach((entry) => {
+      if (entry.defaultPengajar && entry.defaultPengajar.trim()) {
+        uniqueNames.add(entry.defaultPengajar.trim());
+      }
+    });
+
+    const newNames = Array.from(uniqueNames).filter(
+      (name) => !dosenList.some((d) => d.name.toLowerCase() === name.toLowerCase())
+    );
+
+    if (newNames.length === 0) {
+      showAlert(
+        "Sinkronisasi Selesai",
+        "Semua nama pengajar/dosen dari data jadwal sudah terdaftar di master data."
+      );
+      return;
+    }
+
+    const isConfirmed = await showConfirm(
+      "Sinkronisasi Dosen",
+      `Ditemukan ${newNames.length} nama pengajar baru dari data jadwal:\n\n${newNames.join(
+        "\n"
+      )}\n\nTambahkan mereka ke master data dosen?`
+    );
+
+    if (isConfirmed) {
+      const updatedList = [
+        ...dosenList,
+        ...newNames.map((name) => ({
+          name,
+          signature: "",
+        })),
+      ];
+      onDosenListChange(updatedList);
+      showAlert("Sinkronisasi Berhasil", `Berhasil menambahkan ${newNames.length} dosen baru.`);
+    }
+  };
 
   const handleSaveDosen = () => {
     if (!name.trim()) return;
@@ -180,6 +236,13 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
                 {dosenList.length} dosen terdaftar
               </p>
             </div>
+            <button
+              onClick={handleImportFromWeekly}
+              className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <RefreshCw size={13} />
+              Ambil dari Jadwal
+            </button>
           </div>
 
           <div className="p-3 border-b">
