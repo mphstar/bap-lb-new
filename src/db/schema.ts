@@ -168,6 +168,7 @@ export const examScheduleEntries = pgTable("exam_schedule_entries", {
   kodeMk: text("kode_mk").notNull(),
   mataKuliah: text("mata_kuliah").notNull(),
   ruang: text("ruang").notNull(),
+  pengawas: text("pengawas").notNull().default(""),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

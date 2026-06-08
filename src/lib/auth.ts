@@ -9,4 +9,10 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  trustedOrigins: [
+    "https://mphstar.my.id",
+    "https://*.mphstar.my.id",
+    "http://mphstar.my.id",
+    "http://*.mphstar.my.id",
+  ],
 });

@@ -40,7 +40,35 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { scheduleId, hari, tanggal, jam, semester, golongan, kodeMk, mataKuliah, ruang } = body;
+
+    if (Array.isArray(body)) {
+      if (body.some((item: any) => !item.scheduleId)) {
+        return NextResponse.json({ error: "scheduleId is required for all entries" }, { status: 400 });
+      }
+
+      const inserted = await db
+        .insert(examScheduleEntries)
+        .values(
+          body.map((item: any) => ({
+            examScheduleId: item.scheduleId,
+            userId: user.id,
+            hari: item.hari || "",
+            tanggal: item.tanggal || "",
+            jam: item.jam || "",
+            semester: item.semester || "",
+            golongan: item.golongan || "",
+            kodeMk: item.kodeMk || item.kode_mk || "",
+            mataKuliah: item.mataKuliah || item.mata_kuliah || "",
+            ruang: item.ruang || "",
+            pengawas: Array.isArray(item.pengawas) ? item.pengawas.join(', ') : (item.pengawas || ""),
+          }))
+        )
+        .returning();
+
+      return NextResponse.json(inserted);
+    }
+
+    const { scheduleId, hari, tanggal, jam, semester, golongan, kodeMk, mataKuliah, ruang, pengawas } = body;
 
     if (!scheduleId) {
       return NextResponse.json({ error: "scheduleId is required" }, { status: 400 });
@@ -59,6 +87,7 @@ export async function POST(req: Request) {
         kodeMk: kodeMk || "",
         mataKuliah: mataKuliah || "",
         ruang: ruang || "",
+        pengawas: Array.isArray(pengawas) ? pengawas.join(', ') : (pengawas || ""),
       })
       .returning();
 
@@ -97,6 +126,7 @@ export async function PUT(req: Request) {
     if (updates.mataKuliah !== undefined) dbUpdates.mataKuliah = updates.mataKuliah;
     if (updates.mata_kuliah !== undefined) dbUpdates.mataKuliah = updates.mata_kuliah;
     if (updates.ruang !== undefined) dbUpdates.ruang = updates.ruang;
+    if (updates.pengawas !== undefined) dbUpdates.pengawas = Array.isArray(updates.pengawas) ? updates.pengawas.join(', ') : (updates.pengawas || "");
 
     const [updatedEntry] = await db
       .update(examScheduleEntries)

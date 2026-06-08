@@ -20,6 +20,7 @@ export interface ExamScheduleEntry {
     kode_mk: string;
     mata_kuliah: string;
     ruang: string;
+    pengawas: string;
     created_at: string;
     updated_at: string;
 }
@@ -147,6 +148,7 @@ export function useExamSchedule(userId: string | null) {
                 kode_mk: e.kodeMk,
                 mata_kuliah: e.mataKuliah,
                 ruang: e.ruang,
+                pengawas: e.pengawas || '',
                 created_at: e.createdAt,
                 updated_at: e.updatedAt,
             }));
@@ -181,11 +183,12 @@ export function useExamSchedule(userId: string | null) {
                     kodeMk: entry.kode_mk,
                     mataKuliah: entry.mata_kuliah,
                     ruang: entry.ruang,
+                    pengawas: entry.pengawas,
                 }),
             });
             if (!res.ok) throw new Error('Failed to add entry');
             const e = await res.json();
-
+ 
             const mapped: ExamScheduleEntry = {
                 id: e.id,
                 exam_schedule_id: e.examScheduleId,
@@ -198,6 +201,7 @@ export function useExamSchedule(userId: string | null) {
                 kode_mk: e.kodeMk,
                 mata_kuliah: e.mataKuliah,
                 ruang: e.ruang,
+                pengawas: e.pengawas || '',
                 created_at: e.createdAt,
                 updated_at: e.updatedAt,
             };
@@ -211,6 +215,57 @@ export function useExamSchedule(userId: string | null) {
             return null;
         }
     }, [userId]);
+
+    const addEntriesBatch = useCallback(async (scheduleId: string, newEntries: NewEntry[]) => {
+        if (!userId || newEntries.length === 0) return null;
+        setError(null);
+        try {
+            const res = await fetch('/api/exams/entries', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newEntries.map(entry => ({
+                    scheduleId,
+                    hari: entry.hari,
+                    tanggal: entry.tanggal,
+                    jam: entry.jam,
+                    semester: entry.semester,
+                    golongan: entry.golongan,
+                    kodeMk: entry.kode_mk,
+                    mataKuliah: entry.mata_kuliah,
+                    ruang: entry.ruang,
+                    pengawas: entry.pengawas,
+                }))),
+            });
+            if (!res.ok) throw new Error('Failed to add entries');
+            const data = await res.json();
+ 
+            const mapped: ExamScheduleEntry[] = data.map((e: any) => ({
+                id: e.id,
+                exam_schedule_id: e.examScheduleId,
+                user_id: e.userId,
+                hari: e.hari,
+                tanggal: e.tanggal,
+                jam: e.jam,
+                semester: e.semester,
+                golongan: e.golongan,
+                kode_mk: e.kodeMk,
+                mata_kuliah: e.mataKuliah,
+                ruang: e.ruang,
+                pengawas: e.pengawas || '',
+                created_at: e.createdAt,
+                updated_at: e.updatedAt,
+            }));
+
+            setEntries(prev => [...prev, ...mapped]);
+            return mapped;
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Failed to add entries';
+            setError(msg);
+            console.error('[useExamSchedule] addEntriesBatch:', e);
+            return null;
+        }
+    }, [userId]);
+
 
     const updateEntry = useCallback(async (entryId: string, updates: Partial<NewEntry>) => {
         setError(null);
@@ -238,6 +293,7 @@ export function useExamSchedule(userId: string | null) {
                 kode_mk: e.kodeMk,
                 mata_kuliah: e.mataKuliah,
                 ruang: e.ruang,
+                pengawas: e.pengawas || '',
                 created_at: e.createdAt,
                 updated_at: e.updatedAt,
             };
@@ -371,6 +427,7 @@ export function useExamSchedule(userId: string | null) {
         deleteSchedule,
         loadEntries,
         addEntry,
+        addEntriesBatch,
         updateEntry,
         deleteEntry,
         loadNotes,
