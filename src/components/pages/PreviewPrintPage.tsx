@@ -310,7 +310,7 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, ac
                             {/* Print View — Minggu */}
                             <div className="hidden print:block w-full print-minggu-view">
                                 <div className="w-full" style={{ zoom: scale }}>
-                                    <div className="w-full text-center pb-4 text-black font-bold text-xl uppercase tracking-widest pt-4" style={{ fontFamily: "'Calibri', sans-serif" }}>
+                                    <div className="w-full text-center pb-4 text-black font-bold text-xl uppercase tracking-widest pt-4" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
                                         Berita Acara Perkuliahan Minggu {selectedWeek}
                                     </div>
                                     <RecapTable groups={groupedData} />
@@ -350,10 +350,19 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, ac
                                             }}
                                         >
                                             {itemsOnPage.map((item, itemIdx) => (
-                                                <div key={itemIdx} style={{ flex: '1 1 50%', height: '50%', overflow: 'hidden' }}>
+                                                <div 
+                                                    key={itemIdx} 
+                                                    style={{ 
+                                                        flex: '1 1 50%', 
+                                                        height: '50%', 
+                                                        overflow: 'hidden',
+                                                        borderBottom: itemIdx === 0 && itemsOnPage.length > 1 ? '2px dashed #1f2937' : 'none',
+                                                        boxSizing: 'border-box'
+                                                    }}
+                                                >
                                                     <DaftarHadirDocument
                                                         data={item}
-                                                        isLast={itemIdx === itemsOnPage.length - 1}
+                                                        isLast={true}
                                                         showSignature={showSignature}
                                                         dosenSignature={showSignature ? (dosenList.find(d => d.name === item.pengajar)?.signature || null) : null}
                                                         teknisiSignature={showSignature ? teknisiSignature : null}
@@ -378,8 +387,8 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, ac
                 <style>{`
                     @media print {
                         @page { size: landscape; margin: 15mm; }
-                        body { -webkit-print-color-adjust: exact; background-color: white !important; font-family: 'Calibri', sans-serif !important; }
-                        * { font-family: 'Calibri', sans-serif !important; }
+                        body { -webkit-print-color-adjust: exact; background-color: white !important; font-family: 'Times New Roman', Times, serif !important; }
+                        * { font-family: 'Times New Roman', Times, serif !important; }
                         .print-persesi-view { display: none !important; }
                     }
                 `}</style>
@@ -387,8 +396,8 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, ac
                 <style>{`
                     @media print {
                         @page { size: portrait; margin: 0mm; }
-                        body { -webkit-print-color-adjust: exact; background-color: white !important; font-family: 'Calibri', sans-serif !important; }
-                        * { font-family: 'Calibri', sans-serif !important; }
+                        body { -webkit-print-color-adjust: exact; background-color: white !important; font-family: 'Times New Roman', Times, serif !important; }
+                        * { font-family: 'Times New Roman', Times, serif !important; }
                         .print-minggu-view { display: none !important; }
                     }
                 `}</style>

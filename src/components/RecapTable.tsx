@@ -24,7 +24,7 @@ const RecapTable: React.FC<RecapTableProps> = ({ groups }) => {
     };
 
     return (
-        <div className="w-full bg-white text-black text-[12px] leading-tight" style={{ fontFamily: "'Calibri', sans-serif" }}>
+        <div className="w-full bg-white text-black text-[12px] leading-tight" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
             <table className="w-full border-collapse border border-black table-auto">
                 <thead>
                     <tr className="bg-gray-100 text-center font-bold">

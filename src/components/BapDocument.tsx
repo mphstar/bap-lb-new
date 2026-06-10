@@ -7,7 +7,7 @@ interface BapDocumentProps {
 
 const BapDocument: React.FC<BapDocumentProps> = ({ data }) => {
     return (
-        <div className="w-[297mm] bg-white text-black p-4 mx-auto print:mx-0 print:p-4 print:w-full box-border relative text-[15px] mb-8 border-b-2 border-dashed border-gray-300 print:mb-4 print:border-gray-800" style={{ fontFamily: "'Calibri', sans-serif" }}>
+        <div className="w-[297mm] bg-white text-black p-4 mx-auto print:mx-0 print:p-4 print:w-full box-border relative text-[15px] mb-8 border-b-2 border-dashed border-gray-300 print:mb-4 print:border-gray-800" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
 
             {/* Compact Header Section */}
             <div className="mb-4 text-[13px]">

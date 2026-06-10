@@ -28,7 +28,7 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({ data, isLast 
                 width: '100%',
                 boxSizing: 'border-box',
                 fontSize: '10pt',
-                fontFamily: "'Calibri', sans-serif",
+                fontFamily: "'Times New Roman', Times, serif",
             }}
         >
             {/* Institutional Header - Smaller */}
