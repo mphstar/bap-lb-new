@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2, Sparkles, CalendarDays, PartyPopper } from 'lucide-react';
+import { PanelHeader } from '@/components/shell';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Holiday {
@@ -72,10 +73,10 @@ export const CalendarWidget: React.FC = () => {
 
     return (
         <TooltipProvider delayDuration={200}>
-            <div className="bg-gradient-to-br from-card to-card/50 rounded-2xl border shadow-lg flex flex-col lg:flex-row overflow-hidden backdrop-blur-sm">
+            <div className="flex flex-col overflow-hidden rounded-panel border border-rule bg-panel lg:flex-row">
                 
                 {/* ─── CALENDAR SECTION ─── */}
-                <div className="p-6 lg:p-8 flex-1 border-b lg:border-b-0 lg:border-r border-border/50">
+                <div className="flex-1 border-b border-rule p-5 lg:border-b-0 lg:border-r lg:p-6">
                     
                     {/* Header */}
                     <div className="flex items-center justify-between mb-8">
@@ -96,7 +97,7 @@ export const CalendarWidget: React.FC = () => {
                         <div className="flex bg-muted/50 p-1 rounded-xl border border-border/50">
                             <button 
                                 onClick={handlePrevMonth}
-                                className="p-2.5 hover:bg-background rounded-lg transition-all duration-300 text-muted-foreground hover:text-foreground hover:shadow-sm"
+                                className="p-2.5 hover:bg-background rounded-lg transition-colors duration-[180ms] ease-out text-muted-foreground hover:text-foreground hover:shadow-sm"
                                 aria-label="Bulan Sebelumnya"
                             >
                                 <ChevronLeft size={18} />
@@ -104,7 +105,7 @@ export const CalendarWidget: React.FC = () => {
                             <div className="w-[1px] bg-border mx-1 my-2"></div>
                             <button 
                                 onClick={handleNextMonth}
-                                className="p-2.5 hover:bg-background rounded-lg transition-all duration-300 text-muted-foreground hover:text-foreground hover:shadow-sm"
+                                className="p-2.5 hover:bg-background rounded-lg transition-colors duration-[180ms] ease-out text-muted-foreground hover:text-foreground hover:shadow-sm"
                                 aria-label="Bulan Selanjutnya"
                             >
                                 <ChevronRight size={18} />
@@ -139,15 +140,15 @@ export const CalendarWidget: React.FC = () => {
                             const content = (
                                 <div 
                                     className={`
-                                        group relative flex flex-col items-center justify-center h-14 md:h-16 rounded-xl border transition-all duration-300
+                                        group relative flex h-14 flex-col items-center justify-center rounded-control border transition-colors duration-[180ms] ease-out md:h-16
                                         ${!day ? 'border-transparent opacity-0' : 'cursor-pointer'}
                                         ${!day ? '' : isToday 
-                                            ? 'bg-gradient-to-tr from-primary to-primary/80 border-primary/20 text-primary-foreground shadow-md shadow-primary/20 scale-[1.02] ring-2 ring-primary/30 ring-offset-2 ring-offset-background z-10' 
+                                            ? 'border-primary bg-primary text-primary-foreground' 
                                             : holiday
                                                 ? 'bg-red-50/80 border-red-100 dark:bg-red-950/20 dark:border-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100/80 dark:hover:bg-red-900/40'
                                                 : isWeekend
                                                     ? 'bg-muted/30 border-transparent text-muted-foreground hover:bg-muted/80 hover:border-border/50'
-                                                    : 'bg-background border-border/40 hover:border-border hover:shadow-sm hover:-translate-y-0.5'
+                                                    : 'border-rule bg-panel hover:bg-panel-2'
                                         }
                                     `}
                                 >
@@ -188,21 +189,14 @@ export const CalendarWidget: React.FC = () => {
                 </div>
 
                 {/* ─── HOLIDAYS SIDEBAR ─── */}
-                <div className="w-full lg:w-80 bg-gradient-to-b from-muted/30 to-background/50 flex flex-col relative overflow-hidden">
-                    {/* Decorative background element */}
-                    <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+                <div className="relative flex w-full flex-col overflow-hidden lg:w-80">
+                    <PanelHeader
+                        icon={<PartyPopper />}
+                        title="Hari libur"
+                        meta={`${monthNames[month - 1]} ${year}`}
+                    />
 
-                    <div className="p-6 border-b border-border/50 backdrop-blur-md relative z-10">
-                        <h3 className="flex items-center gap-2 font-bold text-base">
-                            <PartyPopper size={18} className="text-primary" />
-                            Info Hari Libur
-                        </h3>
-                        <p className="text-xs text-muted-foreground mt-1 tracking-wide">
-                            {monthNames[month - 1]} {year}
-                        </p>
-                    </div>
-                    
-                    <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar relative z-10">
+                    <div className="hm-scroll flex-1 overflow-y-auto p-4 md:p-5">
                         {isLoading ? (
                             <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3 animate-pulse">
                                 <Loader2 size={28} className="animate-spin text-primary/60" />
@@ -218,14 +212,14 @@ export const CalendarWidget: React.FC = () => {
                                     return (
                                         <div 
                                             key={i} 
-                                            className="group flex gap-4 bg-background/80 hover:bg-background border border-border/50 hover:border-red-200 dark:hover:border-red-900/50 p-3.5 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300"
+                                            className="group flex gap-4 rounded-control border border-rule bg-panel p-3.5 transition-colors duration-[180ms] ease-out hover:bg-panel-2"
                                         >
-                                            <div className="shrink-0 flex flex-col items-center justify-center bg-gradient-to-b from-red-50 to-red-100 dark:from-red-950/40 dark:to-red-900/20 text-red-600 dark:text-red-400 w-14 h-14 rounded-xl border border-red-100 dark:border-red-900/30 shadow-inner">
+                                            <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-control bg-tile text-tile-ink">
                                                 <span className="text-[10px] uppercase font-bold tracking-wider opacity-80">{dayName}</span>
                                                 <span className="text-xl font-bold leading-none mt-0.5">{d}</span>
                                             </div>
                                             <div className="flex flex-col justify-center min-w-0">
-                                                <p className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors" title={h.name}>
+                                                <p className="line-clamp-2 text-sm font-semibold leading-snug" title={h.name}>
                                                     {h.name}
                                                 </p>
                                             </div>

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, ChevronDown, ChevronRight, Users, Plus, Trash2, Eye, Calendar, Search } from 'lucide-react';
+import { Copy, Check, ChevronDown, ChevronRight, Users, Plus, Trash2, Eye, Calendar, CalendarRange, Search, X } from 'lucide-react';
 import type { ScheduleEntry, WeekData, WeeklyEntry, Student, MasterStudent, MasterDosen } from '@/types';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { useDialog } from '@/context/DialogContext';
+import { Button } from '@/components/ui/button';
+import { PageShell, PageHeader, EmptyState } from '@/components/shell';
 import {
     Sheet,
     SheetContent,
@@ -61,12 +63,14 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
 
     if (template.length === 0) {
         return (
-            <div className="max-w-7xl mx-auto">
-                <div className="bg-card rounded-xl border shadow-sm p-12 text-center text-muted-foreground">
-                    <p className="text-lg font-medium">Belum ada jadwal template</p>
-                    <p className="text-sm mt-1">Buat jadwal template terlebih dahulu di menu "Jadwal Template"</p>
-                </div>
-            </div>
+            <PageShell>
+                <PageHeader title="Data Mingguan" meta="Belum ada jadwal untuk diisi" />
+                <EmptyState
+                    icon={<CalendarRange />}
+                    title="Belum ada jadwal template"
+                    description="Buat jadwal template terlebih dahulu lewat menu “Jadwal Template”."
+                />
+            </PageShell>
         );
     }
 
@@ -276,48 +280,43 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
     };
 
     return (
-        <div className="w-full">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row gap-2 justify-between items-center mb-6">
-                <div>
-                    <h2 className="text-2xl font-bold">Data Mingguan</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Edit pengajar, materi, & kehadiran untuk setiap minggu</p>
-                </div>
+        <PageShell>
+            <PageHeader
+                title="Data Mingguan"
+                meta={`Minggu ${selectedWeek} — pengajar, materi, dan kehadiran`}
+                actions={
+                    <div className="flex items-center gap-2">
+                        <Button variant="default" onClick={() => setShowBatchAdd(true)}>
+                            <Plus /> Tambah mahasiswa
+                        </Button>
 
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setShowBatchAdd(true)}
-                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow transition-colors text-sm font-medium"
-                    >
-                        <Plus size={16} /> Tambah Mahasiswa (Batch)
-                    </button>
-
-                    {/* Copy from week */}
-                    <div className="relative">
-                        <button
-                            onClick={() => setShowCopyMenu(!showCopyMenu)}
-                            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg shadow transition-colors text-sm font-medium"
-                        >
-                            {justCopied ? <Check size={16} /> : <Copy size={16} />}
-                            {justCopied ? 'Berhasil!' : 'Salin dari minggu'}
-                            <ChevronDown size={14} />
-                        </button>
-                        {showCopyMenu && (
-                            <div className="absolute right-0 top-full mt-1 bg-popover border shadow-lg rounded-lg p-2 z-10 grid grid-cols-4 gap-1 w-64">
-                                {weeks.filter(w => w.weekNumber !== selectedWeek).map(w => (
-                                    <button
-                                        key={w.weekNumber}
-                                        onClick={() => copyFromWeek(w.weekNumber)}
-                                        className="text-sm px-3 py-2 rounded hover:bg-accent text-foreground font-medium"
-                                    >
-                                        Mg {w.weekNumber}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                        {/* Copy from week */}
+                        <div className="relative">
+                            <Button
+                                variant="default"
+                                onClick={() => setShowCopyMenu(!showCopyMenu)}
+                            >
+                                {justCopied ? <Check /> : <Copy />}
+                                {justCopied ? 'Tersalin' : 'Salin minggu'}
+                                <ChevronDown />
+                            </Button>
+                            {showCopyMenu && (
+                                <div className="absolute right-0 top-full mt-1 bg-popover border shadow-lg rounded-lg p-2 z-10 grid grid-cols-4 gap-1 w-64">
+                                    {weeks.filter(w => w.weekNumber !== selectedWeek).map(w => (
+                                        <button
+                                            key={w.weekNumber}
+                                            onClick={() => copyFromWeek(w.weekNumber)}
+                                            className="text-sm px-3 py-2 rounded hover:bg-accent text-foreground font-medium"
+                                        >
+                                            Mg {w.weekNumber}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            </div>
+                }
+            />
 
             {/* Week Tabs */}
             <div className="flex flex-wrap gap-2 mb-6">
@@ -331,7 +330,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                         <button
                             key={w.weekNumber}
                             onClick={() => { setSelectedWeek(w.weekNumber); setShowCopyMenu(false); setExpandedEntry(null); }}
-                            className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all border-2
+                            className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-colors border-2
                                 ${isActive
                                     ? 'bg-primary text-primary-foreground border-primary shadow-md'
                                     : isComplete
@@ -348,7 +347,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
             </div>
 
             {/* Auto-fill Tanggal */}
-            <div className="flex flex-wrap items-center gap-3 mb-6 bg-card rounded-xl border shadow-sm px-4 py-3">
+            <div className="flex flex-wrap items-center gap-3 mb-6 bg-panel rounded-panel border border-rule px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <Calendar size={16} className="text-primary" />
                     <span>Isi Tanggal Otomatis</span>
@@ -357,7 +356,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                     type="date"
                     value={mondayDate}
                     onChange={(e) => setMondayDate(e.target.value)}
-                    className="border border-input rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                    className="border border-input rounded-md px-3 py-1.5 text-sm bg-background"
                 />
                 <button
                     onClick={autoFillDates}
@@ -387,7 +386,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
 
             {/* Editor Table */}
             {weekData && (
-                <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
+                <div className="hm-scrollbar bg-panel rounded-panel border border-rule overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="bg-muted/50 text-left text-muted-foreground font-semibold border-b">
@@ -445,7 +444,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                                 type="text"
                                                                 value={we.tanggal}
                                                                 onChange={(e) => updateEntry(entry.id, 'tanggal', e.target.value)}
-                                                                className="w-28 border border-input rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                                                                className="w-28 border border-input rounded-md px-2 py-1 text-sm bg-background"
                                                                 placeholder="dd/mm/yyyy"
                                                             />
                                                         </td>
@@ -461,7 +460,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                                     type="text"
                                                                     value={we.pengajar}
                                                                     onChange={(e) => updateEntry(entry.id, 'pengajar', e.target.value)}
-                                                                    className="w-full border border-input rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                                                                    className="w-full border border-input rounded-md px-2 py-1 text-sm bg-background"
                                                                     placeholder={entry.defaultPengajar || 'Pengajar'}
                                                                 />
                                                             )}
@@ -471,7 +470,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                                 type="text"
                                                                 value={we.materi}
                                                                 onChange={(e) => updateEntry(entry.id, 'materi', e.target.value)}
-                                                                className="w-full border border-input rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                                                                className="w-full border border-input rounded-md px-2 py-1 text-sm bg-background"
                                                                 placeholder="Materi minggu ini"
                                                             />
                                                         </td>
@@ -480,7 +479,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                                 type="text"
                                                                 value={we.teknisi}
                                                                 onChange={(e) => updateEntry(entry.id, 'teknisi', e.target.value)}
-                                                                className="w-full border border-input rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                                                                className="w-full border border-input rounded-md px-2 py-1 text-sm bg-background"
                                                                 placeholder={entry.defaultTeknisi || 'Teknisi'}
                                                             />
                                                         </td>
@@ -551,7 +550,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                                                 </div>
                                                                                 <div className="flex items-center gap-2 w-full sm:w-auto pl-6 sm:pl-0 font-medium">
                                                                                     <select
-                                                                                        className="text-xs border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring bg-background flex-1 sm:w-24"
+                                                                                        className="text-xs border rounded-md px-2 py-1 bg-background flex-1 sm:w-24"
                                                                                         value={student.remarks}
                                                                                         onChange={(e) => handleUpdateStudent(entry.id, student.id, 'remarks', e.target.value)}
                                                                                     >
@@ -649,7 +648,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                     updateEntry(detailEntry.template.id, 'tanggal', e.target.value);
                                                     setDetailEntry(prev => prev ? { ...prev, weekly: { ...prev.weekly, tanggal: e.target.value } } : null);
                                                 }}
-                                                className="w-full border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                                                className="w-full border border-input rounded-control px-3 py-2 text-sm bg-background"
                                                 placeholder="dd/mm/yyyy"
                                             />
                                         </div>
@@ -672,7 +671,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                         updateEntry(detailEntry.template.id, 'pengajar', e.target.value);
                                                         setDetailEntry(prev => prev ? { ...prev, weekly: { ...prev.weekly, pengajar: e.target.value } } : null);
                                                     }}
-                                                    className="w-full border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                                                    className="w-full border border-input rounded-control px-3 py-2 text-sm bg-background"
                                                     placeholder={detailEntry.template.defaultPengajar || 'Pengajar'}
                                                 />
                                             )}
@@ -685,7 +684,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                     updateEntry(detailEntry.template.id, 'materi', e.target.value);
                                                     setDetailEntry(prev => prev ? { ...prev, weekly: { ...prev.weekly, materi: e.target.value } } : null);
                                                 }}
-                                                className="w-full border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background resize-none"
+                                                className="w-full border border-input rounded-control px-3 py-2 text-sm bg-background resize-none"
                                                 placeholder="Materi minggu ini"
                                                 rows={3}
                                             />
@@ -699,7 +698,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                     updateEntry(detailEntry.template.id, 'teknisi', e.target.value);
                                                     setDetailEntry(prev => prev ? { ...prev, weekly: { ...prev.weekly, teknisi: e.target.value } } : null);
                                                 }}
-                                                className="w-full border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                                                className="w-full border border-input rounded-control px-3 py-2 text-sm bg-background"
                                                 placeholder={detailEntry.template.defaultTeknisi || 'Teknisi'}
                                             />
                                         </div>
@@ -749,7 +748,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                     }
                 }}
             />
-        </div>
+        </PageShell>
     );
 };
 
@@ -850,7 +849,7 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
             showAlert('Simpan Gagal', 'Pilih minimal satu mahasiswa.');
             return;
         }
-        
+
         const selectedStudents: Student[] = studentMaster
             .filter(m => selectedNims.has(m.nim))
             .map((m, idx) => ({
@@ -859,7 +858,7 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                 nim: m.nim,
                 remarks: remarksMap[m.nim] || "ALPHA"
             }));
-            
+
         onSave(selectedIds, selectedStudents);
     };
 
@@ -870,14 +869,14 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
             <div className="bg-background rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                 <div className="p-4 border-b flex justify-between items-center">
                     <h3 className="text-lg font-bold">Tambah Mahasiswa (Batch) - {selectedIds.length} Schedule dipilih</h3>
-                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
+                    <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Tutup"><X /></Button>
                 </div>
 
                 <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
                     {/* Left: Schedule Selection */}
                     <div className="w-full md:w-1/3 border-r overflow-y-auto bg-muted/10 flex flex-col">
                         {/* Day Tabs */}
-                        <div className="flex overflow-x-auto p-2 border-b bg-background gap-1 hide-scrollbar">
+                        <div className="hm-scroll-x flex overflow-x-auto p-2 border-b bg-background gap-1 hide-scrollbar">
                             {availableDays.map(day => (
                                 <button
                                     key={day}
@@ -896,7 +895,7 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                         <div className="p-4 flex-1 overflow-y-auto">
                             <div className="flex justify-between items-center mb-2">
                                 <h4 className="font-semibold text-sm">Jadwal {selectedDay}</h4>
-                                <button onClick={toggleSelectAll} className="text-xs text-primary hover:underline">
+                                <button onClick={toggleSelectAll} className="text-xs text-link hover:underline">
                                     {isAllSelected ? 'Batal Hari Ini' : 'Pilih Hari Ini'}
                                 </button>
                             </div>
@@ -936,7 +935,7 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                             <div className="flex items-center gap-2 w-full sm:w-auto">
                                 <span className="text-xs text-muted-foreground whitespace-nowrap">Setel Semua Terpilih:</span>
                                 <select
-                                    className="border rounded px-2 py-1 text-xs bg-background focus:ring-2 focus:ring-ring focus:outline-none font-medium"
+                                    className="border rounded px-2 py-1 text-xs bg-background font-medium"
                                     value=""
                                     onChange={e => {
                                         if (e.target.value) {
@@ -961,7 +960,7 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
                                     placeholder="Cari NIM atau Nama..."
-                                    className="w-full border rounded pl-8 pr-3 py-1.5 text-sm bg-background focus:ring-2 focus:ring-ring focus:outline-none"
+                                    className="w-full border rounded pl-8 pr-3 py-1.5 text-sm bg-background"
                                 />
                             </div>
                         </div>
@@ -970,7 +969,7 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                             <div className="flex-1 overflow-y-auto space-y-1 max-h-[40vh] border rounded-md p-2 bg-background">
                                 <div className="flex justify-between items-center text-xs text-muted-foreground pb-2 border-b mb-2">
                                     <span>{filteredMaster.length} mahasiswa ditemukan</span>
-                                    <button onClick={toggleAllStudentsSelect} className="text-primary hover:underline font-medium">
+                                    <button onClick={toggleAllStudentsSelect} className="text-link hover:underline font-medium">
                                         {selectedNims.size === filteredMaster.length ? 'Batal Semua' : 'Pilih Semua'}
                                     </button>
                                 </div>
@@ -989,7 +988,7 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                                                     <span className="flex-1 truncate font-medium">{m.name}</span>
                                                 </label>
                                                 <select
-                                                    className="border rounded px-2 py-1 text-xs bg-background focus:ring-2 focus:ring-ring focus:outline-none w-24 shrink-0 font-medium"
+                                                    className="border rounded px-2 py-1 text-xs bg-background w-24 shrink-0 font-medium"
                                                     value={currentRemarks}
                                                     onChange={e => {
                                                         setRemarksMap(prev => ({ ...prev, [m.nim]: e.target.value }));
@@ -1095,7 +1094,7 @@ const AddStudentFromMasterModal = ({
             <div className="bg-background rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
                 <div className="p-4 border-b flex justify-between items-center">
                     <h3 className="text-base font-bold">Pilih Mahasiswa dari Master Data</h3>
-                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
+                    <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Tutup"><X /></Button>
                 </div>
 
                 <div className="p-3 border-b">
@@ -1106,7 +1105,7 @@ const AddStudentFromMasterModal = ({
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Cari NIM atau Nama..."
-                            className="w-full border rounded pl-8 pr-3 py-1.5 text-sm bg-background focus:ring-2 focus:ring-ring focus:outline-none"
+                            className="w-full border rounded pl-8 pr-3 py-1.5 text-sm bg-background"
                         />
                     </div>
                 </div>
@@ -1116,7 +1115,7 @@ const AddStudentFromMasterModal = ({
                         <>
                             <div className="flex justify-between items-center text-xs text-muted-foreground pb-2 border-b">
                                 <span>{filtered.length} mahasiswa tersedia</span>
-                                <button onClick={handleSelectAll} className="text-primary hover:underline font-medium">
+                                <button onClick={handleSelectAll} className="text-link hover:underline font-medium">
                                     {selectedNims.size === filtered.length ? "Batal Semua" : "Pilih Semua"}
                                 </button>
                             </div>

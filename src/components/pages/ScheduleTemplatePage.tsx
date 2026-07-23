@@ -1,10 +1,12 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { Upload, FileSpreadsheet, Trash2, Plus, Loader2, Printer, Download } from 'lucide-react';
+import { Upload, FileSpreadsheet, Trash2, Plus, Loader2, Printer, Download, X } from 'lucide-react';
 import type { ScheduleEntry, WeekImportData, MasterDosen } from '@/types';
 import { importSmart } from '@/utils/excelParser';
 import { generateId } from '@/utils/storage';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { useDialog } from '@/context/DialogContext';
+import { Button } from '@/components/ui/button';
+import { PageShell, PageHeader, EmptyState } from '@/components/shell';
 
 const DAY_ORDER = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
 
@@ -172,14 +174,14 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
     };
 
     return (
-        <div className="max-w-7xl mx-auto relative print:m-0 print:w-full print:max-w-none">
+        <PageShell className="relative print:w-full">
             {/* Import Loading Overlay */}
             {importing && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm print:hidden">
-                    <div className="bg-card p-6 rounded-xl shadow-xl flex flex-col items-center gap-4 border max-w-sm text-center">
-                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 backdrop-blur-sm print:hidden">
+                    <div className="flex max-w-sm flex-col items-center gap-4 rounded-panel border border-rule bg-panel p-6 text-center shadow-lg">
+                        <Loader2 className="size-9 animate-spin text-primary" />
                         <div>
-                            <p className="font-medium text-lg mb-1">Mengimpor Data Excel...</p>
+                            <p className="mb-1 text-base font-semibold">Mengimpor data Excel…</p>
                             <p className="text-sm text-muted-foreground">
                                 Proses ini memakan waktu beberapa saat.<br />
                                 Mohon tunggu dan jangan muat ulang halaman.
@@ -189,69 +191,83 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
                 </div>
             )}
 
-            {/* Header */}
-            <div className="flex justify-between flex-col md:flex-row items-center mb-6 print:hidden">
-                <div>
-                    <h2 className="text-2xl font-bold">Jadwal Template</h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        Jadwal dasar (Senin-Jumat). Data mahasiswa akan diambil otomatis jika nama sheet Excel sesuai (misal: "Minggu 1", "Minggu 2").
-                    </p>
-                </div>
-                <div className="flex gap-3 mt-3 md:mt-0">
-                    {importSuccess && (
-                        <div className="flex items-center text-sm text-green-700 bg-green-100 px-4 py-2 rounded-lg shadow-sm animate-in fade-in slide-in-from-top-2">
-                            {importSuccess}
-                        </div>
-                    )}
-                    {template.length > 0 && (
-                        <button
-                            onClick={handlePrintJadwal}
-                            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg shadow transition-colors text-sm"
+            <PageHeader
+                title="Jadwal Template"
+                meta={
+                    template.length > 0
+                        ? `${template.length} entri — jadwal dasar Senin sampai Jumat`
+                        : "Jadwal dasar Senin sampai Jumat"
+                }
+                actions={
+                    <>
+                        {template.length > 0 && (
+                            <Button variant="default" onClick={handlePrintJadwal}>
+                                <Printer /> Print
+                            </Button>
+                        )}
+                        <Button variant="default" onClick={addEntry} disabled={importing}>
+                            <Plus /> Tambah manual
+                        </Button>
+                        <Button
+                            onClick={() => inputRef.current?.click()}
+                            disabled={importing}
                         >
-                            <Printer size={16} /> Print Jadwal
-                        </button>
-                    )}
-                    <button
-                        onClick={addEntry}
-                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow transition-colors text-sm"
-                        disabled={importing}
-                    >
-                        <Plus size={16} /> Tambah Manual
-                    </button>
-                    <a
-                        href="/template_jadwal.xlsx"
-                        download="template_jadwal.xlsx"
-                        className="flex items-center gap-2 border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-950/40 px-4 py-2 rounded-lg shadow-sm transition-all text-sm font-semibold hover:-translate-y-0.5 active:translate-y-0"
-                    >
-                        <Download size={16} /> Download Format
-                    </a>
-                    <button
-                        onClick={() => inputRef.current?.click()}
-                        disabled={importing}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition-colors text-sm disabled:opacity-70"
-                    >
-                        {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                        {importing ? 'Importing...' : 'Import Excel (Smart)'}
-                    </button>
-                    <input
-                        ref={inputRef}
-                        type="file"
-                        accept=".xlsx"
-                        className="hidden"
-                        onChange={handleFileChange}
-                    />
+                            <Upload /> Impor Excel
+                        </Button>
+                        <Button variant="default" asChild>
+                            <a href="/template_jadwal.xlsx" download="template_jadwal.xlsx">
+                                <Download /> Format
+                            </a>
+                        </Button>
+                        <input
+                            ref={inputRef}
+                            type="file"
+                            accept=".xlsx"
+                            className="hidden"
+                            onChange={handleFileChange}
+                        />
+                    </>
+                }
+            />
+
+            {importSuccess && (
+                <div
+                    role="status"
+                    className="mb-6 flex items-start gap-2.5 rounded-control border border-rule bg-panel px-4 py-3 text-sm print:hidden"
+                >
+                    <FileSpreadsheet className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <span>{importSuccess}</span>
                 </div>
-            </div>
+            )}
 
             {/* Template Table */}
             {template.length === 0 ? (
-                <div className="bg-card rounded-xl border shadow-sm p-12 text-center text-muted-foreground print:hidden">
-                    <FileSpreadsheet size={48} className="mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-medium">Belum ada jadwal template</p>
-                    <p className="text-sm mt-1">Import dari Excel untuk memulai (Pastikan nama sheet "Minggu X" agar data masuk otomatis)</p>
-                </div>
+                <EmptyState
+                    className="print:hidden"
+                    icon={<FileSpreadsheet />}
+                    title="Belum ada jadwal template"
+                    description="Impor file Excel jadwal, atau tambahkan entri satu per satu secara manual."
+                    actions={
+                        <>
+                            <Button onClick={() => inputRef.current?.click()} disabled={importing}>
+                                <Upload /> Impor Excel
+                            </Button>
+                            <Button variant="outline" onClick={addEntry}>
+                                <Plus /> Tambah manual
+                            </Button>
+                        </>
+                    }
+                    hint={
+                        <span>
+                            Beri nama sheet Excel{" "}
+                            <span className="font-medium text-foreground">Minggu 1</span>,{" "}
+                            <span className="font-medium text-foreground">Minggu 2</span>, dan
+                            seterusnya agar data mingguan ikut terbaca otomatis.
+                        </span>
+                    }
+                />
             ) : (
-                <div className="bg-card rounded-xl border shadow-sm overflow-x-auto print:hidden">
+                <div className="hm-scrollbar overflow-x-auto rounded-panel border border-rule bg-panel print:hidden">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="bg-muted/50 text-left text-muted-foreground font-semibold border-b">
@@ -282,13 +298,13 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
                                             <td className="px-3 py-2"><input className="w-12 border rounded px-2 py-1 text-sm bg-background" value={editForm.semester || ''} onChange={e => setEditForm({ ...editForm, semester: e.target.value })} placeholder="Smt" /></td>
                                             <td className="px-3 py-2"><input className="w-12 border rounded px-2 py-1 text-sm bg-background" value={editForm.golongan || ''} onChange={e => setEditForm({ ...editForm, golongan: e.target.value })} placeholder="Gol" /></td>
                                             <td className="px-3 py-2">
-                                                 {dosenList.length > 0 ? (
-                                                     <SearchableSelect
-                                                         value={editForm.defaultPengajar || ''}
-                                                         onChange={val => setEditForm({ ...editForm, defaultPengajar: val })}
-                                                         options={dosenList.map(d => ({ value: d.name, label: d.name }))}
-                                                     />
-                                                 ) : (
+                                                {dosenList.length > 0 ? (
+                                                    <SearchableSelect
+                                                        value={editForm.defaultPengajar || ''}
+                                                        onChange={val => setEditForm({ ...editForm, defaultPengajar: val })}
+                                                        options={dosenList.map(d => ({ value: d.name, label: d.name }))}
+                                                    />
+                                                ) : (
                                                     <input className="w-full border rounded px-2 py-1 text-sm bg-background" value={editForm.defaultPengajar || ''} onChange={e => setEditForm({ ...editForm, defaultPengajar: e.target.value })} placeholder="Pengajar" />
                                                 )}
                                             </td>
@@ -296,7 +312,7 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
                                             <td className="px-3 py-2">
                                                 <div className="flex gap-1">
                                                     <button onClick={saveEdit} className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">OK</button>
-                                                    <button onClick={cancelEdit} className="text-xs bg-gray-300 text-gray-700 px-2 py-1 rounded hover:bg-gray-400">✕</button>
+                                                    <Button variant="ghost" size="icon-xs" onClick={cancelEdit} aria-label="Batal edit"><X /></Button>
                                                 </div>
                                             </td>
                                         </>
@@ -412,7 +428,7 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
                     }
                 `}</style>
             )}
-        </div>
+        </PageShell>
     );
 };
 

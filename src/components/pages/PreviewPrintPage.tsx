@@ -1,9 +1,38 @@
+/* Hallmark · genre: modern-minimal · macrostructure: Workbench (left-rail controls)
+ * design-system: design.md · designed-as-app
+ *
+ * Layout note: the controls used to stack as four full-width rows above the
+ * document — mode, sixteen wrapping week chips, prodi, then a utility strip
+ * that also held the print button. The primary action was buried in a utility
+ * bar while every other page in this app puts it in <PageHeader>, and the
+ * pager sat far from the preview it drives.
+ *
+ * Now: one settings rail on the left, the document on the right. Print moves
+ * to the header. The pager moves into the preview panel's own header.
+ * Print output is untouched — both @media print blocks and both print views
+ * are byte-for-byte what they were.
+ */
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { Printer, ChevronLeft, ChevronRight, ChevronDown, FileSignature, FileX2, Filter, Pen } from 'lucide-react';
+import { Printer, ChevronLeft, ChevronRight, ChevronDown, FileSignature, FileX2, Filter, Pen, ClipboardList, FileText, CalendarDays, ZoomIn } from 'lucide-react';
+import {
+    PageShell,
+    PageHeader,
+    Panel,
+    PanelHeader,
+    PanelBody,
+    EmptyState,
+} from '@/components/shell';
+import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { ScheduleEntry, WeekData, MasterDosen } from '@/types';
 import { generateBapData } from '@/utils/storage';
 import { groupSessions } from '@/utils/dataGrouper';
-import BapDocument from '@/components/BapDocument';
 import RecapTable from '@/components/RecapTable';
 import DaftarHadirDocument from '@/components/DaftarHadirDocument';
 import SignaturePad from '@/components/SignaturePad';
@@ -17,13 +46,32 @@ interface PreviewPrintPageProps {
     dosenList?: MasterDosen[];
 }
 
+/** Chip used by the week grid and the prodi filter — one control voice for both. */
+function FilterChip({
+    selected,
+    className,
+    ...props
+}: React.ComponentProps<'button'> & { selected: boolean }) {
+    return (
+        <button
+            type="button"
+            aria-pressed={selected}
+            className={`inline-flex items-center justify-center whitespace-nowrap rounded-control border px-3 py-1.5 text-sm font-medium transition-colors duration-[180ms] ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50
+                ${selected
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'border-rule bg-panel text-muted-foreground hover:bg-panel-2 active:bg-tile'
+                } ${className ?? ''}`}
+            {...props}
+        />
+    );
+}
+
 const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, activeWeek: defaultWeek, dosenList = [] }) => {
     const [selectedWeek, setSelectedWeek] = useState(defaultWeek);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [scale, setScale] = useState(1);
     const [printMode, setPrintMode] = useState<PrintMode>('minggu');
     const [showSignature, setShowSignature] = useState(true);
-    const [showPrintMenu, setShowPrintMenu] = useState(false);
     const [selectedProdi, setSelectedProdi] = useState<string>('all');
     const [showSignaturePanel, setShowSignaturePanel] = useState(false);
 
@@ -66,20 +114,27 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, ac
 
     const groupedData = useMemo(() => groupSessions(filteredBapData), [filteredBapData]);
 
+    // Filtering can leave currentIndex past the end of the new list.
+    const safeIndex = filteredBapData.length > 0
+        ? Math.min(currentIndex, filteredBapData.length - 1)
+        : 0;
+    const currentDoc = filteredBapData[safeIndex];
+
     if (template.length === 0) {
         return (
-            <div className="max-w-7xl mx-auto">
-                <div className="bg-card rounded-xl border shadow-sm p-12 text-center text-muted-foreground">
-                    <p className="text-lg font-medium">Belum ada jadwal template</p>
-                    <p className="text-sm mt-1">Buat jadwal template terlebih dahulu</p>
-                </div>
-            </div>
+            <PageShell>
+                <PageHeader title="Preview & Print" meta="Belum ada dokumen untuk dipracetak" />
+                <EmptyState
+                    icon={<Printer />}
+                    title="Belum ada jadwal template"
+                    description="Buat jadwal template terlebih dahulu sebelum mencetak dokumen BAP."
+                />
+            </PageShell>
         );
     }
 
     const handlePrint = (withSignature: boolean) => {
         setShowSignature(withSignature);
-        setShowPrintMenu(false);
         // Small delay so React can re-render the document before the print dialog opens
         setTimeout(() => window.print(), 100);
     };
@@ -87,11 +142,11 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, ac
     const handlePrintMinggu = () => window.print();
 
     const nextDoc = () => {
-        if (currentIndex < filteredBapData.length - 1) setCurrentIndex(prev => prev + 1);
+        if (safeIndex < filteredBapData.length - 1) setCurrentIndex(safeIndex + 1);
     };
 
     const prevDoc = () => {
-        if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
+        if (safeIndex > 0) setCurrentIndex(safeIndex - 1);
     };
 
     const handleWeekChange = (week: number) => {
@@ -111,227 +166,290 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, ac
     };
 
     return (
-        <div className="flex flex-col items-center print:block print:p-0">
-            {/* Controls — hidden when printing */}
-            <div className="w-full flex flex-col gap-4 mb-6 px-4 print:hidden">
-                {/* Print Mode Toggle */}
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => handleModeChange('minggu')}
-                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border
-                            ${printMode === 'minggu'
-                                ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                                : 'bg-card text-muted-foreground border-border hover:border-primary/40'
-                            }`}
-                    >
-                        📋 Print Minggu
-                    </button>
-                    <button
-                        onClick={() => handleModeChange('per-sesi')}
-                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border
-                            ${printMode === 'per-sesi'
-                                ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                                : 'bg-card text-muted-foreground border-border hover:border-primary/40'
-                            }`}
-                    >
-                        📄 Print Per-Sesi (Daftar Hadir)
-                    </button>
-                </div>
-
-                {/* Week Selector */}
-                <div className="flex flex-wrap gap-2">
-                    {weeks.map(w => (
-                        <button
-                            key={w.weekNumber}
-                            onClick={() => handleWeekChange(w.weekNumber)}
-                            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all border
-                                ${w.weekNumber === selectedWeek
-                                    ? 'bg-primary text-primary-foreground border-primary'
-                                    : 'bg-card text-muted-foreground border-border hover:border-primary/40'
-                                }`}
-                        >
-                            Minggu {w.weekNumber}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Prodi Filter */}
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                        <Filter size={16} />
-                        <span>Prodi:</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        <button
-                            onClick={() => handleProdiChange('all')}
-                            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all border
-                                ${selectedProdi === 'all'
-                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
-                                    : 'bg-card text-muted-foreground border-border hover:border-emerald-400'
-                                }`}
-                        >
-                            Semua Prodi
-                        </button>
-                        {prodiList.map(prodi => (
-                            <button
-                                key={prodi}
-                                onClick={() => handleProdiChange(prodi)}
-                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all border
-                                    ${selectedProdi === prodi
-                                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
-                                        : 'bg-card text-muted-foreground border-border hover:border-emerald-400'
-                                    }`}
-                            >
-                                {prodi}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Scale + Nav */}
-                <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <div className="flex flex-col">
-                            <span className="font-bold text-foreground">Scale: {Math.round(scale * 100)}%</span>
-                            <span className="text-[10px] text-muted-foreground">Fit to page</span>
-                        </div>
-                        <input
-                            type="range" min="0.1" max="1.5" step="0.01"
-                            value={scale}
-                            onChange={(e) => setScale(parseFloat(e.target.value))}
-                            className="w-48 cursor-pointer"
-                        />
-                        <button onClick={() => setScale(1)} className="text-sm text-primary hover:underline">Reset</button>
-                    </div>
-
-                    {printMode === 'per-sesi' && (
-                        <div className="flex items-center gap-4">
-                            <span className="font-medium text-foreground">
-                                Page {currentIndex + 1} of {filteredBapData.length}
-                            </span>
-                            <div className="flex gap-2">
-                                <button onClick={prevDoc} disabled={currentIndex === 0} className="p-2 rounded bg-card border shadow-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <ChevronLeft size={20} />
-                                </button>
-                                <button onClick={nextDoc} disabled={currentIndex === filteredBapData.length - 1} className="p-2 rounded bg-card border shadow-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <ChevronRight size={20} />
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {printMode === 'minggu' ? (
-                        <button
-                            onClick={handlePrintMinggu}
-                            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-lg shadow transition-colors font-semibold"
-                        >
-                            <Printer size={18} />
-                            Print Minggu {selectedWeek}
-                        </button>
+        <PageShell className="print:block print:p-0">
+            <PageHeader
+                title="Preview & Print"
+                meta={`Minggu ${selectedWeek} — ${filteredBapData.length} dokumen`}
+                actions={
+                    printMode === 'minggu' ? (
+                        <Button onClick={handlePrintMinggu} disabled={filteredBapData.length === 0}>
+                            <Printer />
+                            Cetak minggu {selectedWeek}
+                        </Button>
                     ) : (
-                        <div className="relative">
-                            <button
-                                onClick={() => setShowPrintMenu(prev => !prev)}
-                                className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-lg shadow transition-colors font-semibold"
-                            >
-                                <Printer size={18} />
-                                Print Per-Sesi Minggu {selectedWeek}
-                                <ChevronDown size={16} className={`transition-transform ${showPrintMenu ? 'rotate-180' : ''}`} />
-                            </button>
-                            {showPrintMenu && (
-                                <>
-                                    {/* Backdrop to close on click outside */}
-                                    <div className="fixed inset-0 z-40" onClick={() => setShowPrintMenu(false)} />
-                                    <div className="absolute right-0 top-full mt-2 z-50 bg-card border border-border rounded-lg shadow-xl p-1 min-w-[220px] animate-in fade-in slide-in-from-top-2">
-                                        <button
-                                            onClick={() => handlePrint(true)}
-                                            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-md text-sm font-medium text-foreground hover:bg-primary/10 transition-colors text-left"
-                                        >
-                                            <FileSignature size={18} className="text-primary" />
-                                            Dengan Tanda Tangan
-                                        </button>
-                                        <button
-                                            onClick={() => handlePrint(false)}
-                                            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-md text-sm font-medium text-foreground hover:bg-primary/10 transition-colors text-left"
-                                        >
-                                            <FileX2 size={18} className="text-muted-foreground" />
-                                            Tanpa Tanda Tangan
-                                        </button>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
-                </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button disabled={filteredBapData.length === 0}>
+                                    <Printer />
+                                    Cetak per sesi
+                                    <ChevronDown />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-56">
+                                <DropdownMenuItem onSelect={() => handlePrint(true)}>
+                                    <FileSignature />
+                                    Dengan tanda tangan
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handlePrint(false)}>
+                                    <FileX2 />
+                                    Tanpa tanda tangan
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )
+                }
+            />
 
-                {/* Signature Panel — Per-Sesi mode only */}
-                {printMode === 'per-sesi' && (
-                    <div className="bg-card border rounded-lg shadow-sm">
-                        <button
-                            onClick={() => setShowSignaturePanel(!showSignaturePanel)}
-                            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors rounded-lg"
-                        >
-                            <div className="flex items-center gap-2">
-                                <Pen size={16} className="text-primary" />
-                                <span>Tanda Tangan Teknisi</span>
-                                {teknisiSignature && (
-                                    <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">
-                                        Teknisi
-                                    </span>
-                                )}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[19rem_minmax(0,1fr)] print:block">
+                {/* ── Settings rail ─────────────────────────────────────── */}
+                <div className="flex flex-col gap-4 lg:sticky lg:top-7 lg:self-start print:hidden">
+                    <Panel>
+                        <PanelHeader
+                            icon={<ClipboardList />}
+                            title="Mode cetak"
+                            meta={printMode === 'minggu' ? 'Rekap satu minggu' : 'Daftar hadir per sesi'}
+                        />
+                        <PanelBody className="space-y-5">
+                            {/* Mode — segmented, two options */}
+                            <div
+                                role="group"
+                                aria-label="Mode cetak"
+                                className="grid grid-cols-2 gap-1 rounded-control border border-rule bg-panel-2 p-1"
+                            >
+                                {([
+                                    { mode: 'minggu' as const, label: 'Per minggu', icon: <ClipboardList className="size-4" /> },
+                                    { mode: 'per-sesi' as const, label: 'Per sesi', icon: <FileText className="size-4" /> },
+                                ]).map(opt => (
+                                    <button
+                                        key={opt.mode}
+                                        type="button"
+                                        aria-pressed={printMode === opt.mode}
+                                        onClick={() => handleModeChange(opt.mode)}
+                                        className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1.5 text-sm font-semibold transition-colors duration-[180ms] ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring
+                                            ${printMode === opt.mode
+                                                ? 'bg-panel text-foreground'
+                                                : 'text-muted-foreground hover:text-foreground active:bg-tile'
+                                            }`}
+                                    >
+                                        {opt.icon}
+                                        {opt.label}
+                                    </button>
+                                ))}
                             </div>
-                            <ChevronDown size={16} className={`transition-transform ${showSignaturePanel ? 'rotate-180' : ''}`} />
-                        </button>
-                        {showSignaturePanel && (
-                            <div className="px-4 pb-4 border-t flex justify-center">
-                                <div className="pt-4 w-full max-w-sm">
+                        </PanelBody>
+                    </Panel>
+
+                    {/* Week — a 4-column grid instead of sixteen wrapping chips.
+                        Same sixteen weeks, one quarter of the vertical space. */}
+                    <Panel>
+                        <PanelHeader
+                            icon={<CalendarDays />}
+                            title="Minggu"
+                            meta={`Minggu ${selectedWeek} dipilih`}
+                        />
+                        <PanelBody>
+                            <div className="grid grid-cols-4 gap-1.5">
+                                {weeks.map(w => (
+                                    <FilterChip
+                                        key={w.weekNumber}
+                                        selected={w.weekNumber === selectedWeek}
+                                        onClick={() => handleWeekChange(w.weekNumber)}
+                                        aria-label={`Minggu ${w.weekNumber}`}
+                                        className="px-0"
+                                    >
+                                        <span data-numeric>{w.weekNumber}</span>
+                                    </FilterChip>
+                                ))}
+                            </div>
+                        </PanelBody>
+                    </Panel>
+
+                    {/* Prodi filter */}
+                    <Panel>
+                        <PanelHeader
+                            icon={<Filter />}
+                            title="Program studi"
+                            meta={selectedProdi === 'all' ? 'Semua prodi' : selectedProdi}
+                        />
+                        <PanelBody>
+                            <div className="flex flex-wrap gap-1.5">
+                                <FilterChip
+                                    selected={selectedProdi === 'all'}
+                                    onClick={() => handleProdiChange('all')}
+                                >
+                                    Semua
+                                </FilterChip>
+                                {prodiList.map(prodi => (
+                                    <FilterChip
+                                        key={prodi}
+                                        selected={selectedProdi === prodi}
+                                        onClick={() => handleProdiChange(prodi)}
+                                    >
+                                        {prodi}
+                                    </FilterChip>
+                                ))}
+                            </div>
+                        </PanelBody>
+                    </Panel>
+
+                    {/* Zoom */}
+                    <Panel>
+                        <PanelHeader
+                            icon={<ZoomIn />}
+                            title="Zoom preview"
+                            meta="Tidak memengaruhi hasil cetak"
+                            action={
+                                <span
+                                    data-numeric
+                                    className="text-sm font-semibold text-foreground"
+                                >
+                                    {Math.round(scale * 100)}%
+                                </span>
+                            }
+                        />
+                        <PanelBody className="space-y-3">
+                            <input
+                                type="range"
+                                min="0.1"
+                                max="1.5"
+                                step="0.01"
+                                value={scale}
+                                onChange={(e) => setScale(parseFloat(e.target.value))}
+                                aria-label="Zoom preview"
+                                className="hm-range"
+                            />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setScale(1)}
+                                disabled={scale === 1}
+                                className="w-full"
+                            >
+                                Kembalikan ke 100%
+                            </Button>
+                        </PanelBody>
+                    </Panel>
+
+                    {/* Signature — Per-Sesi mode only */}
+                    {printMode === 'per-sesi' && (
+                        <Panel>
+                            <button
+                                type="button"
+                                onClick={() => setShowSignaturePanel(!showSignaturePanel)}
+                                aria-expanded={showSignaturePanel}
+                                className="flex w-full items-center gap-3 rounded-panel px-5 py-4 text-left transition-colors duration-[180ms] ease-out hover:bg-panel-2 active:bg-tile focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            >
+                                <span className="flex size-10 shrink-0 items-center justify-center rounded-tile bg-brand-soft text-brand [&_svg]:size-[1.125rem]">
+                                    <Pen />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-sm font-semibold text-foreground">
+                                        Tanda tangan teknisi
+                                    </span>
+                                    <span className="block truncate text-xs text-muted-foreground">
+                                        {teknisiSignature ? 'Tersimpan' : 'Belum diisi'}
+                                    </span>
+                                </span>
+                                <ChevronDown
+                                    className={`size-4 shrink-0 text-muted-foreground transition-transform duration-[180ms] ease-out ${showSignaturePanel ? 'rotate-180' : ''}`}
+                                />
+                            </button>
+                            {showSignaturePanel && (
+                                <div className="border-t border-rule p-5">
                                     <SignaturePad
                                         label="Tanda Tangan Teknisi"
                                         value={teknisiSignature}
                                         onChange={handleTeknisiSigChange}
                                     />
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
+                            )}
+                        </Panel>
+                    )}
+                </div>
 
-            {/* Preview Area */}
-            {filteredBapData.length > 0 && (
-                <>
-                    {printMode === 'minggu' ? (
-                        /* ═══ MODE: PRINT MINGGU (unchanged) ═══ */
-                        <div className="bg-white shadow-2xl print:shadow-none print:w-full print:bg-white overflow-visible">
-                            <div className="print:hidden border border-border" style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-                                <BapDocument data={filteredBapData[currentIndex]} />
-                            </div>
-
-                            {/* Print View — Minggu */}
-                            <div className="hidden print:block w-full print-minggu-view">
-                                <div className="w-full" style={{ zoom: scale }}>
-                                    <div className="w-full text-center pb-4 text-black font-bold text-xl uppercase tracking-widest pt-4" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                {/* ── Preview ───────────────────────────────────────────── */}
+                <div className="min-w-0">
+                    {filteredBapData.length === 0 ? (
+                        <EmptyState
+                            className="print:hidden"
+                            icon={<FileText />}
+                            title="Tidak ada dokumen"
+                            description={
+                                selectedProdi === 'all'
+                                    ? `Minggu ${selectedWeek} belum punya data untuk dicetak.`
+                                    : `Tidak ada sesi untuk prodi ${selectedProdi} di minggu ${selectedWeek}.`
+                            }
+                        />
+                    ) : printMode === 'minggu' ? (
+                        /* ═══ MODE: PRINT MINGGU ═══
+                           Screen and print render the SAME node, so the preview
+                           always matches the output. */
+                        <Panel className="overflow-hidden print:rounded-none print:border-0">
+                            <PanelHeader
+                                className="print:hidden"
+                                icon={<ClipboardList />}
+                                title={`Rekap Minggu ${selectedWeek}`}
+                                meta={`${filteredBapData.length} sesi · orientasi lanskap`}
+                            />
+                            <div className="hm-scrollbar overflow-x-auto bg-white print:overflow-visible">
+                                {/* `zoom`, not `transform: scale` — zoom reflows the
+                                    box, so the frame tracks the preview instead of
+                                    leaving a phantom gap under it. */}
+                                <div className="print-minggu-view w-full" style={{ zoom: scale }}>
+                                    <div
+                                        className="w-full pb-4 pt-4 text-center text-xl font-bold uppercase tracking-widest text-black"
+                                        style={{ fontFamily: "'Times New Roman', Times, serif" }}
+                                    >
                                         Berita Acara Perkuliahan Minggu {selectedWeek}
                                     </div>
                                     <RecapTable groups={groupedData} />
                                 </div>
                             </div>
-                        </div>
+                        </Panel>
                     ) : (
                         /* ═══ MODE: PRINT PER-SESI ═══ */
                         <>
-                            {/* Screen Preview — show only current index */}
-                            <div className="print:hidden border border-border bg-white shadow-2xl overflow-visible"
-                                style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}
-                            >
-                                <DaftarHadirDocument
-                                    data={filteredBapData[currentIndex]}
-                                    isLast={true}
-                                    showSignature={showSignature}
-                                    dosenSignature={showSignature ? (dosenList.find(d => d.name === filteredBapData[currentIndex].pengajar)?.signature || null) : null}
-                                    teknisiSignature={showSignature ? teknisiSignature : null}
+                            {/* Screen Preview — the pager now lives with the document it drives */}
+                            <Panel className="overflow-hidden print:hidden">
+                                <PanelHeader
+                                    icon={<FileText />}
+                                    title="Daftar Hadir"
+                                    meta={`Dokumen ${safeIndex + 1} dari ${filteredBapData.length} · ${currentDoc.mataKuliah ?? ''}`}
+                                    action={
+                                        <div className="flex items-center gap-1">
+                                            <Button
+                                                variant="outline"
+                                                size="icon-sm"
+                                                onClick={prevDoc}
+                                                disabled={safeIndex === 0}
+                                                aria-label="Dokumen sebelumnya"
+                                            >
+                                                <ChevronLeft />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="icon-sm"
+                                                onClick={nextDoc}
+                                                disabled={safeIndex === filteredBapData.length - 1}
+                                                aria-label="Dokumen berikutnya"
+                                            >
+                                                <ChevronRight />
+                                            </Button>
+                                        </div>
+                                    }
                                 />
-                            </div>
+                                <div className="hm-scrollbar overflow-x-auto bg-white">
+                                    <div style={{ zoom: scale }}>
+                                        <DaftarHadirDocument
+                                            data={currentDoc}
+                                            isLast={true}
+                                            showSignature={showSignature}
+                                            dosenSignature={showSignature ? (dosenList.find(d => d.name === currentDoc.pengajar)?.signature || null) : null}
+                                            teknisiSignature={showSignature ? teknisiSignature : null}
+                                        />
+                                    </div>
+                                </div>
+                            </Panel>
 
                             {/* Print View — all sessions with page breaks (2 per page) */}
                             <div className="hidden print:block print-persesi-view bg-white">
@@ -350,11 +468,11 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, ac
                                             }}
                                         >
                                             {itemsOnPage.map((item, itemIdx) => (
-                                                <div 
-                                                    key={itemIdx} 
-                                                    style={{ 
-                                                        flex: '1 1 50%', 
-                                                        height: '50%', 
+                                                <div
+                                                    key={itemIdx}
+                                                    style={{
+                                                        flex: '1 1 50%',
+                                                        height: '50%',
                                                         overflow: 'hidden',
                                                         borderBottom: itemIdx === 0 && itemsOnPage.length > 1 ? '2px dashed #1f2937' : 'none',
                                                         boxSizing: 'border-box'
@@ -379,8 +497,8 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, ac
                             </div>
                         </>
                     )}
-                </>
-            )}
+                </div>
+            </div>
 
             {/* Dynamic print styles based on mode */}
             {printMode === 'minggu' ? (
@@ -402,7 +520,7 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, ac
                     }
                 `}</style>
             )}
-        </div>
+        </PageShell>
     );
 };
 

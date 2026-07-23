@@ -1,0 +1,65 @@
+[
+  {
+    "date": "2026-07-23",
+    "scope": "page",
+    "verb": "redesign",
+    "target": "src/components/pages/DashboardPage.tsx",
+    "macrostructure": "Workbench (stat row / chart tier / operational table)",
+    "theme": "Cobalt (retuned neutral)",
+    "genre": "modern-minimal",
+    "enrichment": "none",
+    "design_system": "design.md",
+    "brief": "Dashboard · per-subject bar chart dropped; semester progress (clickable) + absence trend added; week selector lifted to PageHeader; calendar moved to the end"
+  },
+  {
+    "date": "2026-07-23",
+    "scope": "page",
+    "verb": "redesign",
+    "target": "src/components/pages/NotesPage.tsx",
+    "macrostructure": "Workbench (toolbar + card grid)",
+    "theme": "Cobalt (retuned neutral)",
+    "genre": "modern-minimal",
+    "enrichment": "none",
+    "design_system": "design.md",
+    "brief": "Catatan · create+edit moved into one dialog (new ui/dialog.tsx), note colours tokenised to --note-* anchors, hover-only card actions made persistent"
+  },
+  {
+    "date": "2026-07-23",
+    "scope": "page",
+    "verb": "redesign",
+    "target": "src/components/pages/StudentMasterPage.tsx",
+    "macrostructure": "Workbench (left-rail / right-canvas)",
+    "theme": "Cobalt (retuned neutral)",
+    "genre": "modern-minimal",
+    "enrichment": "none",
+    "design_system": "design.md",
+    "brief": "Master Mahasiswa · prodi/semester/golongan filters over the saved rows; import tools moved to a rail so the table owns the canvas; --warn tokens added"
+  },
+  {
+    "date": "2026-07-23",
+    "scope": "page",
+    "verb": "redesign",
+    "target": "src/components/pages/PreviewPrintPage.tsx",
+    "macrostructure": "Workbench (left-rail controls / right preview)",
+    "theme": "Cobalt (retuned neutral)",
+    "genre": "modern-minimal",
+    "enrichment": "none",
+    "design_system": "design.md",
+    "brief": "Preview & Print · controls collected into a settings rail, print action moved to PageHeader, pager moved beside the document"
+  },
+  {
+    "date": "2026-07-23",
+    "scope": "app",
+    "verb": "redesign",
+    "macrostructure": "Workbench",
+    "theme": "Cobalt (retuned neutral)",
+    "theme_axes": "light / grotesk-sans / cool",
+    "genre": "modern-minimal",
+    "nav": "N3 side-rail (floating inset)",
+    "footer": "n/a (app shell)",
+    "enrichment": "none",
+    "design_system": "design.md",
+    "studied": "image (user reference — admin shell)",
+    "brief": "BAP System · admin panel redesign for cross-page consistency; sidebar/header/panel language unified from a user-supplied reference"
+  }
+]

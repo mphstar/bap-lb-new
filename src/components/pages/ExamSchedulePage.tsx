@@ -21,6 +21,7 @@ import {
 import { useExamSchedule, type ExamScheduleEntry, type NewEntry, type ExamScheduleNote } from '@/hooks/useExamSchedule';
 import { useDialog } from '@/context/DialogContext';
 import { authClient } from '@/lib/auth-client';
+import { PageShell, PageHeader } from '@/components/shell';
 
 
 type Tab = 'schedules' | 'entries' | 'detail';
@@ -129,31 +130,24 @@ const ExamSchedulePage: React.FC<ExamSchedulePageProps> = ({ userId }) => {
     }
 
     return (
-        <div className="w-full max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row gap-2 justify-between items-start md:items-center mb-6">
-                <div>
-                    <h2 className="text-2xl font-bold">Jadwal Ujian</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Kelola jadwal UTS/UAS, entry, dan catatan</p>
-                </div>
-                {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-            </div>
-
-            {/* Error display */}
-            {error && (
-                <div className="mb-4 px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2 text-sm text-destructive">
-                    <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                    <span>{error}</span>
-                </div>
-            )}
+        <PageShell>
+            <PageHeader
+                title="Jadwal Ujian"
+                meta="Jadwal UTS/UAS, entri, dan catatan"
+                actions={
+                    loading ? (
+                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                    ) : null
+                }
+            />
 
             {/* Tabs */}
-            <div className="flex gap-1 mb-6 border-b">
+            <div className="hm-scroll-x mb-6 flex gap-1 overflow-x-auto border-b border-rule">
                 <button
                     onClick={() => setActiveTab('schedules')}
                     className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors
                         ${activeTab === 'schedules'
-                            ? 'border-primary text-primary'
+                            ? 'border-foreground text-foreground'
                             : 'border-transparent text-muted-foreground hover:text-foreground'
                         }`}
                 >
@@ -165,7 +159,7 @@ const ExamSchedulePage: React.FC<ExamSchedulePageProps> = ({ userId }) => {
                     disabled={!activeSchedule}
                     className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed
                         ${activeTab === 'entries'
-                            ? 'border-primary text-primary'
+                            ? 'border-foreground text-foreground'
                             : 'border-transparent text-muted-foreground hover:text-foreground'
                         }`}
                 >
@@ -178,7 +172,7 @@ const ExamSchedulePage: React.FC<ExamSchedulePageProps> = ({ userId }) => {
                     disabled={!selectedEntry}
                     className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed
                         ${activeTab === 'detail'
-                            ? 'border-primary text-primary'
+                            ? 'border-foreground text-foreground'
                             : 'border-transparent text-muted-foreground hover:text-foreground'
                         }`}
                 >
@@ -221,7 +215,7 @@ const ExamSchedulePage: React.FC<ExamSchedulePageProps> = ({ userId }) => {
                     onDeleteNote={deleteNote}
                 />
             )}
-        </div>
+        </PageShell>
     );
 };
 
@@ -244,7 +238,7 @@ const SchedulesListTab: React.FC<SchedulesListTabProps> = ({
 }) => (
     <div className="space-y-4">
         {/* Create schedule */}
-        <div className="bg-card rounded-xl border shadow-sm p-4">
+        <div className="bg-panel rounded-panel border border-rule p-4">
             <h3 className="font-semibold text-sm mb-3">Buat Jadwal Ujian Baru</h3>
             <div className="flex gap-2">
                 <input
@@ -252,7 +246,7 @@ const SchedulesListTab: React.FC<SchedulesListTabProps> = ({
                     onChange={e => onNewNameChange(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && onCreate()}
                     placeholder="Nama jadwal, misal: UTS Genap 2025"
-                    className="flex-1 border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                    className="flex-1 border border-input rounded-control px-3 py-2 text-sm bg-background"
                 />
                 <button
                     onClick={onCreate}
@@ -266,7 +260,7 @@ const SchedulesListTab: React.FC<SchedulesListTabProps> = ({
 
         {/* List */}
         {schedules.length === 0 ? (
-            <div className="bg-card rounded-xl border shadow-sm p-12 text-center text-muted-foreground">
+            <div className="bg-panel rounded-panel border border-rule p-12 text-center text-muted-foreground">
                 <BookOpen size={40} className="mx-auto mb-3 opacity-30" />
                 <p className="font-medium">Belum ada jadwal ujian</p>
                 <p className="text-sm mt-1">Buat jadwal baru di atas</p>
@@ -276,7 +270,7 @@ const SchedulesListTab: React.FC<SchedulesListTabProps> = ({
                 {schedules.map(s => (
                     <div
                         key={s.id}
-                        className={`bg-card rounded-xl border shadow-sm p-4 flex items-center gap-4 cursor-pointer hover:border-primary/40 transition-colors
+                        className={`bg-panel rounded-panel border border-rule p-4 flex items-center gap-4 cursor-pointer hover:border-primary/40 transition-colors
                             ${activeScheduleId === s.id ? 'border-primary ring-1 ring-primary/20' : ''}`}
                         onClick={() => onSelect(s.id)}
                     >
@@ -588,7 +582,7 @@ const EntriesTab: React.FC<EntriesTabProps> = ({
     return (
         <div className="space-y-4">
             {/* Schedule name header */}
-            <div className="bg-card rounded-xl border shadow-sm p-4 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+            <div className="bg-panel rounded-panel border border-rule p-4 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
                 <div>
                     <h3 className="font-semibold text-sm">{scheduleName}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">{entries.length} entry jadwal</p>
@@ -619,7 +613,7 @@ const EntriesTab: React.FC<EntriesTabProps> = ({
 
             {/* Scraper Section */}
             {showScraper && (
-                <div className="bg-card rounded-xl border shadow-sm p-4 border-primary/30 space-y-4">
+                <div className="bg-panel rounded-panel border border-rule p-4 border-primary/30 space-y-4">
                     <div className="flex justify-between items-center border-b pb-2">
                         <h4 className="font-semibold text-sm">Ambil Jadwal dari SIM Polije</h4>
                         <button onClick={() => setShowScraper(false)} className="text-muted-foreground hover:text-foreground">
@@ -647,7 +641,7 @@ const EntriesTab: React.FC<EntriesTabProps> = ({
                                     <select
                                         value={tahun}
                                         onChange={e => setTahun(e.target.value)}
-                                        className="w-full border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                                        className="w-full border border-input rounded-control px-3 py-2 text-sm bg-background"
                                     >
                                         <option value="">-- Pilih --</option>
                                         {scraperFilters?.tahun?.map((o: any) => (
@@ -660,7 +654,7 @@ const EntriesTab: React.FC<EntriesTabProps> = ({
                                     <select
                                         value={semester}
                                         onChange={e => setSemester(e.target.value)}
-                                        className="w-full border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                                        className="w-full border border-input rounded-control px-3 py-2 text-sm bg-background"
                                     >
                                         <option value="">-- Pilih --</option>
                                         {scraperFilters?.semesters?.map((o: any) => (
@@ -673,7 +667,7 @@ const EntriesTab: React.FC<EntriesTabProps> = ({
                                     <select
                                         value={jenis}
                                         onChange={e => setJenis(e.target.value)}
-                                        className="w-full border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                                        className="w-full border border-input rounded-control px-3 py-2 text-sm bg-background"
                                     >
                                         <option value="">-- Pilih --</option>
                                         {scraperFilters?.jenis?.map((o: any) => (
@@ -686,7 +680,7 @@ const EntriesTab: React.FC<EntriesTabProps> = ({
                                     <select
                                         value={selectedProgram}
                                         onChange={e => handleProgramChange(e.target.value)}
-                                        className="w-full border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                                        className="w-full border border-input rounded-control px-3 py-2 text-sm bg-background"
                                     >
                                         <option value="">-- Pilih --</option>
                                         {scraperFilters?.programs?.map((o: any) => (
@@ -700,7 +694,7 @@ const EntriesTab: React.FC<EntriesTabProps> = ({
                                         value={pengawas}
                                         onChange={e => setPengawas(e.target.value)}
                                         placeholder="Nama pengawas..."
-                                        className="w-full border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                                        className="w-full border border-input rounded-control px-3 py-2 text-sm bg-background"
                                         onKeyDown={e => e.key === 'Enter' && handleSearchScraper()}
                                     />
                                 </div>
@@ -738,7 +732,7 @@ const EntriesTab: React.FC<EntriesTabProps> = ({
                                                 <button
                                                     type="button"
                                                     onClick={() => setSelectedJurusans(prev => new Set([...prev, ...filteredJurusans.map((j: any) => j.value)]))}
-                                                    className="text-[10px] text-primary hover:underline font-medium"
+                                                    className="text-[10px] text-link hover:underline font-medium"
                                                 >
                                                     Pilih Semua {jurusanSearchQuery ? 'Hasil' : ''}
                                                 </button>
@@ -750,7 +744,7 @@ const EntriesTab: React.FC<EntriesTabProps> = ({
                                                         filteredJurusans.forEach((j: any) => next.delete(j.value));
                                                         return next;
                                                     })}
-                                                    className="text-[10px] text-primary hover:underline font-medium"
+                                                    className="text-[10px] text-link hover:underline font-medium"
                                                 >
                                                     Batal Semua {jurusanSearchQuery ? 'Hasil' : ''}
                                                 </button>
@@ -816,7 +810,7 @@ const EntriesTab: React.FC<EntriesTabProps> = ({
                                 </span>
                                 <button
                                     onClick={handleToggleSelectAll}
-                                    className="text-xs text-primary font-medium hover:underline"
+                                    className="text-xs text-link font-medium hover:underline"
                                 >
                                     {selectedIndices.size === searchResults.length ? 'Batal Semua' : 'Pilih Semua'}
                                 </button>
@@ -882,7 +876,7 @@ const EntriesTab: React.FC<EntriesTabProps> = ({
 
             {/* Add Entry Form */}
             {showAddForm && (
-                <div className="bg-card rounded-xl border shadow-sm p-4 border-primary/30">
+                <div className="bg-panel rounded-panel border border-rule p-4 border-primary/30">
                     <h4 className="font-semibold text-sm mb-3">Tambah Entry Baru</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <EntryField label="Hari" value={newEntry.hari} onChange={v => setNewEntry(p => ({ ...p, hari: v }))} placeholder="Senin, Selasa, Sabtu..." />
@@ -909,14 +903,14 @@ const EntriesTab: React.FC<EntriesTabProps> = ({
 
             {/* Entries Unified Table */}
             {entries.length === 0 ? (
-                <div className="bg-card rounded-xl border shadow-sm p-12 text-center text-muted-foreground">
+                <div className="bg-panel rounded-panel border border-rule p-12 text-center text-muted-foreground">
                     <CalendarDays size={40} className="mx-auto mb-3 opacity-30" />
                     <p className="font-medium">Belum ada entry jadwal</p>
                     <p className="text-sm mt-1">Klik "Tambah Entry" atau "Ambil dari SIM Polije" untuk menambahkan</p>
                 </div>
             ) : (
-                <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
+                <div className="bg-panel rounded-panel border border-rule overflow-hidden">
+                    <div className="hm-scroll-x overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="bg-muted/50 text-muted-foreground font-semibold border-b text-xs">
@@ -1046,7 +1040,7 @@ const EntryField: React.FC<{ label: string; value: string; onChange: (v: string)
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder={placeholder}
-            className="w-full border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+            className="w-full border border-input rounded-control px-3 py-2 text-sm bg-background"
         />
     </div>
 );
@@ -1085,7 +1079,7 @@ const DetailTab: React.FC<DetailTabProps> = ({ entry, notes, onAddNote, onDelete
     return (
         <div className="space-y-4">
             {/* Entry Detail Card */}
-            <div className="bg-card rounded-xl border shadow-sm p-5">
+            <div className="bg-panel rounded-panel border border-rule p-5">
                 <h3 className="font-semibold text-base mb-4 flex items-center gap-2">
                     <BookMarked size={18} className="text-primary" />
                     Detail Entry
@@ -1104,7 +1098,7 @@ const DetailTab: React.FC<DetailTabProps> = ({ entry, notes, onAddNote, onDelete
             </div>
 
             {/* Add Note */}
-            <div className="bg-card rounded-xl border shadow-sm p-4">
+            <div className="bg-panel rounded-panel border border-rule p-4">
                 <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
                     <StickyNote size={16} className="text-primary" />
                     Tambah Catatan
@@ -1114,7 +1108,7 @@ const DetailTab: React.FC<DetailTabProps> = ({ entry, notes, onAddNote, onDelete
                     onChange={e => setNewNoteContent(e.target.value)}
                     placeholder="Tulis catatan baru, misal: kecurangan peserta, info tambahan, dll..."
                     rows={3}
-                    className="w-full border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background resize-none"
+                    className="w-full border border-input rounded-control px-3 py-2 text-sm bg-background resize-none"
                 />
                 <div className="flex justify-end mt-2">
                     <button
@@ -1129,7 +1123,7 @@ const DetailTab: React.FC<DetailTabProps> = ({ entry, notes, onAddNote, onDelete
             </div>
 
             {/* Notes List */}
-            <div className="bg-card rounded-xl border shadow-sm p-4">
+            <div className="bg-panel rounded-panel border border-rule p-4">
                 <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
                     <StickyNote size={16} className="text-primary" />
                     Daftar Catatan
@@ -1160,7 +1154,7 @@ const DetailTab: React.FC<DetailTabProps> = ({ entry, notes, onAddNote, onDelete
                                     </div>
                                     <button
                                         onClick={() => handleDeleteNote(note.id)}
-                                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1.5 rounded-md hover:bg-destructive/10 transition-all"
+                                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1.5 rounded-md hover:bg-destructive/10 transition-colors"
                                         title="Hapus catatan"
                                     >
                                         <Trash2 size={13} />
