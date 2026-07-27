@@ -3,6 +3,7 @@ import { Plus, Trash2, FileText, ClipboardList, Printer, Upload, X, ChevronRight
 import type { AssessmentForm, AssessmentSubject, AssessmentStudent, MasterStudent } from '@/types';
 import { useAssessmentData } from '@/hooks/useAssessmentData';
 import { useDialog } from '@/context/DialogContext';
+import { PageShell, PageHeader } from '@/components/shell';
 
 
 
@@ -86,23 +87,24 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ userId, studentMaster =
     }
 
     return (
-        <div className="w-full max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row gap-2 justify-between items-start md:items-center mb-6">
-                <div>
-                    <h2 className="text-2xl font-bold">Form Penilaian</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Buat form penilaian, atur kolom, input nilai</p>
-                </div>
-                {saving && <span className="text-xs text-muted-foreground">Menyimpan...</span>}
-            </div>
+        <PageShell>
+            <PageHeader
+                title="Form Penilaian"
+                meta="Buat form, atur kolom, dan input nilai"
+                actions={
+                    saving ? (
+                        <span className="text-xs text-muted-foreground">Menyimpan…</span>
+                    ) : null
+                }
+            />
 
             {/* Tabs */}
-            <div className="flex gap-1 mb-6 border-b">
+            <div className="hm-scroll-x mb-6 flex gap-1 overflow-x-auto border-b border-rule">
                 <button
                     onClick={() => setActiveTab('forms')}
                     className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors
                         ${activeTab === 'forms'
-                            ? 'border-primary text-primary'
+                            ? 'border-foreground text-foreground'
                             : 'border-transparent text-muted-foreground hover:text-foreground'
                         }`}
                 >
@@ -114,7 +116,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ userId, studentMaster =
                     disabled={!activeForm}
                     className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed
                         ${activeTab === 'setup'
-                            ? 'border-primary text-primary'
+                            ? 'border-foreground text-foreground'
                             : 'border-transparent text-muted-foreground hover:text-foreground'
                         }`}
                 >
@@ -126,7 +128,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ userId, studentMaster =
                     disabled={!activeForm || activeForm.subjects.length === 0}
                     className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed
                         ${activeTab === 'grading'
-                            ? 'border-primary text-primary'
+                            ? 'border-foreground text-foreground'
                             : 'border-transparent text-muted-foreground hover:text-foreground'
                         }`}
                 >
@@ -153,7 +155,7 @@ const AssessmentPage: React.FC<AssessmentPageProps> = ({ userId, studentMaster =
             {activeTab === 'grading' && activeForm && (
                 <GradingTab form={activeForm} updateForm={updateForm} />
             )}
-        </div>
+        </PageShell>
     );
 };
 
@@ -175,7 +177,7 @@ const FormsListTab: React.FC<FormsListTabProps> = ({
 }) => (
     <div className="space-y-4">
         {/* Create form */}
-        <div className="bg-card rounded-xl border shadow-sm p-4">
+        <div className="bg-panel rounded-panel border border-rule p-4">
             <h3 className="font-semibold text-sm mb-3">Buat Form Baru</h3>
             <div className="flex gap-2">
                 <input
@@ -183,7 +185,7 @@ const FormsListTab: React.FC<FormsListTabProps> = ({
                     onChange={e => onNewFormNameChange(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && onCreate()}
                     placeholder="Nama form, misal: Penilaian Praktikum 2025"
-                    className="flex-1 border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                    className="flex-1 border border-input rounded-control px-3 py-2 text-sm bg-background"
                 />
                 <button
                     onClick={onCreate}
@@ -197,7 +199,7 @@ const FormsListTab: React.FC<FormsListTabProps> = ({
 
         {/* List */}
         {forms.length === 0 ? (
-            <div className="bg-card rounded-xl border shadow-sm p-12 text-center text-muted-foreground">
+            <div className="bg-panel rounded-panel border border-rule p-12 text-center text-muted-foreground">
                 <FileText size={40} className="mx-auto mb-3 opacity-30" />
                 <p className="font-medium">Belum ada form penilaian</p>
                 <p className="text-sm mt-1">Buat form baru di atas</p>
@@ -207,7 +209,7 @@ const FormsListTab: React.FC<FormsListTabProps> = ({
                 {forms.map(f => (
                     <div
                         key={f.id}
-                        className={`bg-card rounded-xl border shadow-sm p-4 flex items-center gap-4 cursor-pointer hover:border-primary/40 transition-colors
+                        className={`bg-panel rounded-panel border border-rule p-4 flex items-center gap-4 cursor-pointer hover:border-primary/40 transition-colors
                             ${activeFormId === f.id ? 'border-primary ring-1 ring-primary/20' : ''}`}
                         onClick={() => onSelect(f.id)}
                     >
@@ -366,17 +368,17 @@ const SetupTab: React.FC<SetupTabProps> = ({ form, updateForm, studentMaster }) 
     return (
         <div className="space-y-6">
             {/* Form name */}
-            <div className="bg-card rounded-xl border shadow-sm p-4">
+            <div className="bg-panel rounded-panel border border-rule p-4">
                 <h3 className="font-semibold text-sm mb-3">Nama Form</h3>
                 <input
                     value={form.name}
                     onChange={e => updateForm(form.id, f => ({ ...f, name: e.target.value }))}
-                    className="w-full border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                    className="w-full border border-input rounded-control px-3 py-2 text-sm bg-background"
                 />
             </div>
 
             {/* Master Student Selector */}
-            <div className="bg-card rounded-xl border shadow-sm p-4">
+            <div className="bg-panel rounded-panel border border-rule p-4">
                 <h3 className="font-semibold text-sm mb-1 flex items-center gap-2">
                     <GraduationCap className="text-primary" size={16} />
                     Ambil dari Master Mahasiswa
@@ -388,7 +390,7 @@ const SetupTab: React.FC<SetupTabProps> = ({ form, updateForm, studentMaster }) 
                 {studentMaster.length === 0 ? (
                     <div className="bg-muted/50 rounded-lg p-6 text-center text-muted-foreground text-xs border border-dashed">
                         Belum ada data master mahasiswa. Silakan isi terlebih dahulu di halaman{" "}
-                        <a href="/mahasiswa" className="text-primary hover:underline font-semibold">
+                        <a href="/mahasiswa" className="text-link hover:underline font-semibold">
                             Master Data Mahasiswa
                         </a>.
                     </div>
@@ -497,7 +499,7 @@ const SetupTab: React.FC<SetupTabProps> = ({ form, updateForm, studentMaster }) 
                                                 return next;
                                             });
                                         }}
-                                        className="text-primary hover:underline font-semibold mr-4"
+                                        className="text-link hover:underline font-semibold mr-4"
                                     >
                                         {filteredMasterStudents.every(s => selectedNims.has(s.nim)) ? "Batal Pilih Semua" : "Pilih Semua Hasil"}
                                     </button>
@@ -527,7 +529,7 @@ const SetupTab: React.FC<SetupTabProps> = ({ form, updateForm, studentMaster }) 
             </div>
 
             {/* Import JSON */}
-            <div className="bg-card rounded-xl border shadow-sm p-4">
+            <div className="bg-panel rounded-panel border border-rule p-4">
                 <h3 className="font-semibold text-sm mb-1">Import Data Mahasiswa (JSON)</h3>
                 <p className="text-xs text-muted-foreground mb-3">
                     Saat ini: <strong>{form.students.length}</strong> mahasiswa. Paste JSON array berisi objek dengan field <code className="bg-muted px-1 rounded">no</code>, <code className="bg-muted px-1 rounded">nama</code>, dan opsional <code className="bg-muted px-1 rounded">nim</code>.
@@ -537,13 +539,13 @@ const SetupTab: React.FC<SetupTabProps> = ({ form, updateForm, studentMaster }) 
                     onChange={e => setJsonInput(e.target.value)}
                     placeholder={SAMPLE_JSON}
                     rows={6}
-                    className="w-full border border-input rounded-md px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring bg-background resize-none"
+                    className="w-full border border-input rounded-md px-3 py-2 text-xs font-mono bg-background resize-none"
                 />
                 {jsonError && <p className="text-xs text-destructive mt-1">{jsonError}</p>}
                 <div className="flex gap-2 mt-2">
                     <button
                         onClick={() => setJsonInput(SAMPLE_JSON)}
-                        className="text-xs text-primary hover:underline"
+                        className="text-xs text-link hover:underline"
                     >
                         Isi contoh
                     </button>
@@ -600,7 +602,7 @@ const SetupTab: React.FC<SetupTabProps> = ({ form, updateForm, studentMaster }) 
             </div>
 
             {/* Subjects & Columns */}
-            <div className="bg-card rounded-xl border shadow-sm p-4">
+            <div className="bg-panel rounded-panel border border-rule p-4">
                 <h3 className="font-semibold text-sm mb-3">Mata Kuliah & Kolom Penilaian</h3>
 
                 {/* Add subject */}
@@ -610,7 +612,7 @@ const SetupTab: React.FC<SetupTabProps> = ({ form, updateForm, studentMaster }) 
                         onChange={e => setNewSubjectName(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && addSubject()}
                         placeholder="Nama Mata Kuliah, misal: PENGKABELAN"
-                        className="flex-1 border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                        className="flex-1 border border-input rounded-control px-3 py-2 text-sm bg-background"
                     />
                     <button
                         onClick={addSubject}
@@ -692,7 +694,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
             {subject.columns.length < 16 && (
                 <button
                     onClick={onAddColumn}
-                    className="flex items-center gap-1 text-xs text-primary hover:bg-primary/10 px-2 py-1 rounded-md transition-colors"
+                    className="flex items-center gap-1 text-xs text-link hover:bg-link/10 px-2 py-1 rounded-md transition-colors"
                 >
                     <Plus size={12} /> Kolom
                 </button>
@@ -708,7 +710,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                 onChange={e => onNotesChange?.(e.target.value)}
                 placeholder="Contoh: 81 = berhasil walaupun tidak rapi&#10;90 = berhasil dan rapi sekali&#10;Di bawah 80 = gagal"
                 rows={2}
-                className="w-full mt-1 border border-input rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring bg-background resize-none"
+                className="w-full mt-1 border border-input rounded-md px-3 py-1.5 text-xs bg-background resize-none"
             />
         </div>
     </div>
@@ -764,7 +766,7 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
 
     if (form.subjects.length === 0) {
         return (
-            <div className="bg-card rounded-xl border shadow-sm p-12 text-center text-muted-foreground">
+            <div className="bg-panel rounded-panel border border-rule p-12 text-center text-muted-foreground">
                 <p>Belum ada mata kuliah. Buka tab Setup untuk menambahkan.</p>
             </div>
         );
@@ -801,7 +803,7 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder={hasNim ? "Cari nama atau NIM..." : "Cari nama..."}
-                        className="w-full pl-9 pr-3 py-2 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                        className="w-full pl-9 pr-3 py-2 border border-input rounded-lg text-sm bg-background"
                     />
                     {searchQuery && (
                         <button
@@ -814,7 +816,7 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
                 </div>
 
                 {/* Scale + Print controls */}
-                <div className="flex flex-wrap items-center gap-4 bg-card p-3 rounded-lg border shadow-sm">
+                <div className="flex flex-wrap items-center gap-4 bg-panel p-3 rounded-panel border border-rule">
                     {/* Scale Control */}
                     <div className="flex items-center gap-3 border-r pr-4">
                         <div className="flex flex-col">
@@ -825,9 +827,9 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
                             type="range" min="0.5" max="1.5" step="0.05"
                             value={scale}
                             onChange={(e) => setScale(parseFloat(e.target.value))}
-                            className="w-24 cursor-pointer h-2 bg-gray-200 rounded-lg appearance-none"
+                            className="hm-range w-24"
                         />
-                        <button onClick={() => setScale(0.8)} className="text-xs text-primary hover:underline">Reset</button>
+                        <button onClick={() => setScale(0.8)} className="text-xs text-link hover:underline">Reset</button>
                     </div>
 
                     {/* Name Width Control */}
@@ -840,7 +842,7 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
                             type="range" min="150" max="600" step="10"
                             value={nameColumnWidth}
                             onChange={(e) => setNameColumnWidth(parseInt(e.target.value))}
-                            className="w-24 cursor-pointer h-2 bg-gray-200 rounded-lg appearance-none"
+                            className="hm-range w-24"
                         />
                     </div>
 
@@ -854,7 +856,7 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
                             type="range" min="0" max="100" step="5"
                             value={padding}
                             onChange={(e) => setPadding(parseInt(e.target.value))}
-                            className="w-24 cursor-pointer h-2 bg-gray-200 rounded-lg appearance-none"
+                            className="hm-range w-24"
                         />
                     </div>
 
@@ -876,7 +878,7 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
 
                 {/* Grading Table */}
                 {activeSubject && (
-                    <div className="bg-card rounded-xl border shadow-sm overflow-x-auto">
+                    <div className="hm-scrollbar bg-panel rounded-panel border border-rule overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="bg-muted/50 text-muted-foreground font-semibold border-b">
@@ -905,7 +907,7 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
                                                     type="text"
                                                     value={getGrade(activeSubject.id, student.nim, col.id)}
                                                     onChange={e => setGrade(activeSubject.id, student.nim, col.id, e.target.value)}
-                                                    className="w-full border border-input rounded-md px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                                                    className="w-full border border-input rounded-md px-2 py-1 text-sm text-center bg-background"
                                                     placeholder="—"
                                                 />
                                             </td>

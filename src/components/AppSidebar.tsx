@@ -1,3 +1,26 @@
+"use client";
+
+/* Hallmark · nav: N3 side-rail (floating inset) · genre: modern-minimal
+ * design-system: design.md · designed-as-app
+ *
+ * Shell notes:
+ * · The rail floats — rounded panel with a hairline, inset from the viewport.
+ * · Group labels are micro-caps (.hm-eyebrow); groups separate by gap, not by
+ *   a drawn rule. The old build used five <SidebarSeparator>s, which made the
+ *   rail read as a stack of boxes.
+ * · The active item is a NEUTRAL fill, never indigo. The accent budget is
+ *   spent on the CTA pill and the focus ring only.
+ * · The CTA slot holds the one GLOBAL action (Export Excel). Page-specific
+ *   actions — import, create note — belong in <PageHeader>, not here. The rail
+ *   must mean the same thing on every route.
+ * · Reset / Logout live in the account menu behind the chevron.
+ *
+ * Metrics are matched to the user's reference shell:
+ *   column 288px (256px panel + 16px inset) · inner padding 12px
+ *   nav item 40px tall, 46px pitch · icon 18px · label 15px
+ *   divider under the header and above the account block, inset to the items.
+ */
+
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -5,7 +28,6 @@ import {
     Edit3,
     Printer,
     Settings,
-    Database,
     Trash2,
     Download,
     ClipboardList,
@@ -18,8 +40,12 @@ import {
     GraduationCap,
     Award,
     Archive,
+    ChevronsUpDown,
+    PanelLeftClose,
+    PanelLeftOpen,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { BapLogo } from "@/components/BapLogo";
 
 import {
     Sidebar,
@@ -32,9 +58,16 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarSeparator,
+    useSidebar,
 } from "@/components/ui/sidebar";
-import { Badge } from "@/components/ui/badge";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface AppSidebarProps {
     onClearAll: () => void;
@@ -48,104 +81,65 @@ interface NavItem {
     path: string;
     label: string;
     icon: React.ReactNode;
-    description: string;
 }
 
-const UTAMA_ITEMS: NavItem[] = [
+interface NavGroup {
+    label: string;
+    items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
     {
-        path: "/dashboard",
-        label: "Dashboard",
-        icon: <LayoutDashboard className="size-4" />,
-        description: "Rekapitulasi data",
+        label: "Utama",
+        items: [
+            {
+                path: "/dashboard",
+                label: "Dashboard",
+                icon: <LayoutDashboard />,
+            },
+        ],
+    },
+    {
+        label: "Perkuliahan",
+        items: [
+            { path: "/template", label: "Jadwal Template", icon: <Calendar /> },
+            { path: "/weekly", label: "Data Mingguan", icon: <Edit3 /> },
+            { path: "/jadwal-ujian", label: "Jadwal Ujian", icon: <BookOpen /> },
+        ],
+    },
+    {
+        label: "Master Data",
+        items: [
+            {
+                path: "/mahasiswa",
+                label: "Master Mahasiswa",
+                icon: <GraduationCap />,
+            },
+            { path: "/dosen", label: "Master Dosen", icon: <Award /> },
+        ],
+    },
+    {
+        label: "Dokumen",
+        items: [
+            { path: "/preview", label: "Preview & Print", icon: <Printer /> },
+            { path: "/penilaian", label: "Form Penilaian", icon: <ClipboardList /> },
+            { path: "/catatan", label: "Catatan", icon: <StickyNote /> },
+            { path: "/archives", label: "Arsip Data", icon: <Archive /> },
+        ],
+    },
+    {
+        label: "Konfigurasi",
+        items: [{ path: "/settings", label: "Pengaturan", icon: <Settings /> }],
     },
 ];
 
-const PERKULIAHAN_ITEMS: NavItem[] = [
-    {
-        path: "/template",
-        label: "Jadwal Template",
-        icon: <Calendar className="size-4" />,
-        description: "Kelola jadwal dasar",
-    },
-    {
-        path: "/weekly",
-        label: "Data Mingguan",
-        icon: <Edit3 className="size-4" />,
-        description: "Edit pengajar & materi",
-    },
-    {
-        path: "/jadwal-ujian",
-        label: "Jadwal Ujian",
-        icon: <BookOpen className="size-4" />,
-        description: "Kelola jadwal UTS/UAS",
-    },
-];
-
-const MASTER_ITEMS: NavItem[] = [
-    {
-        path: "/mahasiswa",
-        label: "Master Mahasiswa",
-        icon: <GraduationCap className="size-4" />,
-        description: "Kelola data mahasiswa",
-    },
-    {
-        path: "/dosen",
-        label: "Master Dosen",
-        icon: <Award className="size-4" />,
-        description: "Kelola data dosen & ttd",
-    },
-];
-
-const DOKUMEN_ITEMS: NavItem[] = [
-    {
-        path: "/preview",
-        label: "Preview & Print",
-        icon: <Printer className="size-4" />,
-        description: "Pracetak dokumen BAP",
-    },
-    {
-        path: "/penilaian",
-        label: "Form Penilaian",
-        icon: <ClipboardList className="size-4" />,
-        description: "Buat & input penilaian",
-    },
-    {
-        path: "/catatan",
-        label: "Catatan",
-        icon: <StickyNote className="size-4" />,
-        description: "Simpan informasi penting",
-    },
-    {
-        path: "/archives",
-        label: "Arsip Data",
-        icon: <Archive className="size-4" />,
-        description: "Kelola arsip semester",
-    },
-];
-
-const CONFIG_ITEMS: NavItem[] = [
-    {
-        path: "/settings",
-        label: "Pengaturan",
-        icon: <Settings className="size-4" />,
-        description: "Konfigurasi aplikasi",
-    },
-];
-
-export function AppSidebar({
-    onClearAll,
-    onExportAll,
-    templateCount,
-    activeWeek,
-    dosenCount,
-}: AppSidebarProps) {
-    const pathname = usePathname();
-    const router = useRouter();
-
+function useDarkMode() {
     const [isDark, setIsDark] = useState(() => {
         if (typeof window !== "undefined") {
-            return localStorage.getItem("bap-theme") === "dark" ||
-                document.documentElement.classList.contains("dark");
+            return (
+                localStorage.getItem("bap-theme") === "dark" ||
+                document.documentElement.classList.contains("dark")
+            );
         }
         return false;
     });
@@ -160,222 +154,211 @@ export function AppSidebar({
         }
     }, [isDark]);
 
+    return [isDark, setIsDark] as const;
+}
+
+export function AppSidebar({
+    onClearAll,
+    onExportAll,
+    templateCount,
+    activeWeek,
+    dosenCount,
+}: AppSidebarProps) {
+    const pathname = usePathname();
+    const router = useRouter();
+    const [isDark, setIsDark] = useDarkMode();
+    const { toggleSidebar, state } = useSidebar();
+    const { data: session } = authClient.useSession();
+
+    const userName = session?.user?.name?.trim() || "Akun";
+    const userEmail = session?.user?.email ?? "";
+    const initial = userName.charAt(0).toUpperCase();
+
+    const handleSignOut = async () => {
+        await authClient.signOut({
+            fetchOptions: {
+                onSuccess: () => router.push("/login"),
+            },
+        });
+    };
+
     return (
-        <Sidebar collapsible="icon">
-            {/* Header */}
-            <SidebarHeader className="border-b border-sidebar-border">
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton
-                            size="lg"
-                            className="cursor-default hover:bg-transparent active:bg-transparent"
+        <Sidebar variant="floating" collapsible="icon">
+            {/* Wordmark + rail controls, per the reference header row */}
+            <SidebarHeader className="px-3 pb-0 pt-3 group-data-[collapsible=icon]:px-2">
+                <div className="flex items-center gap-2.5 border-b border-sidebar-border pb-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-b-0">
+                    {state === "collapsed" ? (
+                        <button
+                            type="button"
+                            onClick={toggleSidebar}
+                            aria-label="Buka panel samping"
+                            title="Buka panel samping"
+                            className="group/mark flex size-10 shrink-0 items-center justify-center rounded-control transition-colors duration-[180ms] ease-out hover:bg-sidebar-accent"
                         >
-                            <div className="flex items-center justify-center rounded-lg bg-primary text-primary-foreground size-8 shrink-0">
-                                <Database className="size-4" />
-                            </div>
-                            <div className="flex flex-col gap-0.5 leading-none min-w-0">
-                                <span className="font-bold text-sm truncate">BAP System</span>
-                                <span className="text-[10px] text-muted-foreground truncate">
-                                    Berita Acara Perkuliahan
-                                </span>
-                            </div>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
+                            <BapLogo className="size-6 group-hover/mark:hidden" />
+                            <PanelLeftOpen
+                                aria-hidden
+                                className="hidden size-[1.125rem] text-foreground group-hover/mark:block"
+                            />
+                        </button>
+                    ) : (
+                        <BapLogo className="size-7" />
+                    )}
+
+                    <div className="min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
+                        <p className="truncate text-sm font-semibold">BAP System</p>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-0.5 group-data-[collapsible=icon]:hidden">
+                        <button
+                            type="button"
+                            onClick={() => setIsDark(!isDark)}
+                            aria-label={isDark ? "Mode terang" : "Mode gelap"}
+                            className="flex size-7 items-center justify-center rounded-control text-muted-foreground transition-colors duration-[180ms] ease-out hover:bg-sidebar-accent hover:text-foreground active:bg-tile [&_svg]:size-4"
+                        >
+                            {isDark ? <Sun /> : <Moon />}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={toggleSidebar}
+                            aria-label="Tutup panel samping"
+                            className="hidden size-7 items-center justify-center rounded-control text-muted-foreground transition-colors duration-[180ms] ease-out hover:bg-sidebar-accent hover:text-foreground active:bg-tile md:flex [&_svg]:size-4"
+                        >
+                            <PanelLeftClose />
+                        </button>
+                    </div>
+                </div>
             </SidebarHeader>
 
-            {/* Navigation */}
-            <SidebarContent className="overflow-x-hidden">
-                <SidebarGroup>
-                    <SidebarGroupLabel>Utama</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {UTAMA_ITEMS.map((item) => (
-                                <SidebarMenuItem key={item.path}>
-                                    <SidebarMenuButton
-                                        isActive={pathname === item.path}
-                                        tooltip={item.label}
-                                        onClick={() => router.push(item.path)}
-                                    >
-                                        {item.icon}
-                                        <span>{item.label}</span>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
+            {/* Navigation — groups separate by gap, no drawn rules */}
+            <SidebarContent className="hm-scroll gap-0 overflow-x-hidden px-3 pt-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:pt-3">
+                {NAV_GROUPS.map((group) => (
+                    <SidebarGroup key={group.label} className="px-0 pb-3 pt-0">
+                        <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                        <SidebarGroupContent>
+                            <SidebarMenu className="gap-1.5">
+                                {group.items.map((item) => (
+                                    <SidebarMenuItem key={item.path}>
+                                        <SidebarMenuButton
+                                            isActive={pathname === item.path}
+                                            tooltip={item.label}
+                                            onClick={() => router.push(item.path)}
+                                        >
+                                            {item.icon}
+                                            <span>{item.label}</span>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                ))}
+                            </SidebarMenu>
+                        </SidebarGroupContent>
+                    </SidebarGroup>
+                ))}
 
-                <SidebarSeparator />
-
-                <SidebarGroup>
-                    <SidebarGroupLabel>Perkuliahan</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {PERKULIAHAN_ITEMS.map((item) => (
-                                <SidebarMenuItem key={item.path}>
-                                    <SidebarMenuButton
-                                        isActive={pathname === item.path}
-                                        tooltip={item.label}
-                                        onClick={() => router.push(item.path)}
-                                    >
-                                        {item.icon}
-                                        <span>{item.label}</span>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
-                <SidebarSeparator />
-
-                <SidebarGroup>
-                    <SidebarGroupLabel>Master Data</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {MASTER_ITEMS.map((item) => (
-                                <SidebarMenuItem key={item.path}>
-                                    <SidebarMenuButton
-                                        isActive={pathname === item.path}
-                                        tooltip={item.label}
-                                        onClick={() => router.push(item.path)}
-                                    >
-                                        {item.icon}
-                                        <span>{item.label}</span>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
-                <SidebarSeparator />
-
-                <SidebarGroup>
-                    <SidebarGroupLabel>Dokumen & Catatan</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {DOKUMEN_ITEMS.map((item) => (
-                                <SidebarMenuItem key={item.path}>
-                                    <SidebarMenuButton
-                                        isActive={pathname === item.path}
-                                        tooltip={item.label}
-                                        onClick={() => router.push(item.path)}
-                                    >
-                                        {item.icon}
-                                        <span>{item.label}</span>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
-                <SidebarSeparator />
-
-                <SidebarGroup>
-                    <SidebarGroupLabel>Konfigurasi</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {CONFIG_ITEMS.map((item) => (
-                                <SidebarMenuItem key={item.path}>
-                                    <SidebarMenuButton
-                                        isActive={pathname === item.path}
-                                        tooltip={item.label}
-                                        onClick={() => router.push(item.path)}
-                                    >
-                                        {item.icon}
-                                        <span>{item.label}</span>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
-                <SidebarSeparator />
-
-                {/* Status Info */}
-                <SidebarGroup>
-                    <SidebarGroupLabel>Status</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <div className="px-2 py-1 space-y-2 group-data-[collapsible=icon]:hidden overflow-hidden">
-                            <div className="flex items-center justify-between text-xs min-w-0">
-                                <span className="text-muted-foreground truncate">Jadwal</span>
-                                <Badge variant="secondary" className="text-[10px] h-5 shrink-0">
-                                    {templateCount} entri
-                                </Badge>
-                            </div>
-                            <div className="flex items-center justify-between text-xs min-w-0">
-                                <span className="text-muted-foreground truncate">Dosen</span>
-                                <Badge variant="secondary" className="text-[10px] h-5 shrink-0">
-                                    {dosenCount} orang
-                                </Badge>
-                            </div>
-                            <div className="flex items-center justify-between text-xs min-w-0">
-                                <span className="text-muted-foreground truncate">Minggu Aktif</span>
-                                <Badge variant="outline" className="text-[10px] h-5 shrink-0">
-                                    Minggu {activeWeek}
-                                </Badge>
-                            </div>
+                {/* Ambient counts. Quiet metadata, not a card — the reference
+                    has no equivalent, but this data earns its place here. */}
+                {/* <div className="mt-auto space-y-1.5 border-t border-sidebar-border px-3 pb-1 pt-3 group-data-[collapsible=icon]:hidden">
+                    {[
+                        { label: "Jadwal", value: `${templateCount} entri` },
+                        { label: "Dosen", value: `${dosenCount} orang` },
+                        { label: "Minggu aktif", value: `Minggu ${activeWeek}` },
+                    ].map((row) => (
+                        <div
+                            key={row.label}
+                            className="flex items-center justify-between gap-2 text-xs"
+                        >
+                            <span className="truncate text-muted-foreground">
+                                {row.label}
+                            </span>
+                            <span
+                                data-numeric
+                                className="shrink-0 font-medium text-foreground"
+                            >
+                                {row.value}
+                            </span>
                         </div>
-                    </SidebarGroupContent>
-                </SidebarGroup>
+                    ))}
+                </div> */}
             </SidebarContent>
 
-            {/* Footer */}
-            <SidebarFooter>
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton
-                            tooltip={isDark ? "Mode Terang" : "Mode Gelap"}
-                            onClick={() => setIsDark(!isDark)}
-                            className="text-muted-foreground hover:text-foreground"
+            {/* The rail navigates. It carries no action button of its own —
+                page actions live in <PageHeader>, and the one global action
+                (Export Excel) sits in the account menu. */}
+            <SidebarFooter className="gap-0 px-3 pb-3 group-data-[collapsible=icon]:px-2">
+                <div className="border-t border-sidebar-border pt-3">
+                    <p className="hm-eyebrow mb-1.5 px-1 group-data-[collapsible=icon]:hidden">
+                        Akun
+                    </p>
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                                type="button"
+                                title={userName}
+                                className="flex w-full items-center gap-2.5 overflow-hidden rounded-control p-1.5 text-left transition-colors duration-[180ms] ease-out hover:bg-sidebar-accent active:bg-tile group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
+                            >
+                                <span
+                                    aria-hidden
+                                    className="flex size-8 shrink-0 items-center justify-center rounded-full border border-rule bg-tile text-xs font-semibold uppercase text-tile-ink"
+                                >
+                                    {initial}
+                                </span>
+                                <span className="min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
+                                    <span className="block truncate text-sm font-semibold">
+                                        {userName}
+                                    </span>
+                                    {userEmail ? (
+                                        <span className="block truncate text-xs font-normal text-muted-foreground">
+                                            {userEmail}
+                                        </span>
+                                    ) : null}
+                                </span>
+                                <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden" />
+                            </button>
+                        </DropdownMenuTrigger>
+
+                        <DropdownMenuContent
+                            side="top"
+                            align="start"
+                            className="min-w-60"
                         >
-                            {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-                            <span>{isDark ? "Mode Terang" : "Mode Gelap"}</span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton
-                            tooltip="Export Semua Minggu (1-16)"
-                            onClick={onExportAll}
-                            className="text-muted-foreground hover:text-foreground"
-                        >
-                            <Download className="size-4" />
-                            <span>Export Excel</span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton
-                            tooltip="Hapus Semua Data"
-                            onClick={onClearAll}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                            <Trash2 className="size-4" />
-                            <span>Reset Data</span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton
-                            tooltip="Logout"
-                            onClick={async () => {
-                                await authClient.signOut({
-                                    fetchOptions: {
-                                        onSuccess: () => {
-                                            router.push("/login");
-                                        }
-                                    }
-                                });
-                            }}
-                            className="text-muted-foreground hover:text-foreground"
-                        >
-                            <LogOut className="size-4" />
-                            <span>Logout</span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
+                            <DropdownMenuLabel className="font-normal">
+                                <span className="block truncate text-sm font-semibold">
+                                    {userName}
+                                </span>
+                                {userEmail ? (
+                                    <span className="block truncate text-xs font-normal text-muted-foreground">
+                                        {userEmail}
+                                    </span>
+                                ) : null}
+                            </DropdownMenuLabel>
+
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuItem onSelect={onExportAll}>
+                                <Download />
+                                Export Excel
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => router.push("/settings")}>
+                                <Settings />
+                                Pengaturan
+                            </DropdownMenuItem>
+
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuItem
+                                variant="destructive"
+                                onSelect={onClearAll}
+                            >
+                                <Trash2 />
+                                Reset data
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handleSignOut}>
+                                <LogOut />
+                                Keluar
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </SidebarFooter>
         </Sidebar>
     );

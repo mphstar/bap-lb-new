@@ -10,6 +10,15 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+    PageShell,
+    PageSections,
+    PageHeader,
+    Panel,
+    PanelHeader,
+    PanelBody,
+} from '@/components/shell';
 import type { WeekData, AppData, AssessmentForm } from '@/types';
 import { exportAllUserData, parseImportedUserData } from '@/utils/storage';
 
@@ -87,19 +96,21 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     };
 
     return (
-        <div className="max-w-2xl mx-auto space-y-8">
+        <PageShell>
+            <PageHeader
+                title="Pengaturan"
+                meta="Minggu aktif, status pengisian, dan cadangan data"
+            />
+
+            <PageSections className="max-w-3xl">
             {/* Active Week Setting */}
-            <div className="bg-card rounded-xl border shadow-sm">
-                <div className="p-6 border-b">
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
-                        <Calendar className="size-5" />
-                        Minggu Aktif
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        Pilih minggu yang sedang aktif. Data Mingguan dan Preview akan default ke minggu ini.
-                    </p>
-                </div>
-                <div className="p-6">
+            <Panel>
+                <PanelHeader
+                    icon={<Calendar />}
+                    title="Minggu aktif"
+                    meta="Data Mingguan dan Preview akan default ke minggu ini."
+                />
+                <PanelBody>
                     <div className="flex items-center gap-4">
                         <label className="text-sm font-medium min-w-[120px]">Minggu Aktif:</label>
                         <Select
@@ -118,27 +129,23 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                             </SelectContent>
                         </Select>
                     </div>
-                </div>
-            </div>
+                </PanelBody>
+            </Panel>
 
             {/* Week Overview */}
-            <div className="bg-card rounded-xl border shadow-sm">
-                <div className="p-6 border-b">
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
-                        <CheckCircle2 className="size-5" />
-                        Status Minggu
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        Ringkasan status pengisian data untuk setiap minggu.
-                    </p>
-                </div>
-                <div className="p-6">
+            <Panel>
+                <PanelHeader
+                    icon={<CheckCircle2 />}
+                    title="Status minggu"
+                    meta="Ringkasan pengisian data untuk setiap minggu."
+                />
+                <PanelBody>
                     {templateCount === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-4">
                             Belum ada jadwal template. Buat jadwal terlebih dahulu.
                         </p>
                     ) : (
-                        <div className="grid grid-cols-4 gap-3">
+                        <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 lg:grid-cols-8">
                             {weeksData.map(wk => {
                                 const status = getWeekStatus(wk);
                                 const filledCount = wk.entries.filter(e => e.materi.trim() !== '').length;
@@ -148,9 +155,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                     <button
                                         key={wk.weekNumber}
                                         onClick={() => onActiveWeekChange(wk.weekNumber)}
-                                        className={`relative p-3 rounded-lg border text-left transition-all hover:shadow-md ${isActive
-                                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                                            : 'border-border hover:border-primary/30'
+                                        className={`relative rounded-control border p-3 text-left transition-colors duration-[180ms] ease-out ${isActive
+                                            ? 'border-primary bg-primary/5'
+                                            : 'border-rule hover:bg-panel-2'
                                             }`}
                                     >
                                         <div className="flex items-center justify-between mb-1">
@@ -161,12 +168,12 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                                 <Badge className="text-[9px] h-4 px-1">Aktif</Badge>
                                             )}
                                         </div>
-                                        <div className="text-xs text-muted-foreground">
+                                        <div data-numeric className="text-xs text-muted-foreground">
                                             {filledCount}/{wk.entries.length}
                                         </div>
                                         <div className="mt-1.5 h-1.5 bg-muted rounded-full overflow-hidden">
                                             <div
-                                                className={`h-full rounded-full transition-all ${status === 'complete'
+                                                className={`h-full rounded-full transition-colors ${status === 'complete'
                                                     ? 'bg-green-500'
                                                     : status === 'partial'
                                                         ? 'bg-amber-500'
@@ -184,21 +191,17 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                             })}
                         </div>
                     )}
-                </div>
-            </div>
+                </PanelBody>
+            </Panel>
 
             {/* Export / Import */}
-            <div className="bg-card rounded-xl border shadow-sm">
-                <div className="p-6 border-b">
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
-                        <Download className="size-5" />
-                        Export / Import Data
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        Export seluruh data akun ke file JSON, atau import dari file backup.
-                    </p>
-                </div>
-                <div className="p-6 space-y-4">
+            <Panel>
+                <PanelHeader
+                    icon={<Download />}
+                    title="Cadangan data"
+                    meta="Export seluruh data akun ke satu file JSON, atau pulihkan dari berkas cadangan."
+                />
+                <PanelBody className="space-y-4">
                     {importError && (
                         <Alert variant="destructive">
                             <AlertCircle className="h-4 w-4" />
@@ -214,24 +217,21 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                         </Alert>
                     )}
 
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        {/* Export */}
-                        <button
-                            onClick={handleExport}
-                            className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-lg shadow transition-colors font-semibold"
-                        >
-                            <Download size={18} />
-                            Export Semua Data
-                        </button>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                        <Button size="lg" className="flex-1" onClick={handleExport}>
+                            <Download />
+                            Export data
+                        </Button>
 
-                        {/* Import */}
-                        <button
+                        <Button
+                            size="lg"
+                            variant="outline"
+                            className="flex-1"
                             onClick={handleImportClick}
-                            className="flex-1 flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 rounded-lg shadow transition-colors font-semibold"
                         >
-                            <Upload size={18} />
-                            Import Data
-                        </button>
+                            <Upload />
+                            Import data
+                        </Button>
                         <input
                             ref={fileInputRef}
                             type="file"
@@ -244,9 +244,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                     <p className="text-xs text-muted-foreground">
                         Export akan menyimpan: jadwal template, 16 minggu data, dosen list, student master, dan semua form penilaian dalam 1 file JSON.
                     </p>
-                </div>
-            </div>
-        </div>
+                </PanelBody>
+            </Panel>
+            </PageSections>
+        </PageShell>
     );
 };
 

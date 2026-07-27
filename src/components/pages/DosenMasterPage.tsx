@@ -13,6 +13,14 @@ import {
 import type { MasterDosen, WeekData, ScheduleEntry } from "@/types";
 import SignaturePad from "@/components/SignaturePad";
 import { useDialog } from "@/context/DialogContext";
+import { Button } from "@/components/ui/button";
+import {
+  PageShell,
+  PageHeader,
+  Panel,
+  PanelHeader,
+  PanelBody,
+} from "@/components/shell";
 
 interface DosenMasterPageProps {
   dosenList: MasterDosen[];
@@ -145,34 +153,31 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
   }, [dosenList, searchQuery]);
 
   return (
-    <div className="w-full space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold flex items-center gap-2">
-          <Award className="text-primary" size={24} />
-          Master Data Dosen
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Kelola direktori nama dosen beserta tanda tangan digital untuk penandatanganan dokumen BAP.
-        </p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Master Dosen"
+        meta={`${dosenList.length} dosen terdaftar — nama dan tanda tangan untuk dokumen BAP`}
+        actions={
+          <Button variant="default" onClick={handleImportFromWeekly}>
+            <RefreshCw /> Ambil dari jadwal
+          </Button>
+        }
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Card: Add / Edit Form */}
-        <div className="bg-card rounded-xl border shadow-sm flex flex-col">
-          <div className="p-4 border-b">
-            <h3 className="font-semibold flex items-center gap-2">
-              <PenTool size={16} className="text-primary" />
-              {editingId ? "Edit Dosen & Tanda Tangan" : "Tambah Dosen Baru"}
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              {editingId
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        {/* Left panel: add / edit form */}
+        <Panel className="flex flex-col">
+          <PanelHeader
+            icon={<PenTool />}
+            title={editingId ? "Edit dosen & tanda tangan" : "Tambah dosen baru"}
+            meta={
+              editingId
                 ? "Perbarui nama atau gambar tanda tangan dosen terpilih."
-                : "Masukkan nama dosen dan gambar tanda tangannya."}
-            </p>
-          </div>
+                : "Masukkan nama dosen dan gambar tanda tangannya."
+            }
+          />
 
-          <div className="p-4 space-y-4">
+          <PanelBody className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Nama Lengkap
@@ -182,7 +187,7 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Nama Dosen beserta Gelar (misal: Ir. Budi Santoso, M.T.)"
-                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:ring-2 focus:ring-ring focus:outline-none"
+                className="w-full border border-input rounded-control px-3 py-2 text-sm bg-background"
               />
             </div>
 
@@ -201,51 +206,39 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
 
             <div className="flex gap-2 pt-2">
               {editingId && (
-                <button
+                <Button
+                  variant="outline"
+                  className="flex-1"
                   onClick={() => {
                     setEditingId(null);
                     setName("");
                     setSignature(null);
                   }}
-                  className="flex-1 border px-4 py-2 rounded-lg font-medium text-sm hover:bg-muted transition-colors"
                 >
                   Batal
-                </button>
+                </Button>
               )}
-              <button
+              <Button
+                className="flex-1"
                 onClick={handleSaveDosen}
                 disabled={!name.trim()}
-                className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <Check size={16} />
-                {editingId ? "Simpan Perubahan" : "Simpan Dosen"}
-              </button>
+                <Check />
+                {editingId ? "Simpan perubahan" : "Simpan dosen"}
+              </Button>
             </div>
-          </div>
-        </div>
+          </PanelBody>
+        </Panel>
 
-        {/* Right Card: Directory List */}
-        <div className="bg-card rounded-xl border shadow-sm flex flex-col h-full">
-          <div className="p-4 border-b flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold flex items-center gap-2">
-                <Users size={16} className="text-primary" />
-                Direktori Dosen
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {dosenList.length} dosen terdaftar
-              </p>
-            </div>
-            <button
-              onClick={handleImportFromWeekly}
-              className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-            >
-              <RefreshCw size={13} />
-              Ambil dari Jadwal
-            </button>
-          </div>
+        {/* Right panel: directory list */}
+        <Panel className="flex h-full flex-col">
+          <PanelHeader
+            icon={<Users />}
+            title="Direktori dosen"
+            meta={`${dosenList.length} dosen terdaftar`}
+          />
 
-          <div className="p-3 border-b">
+          <div className="border-b border-rule p-3">
             <div className="relative">
               <Search
                 size={14}
@@ -256,12 +249,12 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari Dosen..."
-                className="w-full border rounded-md pl-8 pr-3 py-1.5 text-sm bg-background focus:ring-2 focus:ring-ring focus:outline-none"
+                className="w-full border rounded-md pl-8 pr-3 py-1.5 text-sm bg-background"
               />
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto max-h-[500px]">
+          <div className="hm-scroll max-h-[500px] flex-1 overflow-y-auto">
             {filteredDosen.length > 0 ? (
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-muted/50 z-10">
@@ -301,19 +294,22 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
                       </td>
                       <td className="px-3 py-3 text-center">
                         <div className="flex justify-center gap-2">
-                          <button
+                          <Button
+                            variant="outline"
+                            size="xs"
                             onClick={() => handleEdit(d)}
-                            className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2.5 py-1 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
                           >
                             Edit
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => handleDelete(d)}
-                            className="text-muted-foreground hover:text-red-600 p-1 rounded transition-colors"
-                            title="Hapus"
+                            aria-label={`Hapus ${d.name}`}
+                            className="text-muted-foreground hover:text-destructive"
                           >
-                            <Trash2 size={14} />
-                          </button>
+                            <Trash2 />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -332,9 +328,9 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
               </div>
             )}
           </div>
-        </div>
+        </Panel>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

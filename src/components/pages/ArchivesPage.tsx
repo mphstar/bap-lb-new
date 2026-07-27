@@ -18,6 +18,12 @@ import {
 } from "lucide-react";
 import type { Archive as ArchiveType } from "@/types";
 import { useDialog } from "@/context/DialogContext";
+import {
+  PageShell,
+  PageHeader,
+  PanelHeader,
+  StatTile,
+} from "@/components/shell";
 
 export default function ArchivesPage(props?: any) {
   const { showConfirm } = useDialog();
@@ -181,53 +187,31 @@ export default function ArchivesPage(props?: any) {
   }, [archives]);
 
   return (
-    <div className="w-full space-y-8 pb-10">
-      {/* Hero Banner Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 md:p-8 text-white border border-indigo-900/50 shadow-xl">
-        <div className="absolute right-0 top-0 -mr-16 -mt-16 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute left-1/3 bottom-0 -mb-20 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2.5 max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-              <Database className="size-3.5" /> Workspace Manager
-            </span>
-            <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent">
-              Arsip & Manajemen Semester
-            </h2>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              Kelola siklus data Berita Acara Perkuliahan secara cerdas. Ambil snapshot data aktif Anda (jadwal, materi, nilai, catatan, ujian, mahasiswa, & dosen) sebelum memulai semester baru.
-            </p>
-          </div>
-          <div className="flex gap-4 shrink-0">
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 text-center min-w-[90px]">
-              <span className="block text-2xl font-bold text-indigo-300">{stats.total}</span>
-              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Total Arsip</span>
-            </div>
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 text-center min-w-[90px]">
-              <span className="block text-2xl font-bold text-emerald-400">{stats.manual}</span>
-              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Manual</span>
-            </div>
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 text-center min-w-[90px]">
-              <span className="block text-2xl font-bold text-amber-400">{stats.autoBackup}</span>
-              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Cadangan</span>
-            </div>
-          </div>
-        </div>
+    <PageShell>
+      <PageHeader
+        title="Arsip Data"
+        meta="Snapshot workspace sebelum memulai semester baru"
+      />
+
+      <div className="mb-6 grid grid-cols-3 gap-4">
+        <StatTile icon={<Database />} label="Total arsip" value={stats.total} />
+        <StatTile icon={<Archive />} label="Manual" value={stats.manual} />
+        <StatTile icon={<Clock />} label="Cadangan" value={stats.autoBackup} />
       </div>
 
       {message && (
         <div
-          className={`flex items-start gap-3 p-4 rounded-xl border text-sm shadow-sm transition-all duration-300 animate-in fade-in-50 ${
+          role="status"
+          className={`mb-6 flex items-start gap-3 rounded-control border p-4 text-sm ${
             message.type === "success"
-              ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/30 text-emerald-800 dark:text-emerald-300"
-              : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/30 text-red-800 dark:text-red-300"
+              ? "border-rule bg-panel text-foreground"
+              : "border-destructive/30 bg-destructive/5 text-destructive"
           }`}
         >
           {message.type === "success" ? (
-            <CheckCircle className="size-5 shrink-0 text-emerald-500 mt-0.5" />
+            <CheckCircle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           ) : (
-            <AlertTriangle className="size-5 shrink-0 text-red-500 mt-0.5" />
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           )}
           <div className="space-y-1">
             <span className="font-semibold">{message.type === "success" ? "Berhasil" : "Kesalahan"}</span>
@@ -239,16 +223,12 @@ export default function ArchivesPage(props?: any) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Archive Form Card */}
         <div className="lg:col-span-1">
-          <div className="bg-card rounded-2xl border shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-            <div className="p-5 border-b bg-gradient-to-b from-muted/50 to-card">
-              <h3 className="font-bold text-foreground flex items-center gap-2 text-base">
-                <Archive size={18} className="text-indigo-600 dark:text-indigo-400" />
-                Mulai Semester Baru
-              </h3>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Tindakan ini akan mengosongkan workspace aktif dan mencadangkannya ke riwayat arsip.
-              </p>
-            </div>
+          <div className="bg-panel rounded-panel border border-rule overflow-hidden">
+            <PanelHeader
+              icon={<Archive />}
+              title="Mulai semester baru"
+              meta="Mengosongkan workspace aktif dan mencadangkannya ke riwayat arsip."
+            />
 
             <div className="p-5 space-y-4">
               <div className="bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 rounded-xl p-3.5 space-y-2">
@@ -271,7 +251,7 @@ export default function ArchivesPage(props?: any) {
                     value={archiveName}
                     onChange={(e) => setArchiveName(e.target.value)}
                     placeholder="Contoh: Semester Ganjil 2025/2026"
-                    className="w-full border border-input rounded-xl px-3.5 py-2.5 text-sm bg-background focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all"
+                    className="w-full border border-input rounded-xl px-3.5 py-2.5 text-sm bg-background focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-colors"
                     disabled={isArchiving}
                     required
                   />
@@ -280,7 +260,7 @@ export default function ArchivesPage(props?: any) {
                 <button
                   type="submit"
                   disabled={isArchiving || !archiveName.trim()}
-                  className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white py-2.5 px-4 rounded-xl text-sm font-semibold transition-all shadow-md shadow-indigo-600/10 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100"
+                  className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white py-2.5 px-4 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100"
                 >
                   {isArchiving ? (
                     <>
@@ -302,9 +282,9 @@ export default function ArchivesPage(props?: any) {
 
         {/* Right Column: Archives History List */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-card rounded-2xl border shadow-md flex flex-col overflow-hidden hover:shadow-lg transition-shadow duration-300">
+          <div className="bg-panel rounded-panel border border-rule flex flex-col overflow-hidden">
             {/* Header with Search */}
-            <div className="p-5 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-b from-muted/50 to-card">
+            <div className="p-5 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h3 className="font-bold text-foreground flex items-center gap-2 text-base">
                   <History size={18} className="text-indigo-600 dark:text-indigo-400" />
@@ -323,14 +303,14 @@ export default function ArchivesPage(props?: any) {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Cari nama arsip..."
-                    className="w-full border rounded-xl pl-9 pr-3 py-1.5 text-xs bg-background focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all"
+                    className="w-full border rounded-xl pl-9 pr-3 py-1.5 text-xs bg-background focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-colors"
                   />
                 </div>
               )}
             </div>
 
             {/* List Body */}
-            <div className="flex-1 overflow-x-auto min-h-[350px]">
+            <div className="hm-scroll-x flex-1 overflow-x-auto min-h-[350px]">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
                   <Loader2 className="size-8 animate-spin text-indigo-600 dark:text-indigo-400 mb-2" />
@@ -379,7 +359,7 @@ export default function ArchivesPage(props?: any) {
                           <button
                             onClick={() => handleRestore(archive.id, archive.name)}
                             disabled={actionId !== null}
-                            className="inline-flex items-center gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-3.5 py-2 rounded-xl font-bold shadow-md shadow-emerald-600/10 transition-all disabled:opacity-50 disabled:scale-100"
+                            className="inline-flex items-center gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-3.5 py-2 rounded-xl font-bold shadow-md shadow-emerald-600/10 transition-colors disabled:opacity-50 disabled:scale-100"
                             title="Pulihkan data dari arsip ini"
                           >
                             {actionId === archive.id ? (
@@ -392,7 +372,7 @@ export default function ArchivesPage(props?: any) {
                           <button
                             onClick={() => handleDelete(archive.id, archive.name)}
                             disabled={actionId !== null}
-                            className="inline-flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-500/10 p-2 rounded-xl transition-all disabled:opacity-50"
+                            className="inline-flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-500/10 p-2 rounded-xl transition-colors disabled:opacity-50"
                             title="Hapus arsip secara permanen"
                           >
                             <Trash2 size={15} />
@@ -415,6 +395,6 @@ export default function ArchivesPage(props?: any) {
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
