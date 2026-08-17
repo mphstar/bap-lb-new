@@ -74,17 +74,17 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
         );
     }
 
-    // Group entries by Day
+    // Group entries by Day (preserve template order within each day)
     const entriesByDay = DAYS.reduce((acc, day) => {
-        const dayEntries = template.filter(t => t.hari === day).sort((a, b) => a.no - b.no);
+        const dayEntries = template.filter(t => t.hari === day);
         if (dayEntries.length > 0) {
             acc[day] = dayEntries;
         }
         return acc;
     }, {} as Record<string, ScheduleEntry[]>);
 
-    // Catch-all for entries with undefined/non-standard days
-    const otherEntries = template.filter(t => !DAYS.includes(t.hari)).sort((a, b) => a.no - b.no);
+    // Catch-all for entries with undefined/non-standard days (preserve template order)
+    const otherEntries = template.filter(t => !DAYS.includes(t.hari));
     if (otherEntries.length > 0) {
         entriesByDay['Lainnya'] = otherEntries;
     }

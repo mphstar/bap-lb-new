@@ -9,8 +9,11 @@ import {
   Loader2,
   Eye,
   EyeOff,
-  TrendingUp,
   ChevronDown,
+  CalendarCheck,
+  GraduationCap,
+  Users,
+  FileCheck,
   CheckCircle,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -258,63 +261,73 @@ export default function LoginPage() {
 
             <div className="space-y-2.5 relative z-10 text-white">
               <h3 className="text-3xl font-extrabold leading-tight tracking-tight">
-                Effortlessly manage your team and operations.
+                Kelola BAP & Jadwal Perkuliahan Lebih Mudah.
               </h3>
               <p className="text-sm text-blue-100 font-medium opacity-90 leading-relaxed">
-                Log in to access your CRM dashboard and manage your team.
+                Akses dashboard untuk mengelola jadwal perkuliahan, presensi, berita acara praktikum, dan penilaian.
               </p>
             </div>
 
             {/* CSS Rendered Vector Dashboard Mockup (Flat border version) */}
-            <div className="relative z-10 w-[90%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4.5 mr-auto translate-y-4 scale-95 hover:translate-y-2 transition-transform duration-500">
+            <div className="relative z-10 w-[92%] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 mr-auto translate-y-3 scale-95 hover:translate-y-1 transition-transform duration-500">
 
               {/* Header of Mockup */}
-              <div className="flex justify-between items-center pb-3.5 border-b border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 font-bold">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 font-bold">
                 <div className="flex items-center gap-1.5">
                   <div className="size-2 rounded-full bg-red-400" />
                   <div className="size-2 rounded-full bg-yellow-400" />
                   <div className="size-2 rounded-full bg-green-400" />
+                  <span className="ml-1 text-[8.5px] font-semibold text-slate-500">BAP Lab Overview</span>
                 </div>
-                <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 rounded-md border dark:border-slate-700/50 text-[9px] text-slate-700 dark:text-slate-300">
-                  <span>Monthly</span>
+                <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded-md border dark:border-slate-700/50 text-[9px] text-slate-700 dark:text-slate-300">
+                  <span>Semester Genap</span>
                   <ChevronDown className="size-2.5" />
                 </div>
               </div>
 
               {/* Grid content of Mockup: 3 metrics stats */}
-              <div className="grid grid-cols-3 gap-2.5 pt-3.5">
+              <div className="grid grid-cols-3 gap-2 pt-3">
                 {/* Stats 1 */}
-                <div className="bg-slate-50/50 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-100/80 dark:border-slate-800/50">
-                  <span className="block text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Total Sales</span>
-                  <span className="block text-sm font-black text-slate-800 dark:text-slate-100 mt-0.5">$189,374</span>
+                <div className="bg-slate-50/60 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-100/80 dark:border-slate-800/50">
+                  <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 mb-0.5">
+                    <CalendarCheck className="size-3" />
+                    <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wide">Jadwal Minggu</span>
+                  </div>
+                  <span className="block text-sm font-black text-slate-800 dark:text-slate-100">16 Pekan</span>
                   <span className="text-[7.5px] font-bold text-emerald-500 flex items-center gap-0.5 mt-0.5">
-                    <TrendingUp className="size-2" /> +12.5%
+                    Aktif: Minggu 4
                   </span>
                 </div>
 
                 {/* Stats 2 */}
-                <div className="bg-slate-50/50 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-100/80 dark:border-slate-800/50">
-                  <span className="block text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Avg Resolution</span>
-                  <span className="block text-sm font-black text-slate-800 dark:text-slate-100 mt-0.5">00:01:30</span>
+                <div className="bg-slate-50/60 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-100/80 dark:border-slate-800/50">
+                  <div className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 mb-0.5">
+                    <Users className="size-3" />
+                    <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wide">Total Mahasiswa</span>
+                  </div>
+                  <span className="block text-sm font-black text-slate-800 dark:text-slate-100">324 Mhs</span>
                   <span className="text-[7.5px] font-bold text-emerald-500 flex items-center gap-0.5 mt-0.5">
-                    <TrendingUp className="size-2" /> +4.2%
+                    Kehadiran 98%
                   </span>
                 </div>
 
                 {/* Stats 3 */}
-                <div className="bg-slate-50/50 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-100/80 dark:border-slate-800/50">
-                  <span className="block text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Total Profit</span>
-                  <span className="block text-sm font-black text-slate-800 dark:text-slate-100 mt-0.5">$25,684</span>
-                  <span className="text-[7.5px] font-bold text-emerald-500 flex items-center gap-0.5 mt-0.5">
-                    <TrendingUp className="size-2" /> +8.9%
+                <div className="bg-slate-50/60 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-100/80 dark:border-slate-800/50">
+                  <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 mb-0.5">
+                    <GraduationCap className="size-3" />
+                    <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wide">Mata Kuliah</span>
+                  </div>
+                  <span className="block text-sm font-black text-slate-800 dark:text-slate-100">14 Kelas</span>
+                  <span className="text-[7.5px] font-bold text-blue-500 flex items-center gap-0.5 mt-0.5">
+                    Terdata Lengkap
                   </span>
                 </div>
               </div>
 
-              {/* Line Chart Wave section */}
-              <div className="pt-4">
-                <span className="block text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">Performance Overview</span>
-                <svg viewBox="0 0 300 90" className="w-full h-20 mt-1">
+              {/* Attendance Chart section */}
+              <div className="pt-3">
+                <span className="block text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-0.5">Tingkat Kehadiran Mingguan</span>
+                <svg viewBox="0 0 300 70" className="w-full h-16 mt-0.5">
                   <defs>
                     <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#2563eb" stopOpacity="0.25" />
@@ -322,91 +335,97 @@ export default function LoginPage() {
                     </linearGradient>
                   </defs>
                   {/* Grid Lines */}
-                  <line x1="0" y1="15" x2="300" y2="15" stroke="#f1f5f9" strokeDasharray="3 3" className="dark:stroke-slate-800" />
-                  <line x1="0" y1="45" x2="300" y2="45" stroke="#f1f5f9" strokeDasharray="3 3" className="dark:stroke-slate-800" />
-                  <line x1="0" y1="75" x2="300" y2="75" stroke="#f1f5f9" strokeDasharray="3 3" className="dark:stroke-slate-800" />
+                  <line x1="0" y1="12" x2="300" y2="12" stroke="#f1f5f9" strokeDasharray="3 3" className="dark:stroke-slate-800" />
+                  <line x1="0" y1="35" x2="300" y2="35" stroke="#f1f5f9" strokeDasharray="3 3" className="dark:stroke-slate-800" />
+                  <line x1="0" y1="58" x2="300" y2="58" stroke="#f1f5f9" strokeDasharray="3 3" className="dark:stroke-slate-800" />
 
                   {/* Chart Path Area */}
                   <path
-                    d="M0,75 Q40,25 90,65 T200,15 T300,55 L300,90 L0,90 Z"
+                    d="M0,58 Q50,20 100,35 T200,12 T300,28 L300,70 L0,70 Z"
                     fill="url(#chartGlow)"
                   />
                   {/* Chart Path Stroke */}
                   <path
-                    d="M0,75 Q40,25 90,65 T200,15 T300,55"
+                    d="M0,58 Q50,20 100,35 T200,12 T300,28"
                     fill="none"
                     stroke="#2563eb"
                     strokeWidth="2.5"
                     strokeLinecap="round"
                   />
                   {/* Interactive Nodes */}
-                  <circle cx="90" cy="65" r="4.5" fill="#2563eb" stroke="#ffffff" strokeWidth="2.5" className="dark:stroke-slate-900" />
-                  <circle cx="200" cy="15" r="4.5" fill="#2563eb" stroke="#ffffff" strokeWidth="2.5" className="dark:stroke-slate-900" />
+                  <circle cx="100" cy="35" r="3.5" fill="#2563eb" stroke="#ffffff" strokeWidth="2" className="dark:stroke-slate-900" />
+                  <circle cx="200" cy="12" r="3.5" fill="#2563eb" stroke="#ffffff" strokeWidth="2" className="dark:stroke-slate-900" />
                 </svg>
               </div>
 
-              {/* Product Transaction Table */}
-              <div className="pt-3.5">
+              {/* Schedule Table */}
+              <div className="pt-2.5">
                 <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-[8.5px] font-bold text-slate-800 dark:text-slate-200">Product Transaction</span>
-                  <span className="text-[7.5px] text-slate-400 hover:underline cursor-pointer">View All</span>
+                  <span className="text-[8.5px] font-bold text-slate-800 dark:text-slate-200">Jadwal Praktikum Hari Ini</span>
+                  <span className="text-[7.5px] text-blue-600 dark:text-blue-400 font-semibold">Senin, Lab TI</span>
                 </div>
                 <div className="space-y-1.5">
-                  {/* Table Row 1 */}
+                  {/* Row 1 */}
                   <div className="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-slate-800 text-[8.5px]">
-                    <div className="flex items-center gap-2">
-                      <div className="size-4.5 rounded bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 font-extrabold flex items-center justify-center text-[7.5px]">SP</div>
-                      <span className="font-bold text-slate-700 dark:text-slate-300">Sellora Pro</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="size-4.5 rounded bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-extrabold flex items-center justify-center text-[7.5px]">PW</div>
+                      <div>
+                        <div className="font-bold text-slate-800 dark:text-slate-200">Pemrograman Web</div>
+                        <div className="text-[7px] text-slate-400">TIF • Smt 4 • Gol A</div>
+                      </div>
                     </div>
-                    <span className="text-slate-400">12 Feb 2026</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">$120.00</span>
+                    <span className="text-slate-500 font-medium">07.00 - 09.00</span>
                     <span className="bg-emerald-100/80 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded font-extrabold text-[7px] flex items-center gap-0.5">
-                      <CheckCircle className="size-2" /> Paid
+                      <CheckCircle className="size-2" /> BAP Terisi
                     </span>
                   </div>
-                  {/* Table Row 2 */}
+
+                  {/* Row 2 */}
                   <div className="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-slate-800 text-[8.5px]">
-                    <div className="flex items-center gap-2">
-                      <div className="size-4.5 rounded bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-extrabold flex items-center justify-center text-[7.5px]">SB</div>
-                      <span className="font-bold text-slate-700 dark:text-slate-300">Sellora Basic</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="size-4.5 rounded bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-extrabold flex items-center justify-center text-[7.5px]">BD</div>
+                      <div>
+                        <div className="font-bold text-slate-800 dark:text-slate-200">Basis Data Lanjut</div>
+                        <div className="text-[7px] text-slate-400">MIF • Smt 2 • Gol B</div>
+                      </div>
                     </div>
-                    <span className="text-slate-400">12 Feb 2026</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">$85.50</span>
+                    <span className="text-slate-500 font-medium">09.30 - 11.30</span>
                     <span className="bg-emerald-100/80 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded font-extrabold text-[7px] flex items-center gap-0.5">
-                      <CheckCircle className="size-2" /> Paid
+                      <CheckCircle className="size-2" /> BAP Terisi
                     </span>
                   </div>
-                  {/* Table Row 3 */}
+
+                  {/* Row 3 */}
                   <div className="flex justify-between items-center py-1.5 text-[8.5px]">
-                    <div className="flex items-center gap-2">
-                      <div className="size-4.5 rounded bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-extrabold flex items-center justify-center text-[7.5px]">C</div>
-                      <span className="font-bold text-slate-700 dark:text-slate-300">Consulting</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="size-4.5 rounded bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-extrabold flex items-center justify-center text-[7.5px]">JK</div>
+                      <div>
+                        <div className="font-bold text-slate-800 dark:text-slate-200">Jaringan Komputer</div>
+                        <div className="text-[7px] text-slate-400">TKK • Smt 4 • Gol C</div>
+                      </div>
                     </div>
-                    <span className="text-slate-400">13 Feb 2026</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">$310.00</span>
+                    <span className="text-slate-500 font-medium">13.00 - 15.00</span>
                     <span className="bg-amber-100/80 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded font-extrabold text-[7px] flex items-center gap-0.5">
-                      Pending
+                      Menunggu
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Floating Overlapping Card ("Select Categories" - Flat version) */}
-              <div className="absolute right-4 top-[32%] w-[170px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-xl p-3.5 hover:scale-105 transition-all duration-300">
-                <div className="flex justify-between items-center mb-2.5">
-                  <span className="text-[8px] font-bold text-slate-700 dark:text-slate-300">Select Categories</span>
-                  <span className="text-[7px] text-slate-400 bg-slate-50 dark:bg-slate-800 px-1 py-0.5 rounded cursor-pointer flex items-center gap-0.5">
-                    Monthly <ChevronDown className="size-2" />
-                  </span>
+              {/* Floating Overlapping Card: BAP Progress */}
+              <div className="absolute right-3 top-[30%] w-[165px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-xl p-3 shadow-sm hover:scale-105 transition-all duration-300">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-[8px] font-bold text-slate-700 dark:text-slate-300">Progres Berita Acara</span>
+                  <FileCheck className="size-3 text-blue-600" />
                 </div>
 
                 {/* SVG Semi-Circle Gauge */}
-                <div className="flex justify-center py-1.5">
-                  <svg viewBox="0 0 100 55" className="w-[110px] h-[60px]">
+                <div className="flex justify-center py-1">
+                  <svg viewBox="0 0 100 55" className="w-[105px] h-[55px]">
                     <defs>
                       <linearGradient id="arcGrad" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#4f46e5" />
-                        <stop offset="100%" stopColor="#8b5cf6" />
+                        <stop offset="0%" stopColor="#2563eb" />
+                        <stop offset="100%" stopColor="#10b981" />
                       </linearGradient>
                     </defs>
                     {/* Background Arc */}
@@ -414,7 +433,7 @@ export default function LoginPage() {
                       d="M10,50 A40,40 0 0,1 90,50"
                       fill="none"
                       stroke="#f1f5f9"
-                      strokeWidth="10"
+                      strokeWidth="9"
                       strokeLinecap="round"
                       className="dark:stroke-slate-800"
                     />
@@ -423,27 +442,27 @@ export default function LoginPage() {
                       d="M10,50 A40,40 0 0,1 90,50"
                       fill="none"
                       stroke="url(#arcGrad)"
-                      strokeWidth="10"
+                      strokeWidth="9"
                       strokeLinecap="round"
                       strokeDasharray="125"
-                      strokeDashoffset="35"
+                      strokeDashoffset="25"
                     />
-                    {/* Centered units label */}
-                    <text x="50" y="45" textAnchor="middle" className="fill-slate-800 dark:fill-white font-extrabold text-[10px]">
-                      6,248 Units
+                    {/* Centered label */}
+                    <text x="50" y="44" textAnchor="middle" className="fill-slate-800 dark:fill-white font-black text-[11px]">
+                      85% BAP
                     </text>
                   </svg>
                 </div>
 
-                {/* Categories Legend */}
+                {/* Status Legend */}
                 <div className="flex justify-between items-center text-[7.5px] font-semibold text-slate-500 pt-1">
                   <div className="flex items-center gap-1">
-                    <span className="size-1.5 rounded-full bg-[#4f46e5]" />
-                    <span>Category A</span>
+                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                    <span>Selesai (14)</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="size-1.5 rounded-full bg-[#8b5cf6]" />
-                    <span>Category B</span>
+                    <span className="size-1.5 rounded-full bg-amber-400" />
+                    <span>Belum (2)</span>
                   </div>
                 </div>
               </div>

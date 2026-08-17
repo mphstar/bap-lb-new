@@ -150,7 +150,7 @@ export const useAppData = (
 
     const updateTemplate = useCallback((template: ScheduleEntry[], smartWeeksData?: Record<number, WeekImportData>) => {
         withCurrentData(current => {
-            const weeks = initializeWeeks(template, smartWeeksData);
+            const weeks = initializeWeeks(template, smartWeeksData, current.weeks);
             return { ...current, scheduleTemplate: template, weeks };
         });
     }, [withCurrentData]);

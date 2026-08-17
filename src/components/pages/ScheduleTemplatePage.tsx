@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { Upload, FileSpreadsheet, Trash2, Plus, Loader2, Printer, Download, X } from 'lucide-react';
+import { Upload, FileSpreadsheet, Trash2, Plus, Loader2, Printer, Download, X, Copy, GripVertical } from 'lucide-react';
 import type { ScheduleEntry, WeekImportData, MasterDosen } from '@/types';
 import { importSmart } from '@/utils/excelParser';
 import { generateId } from '@/utils/storage';
@@ -24,6 +24,7 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState<Partial<ScheduleEntry>>({});
     const [isPrintMode, setIsPrintMode] = useState(false);
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
     // Group template entries by day and merge identical consecutive sessions for print view
     const scheduleByDay = useMemo(() => {
@@ -129,7 +130,7 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
             id: generateId(),
             no: template.length + 1,
             mataKuliah: '',
-            hari: '',
+            hari: 'Senin',
             tempat: '',
             jam: '',
             prodi: '',
@@ -141,6 +142,41 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
         setEditingId(newEntry.id);
         setEditForm(newEntry);
         onTemplateChange([...template, newEntry]);
+    };
+
+    const duplicateEntry = (entry: ScheduleEntry, index: number) => {
+        const duplicated: ScheduleEntry = {
+            ...entry,
+            id: generateId(),
+            no: template.length + 1,
+        };
+        const updated = [...template];
+        updated.splice(index + 1, 0, duplicated);
+        const renumbered = updated.map((e, i) => ({ ...e, no: i + 1 }));
+        onTemplateChange(renumbered);
+        startEdit(duplicated);
+    };
+
+    const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, index: number) => {
+        setDraggedIndex(index);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(index));
+    };
+
+    const handleDragEnter = (index: number) => {
+        if (draggedIndex === null || draggedIndex === index) return;
+
+        const items = [...template];
+        const [movedItem] = items.splice(draggedIndex, 1);
+        items.splice(index, 0, movedItem);
+
+        const renumbered = items.map((e, i) => ({ ...e, no: i + 1 }));
+        onTemplateChange(renumbered);
+        setDraggedIndex(index);
+    };
+
+    const handleDragEnd = () => {
+        setDraggedIndex(null);
     };
 
     const deleteEntry = async (id: string) => {
@@ -271,6 +307,7 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="bg-muted/50 text-left text-muted-foreground font-semibold border-b">
+                                <th className="px-2 py-3 w-8"></th>
                                 <th className="px-3 py-3 w-10">No</th>
                                 <th className="px-3 py-3">Mata Kuliah</th>
                                 <th className="px-3 py-3">Hari</th>
@@ -281,17 +318,42 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
                                 <th className="px-3 py-3">Gol</th>
                                 <th className="px-3 py-3">Pengajar (Default)</th>
                                 <th className="px-3 py-3 w-32">Teknisi (Default)</th>
-                                <th className="px-3 py-3 w-20">Aksi</th>
+                                <th className="px-3 py-3 w-28">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {template.map((entry) => (
-                                <tr key={entry.id} className="border-b hover:bg-gray-50 transition-colors">
+                            {template.map((entry, index) => (
+                                <tr
+                                    key={entry.id}
+                                    draggable={editingId === null}
+                                    onDragStart={(e) => handleDragStart(e, index)}
+                                    onDragEnter={() => handleDragEnter(index)}
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDragEnd={handleDragEnd}
+                                    className={`border-b transition-all duration-150 ${
+                                        draggedIndex === index
+                                            ? 'opacity-40 bg-accent scale-[0.99]'
+                                            : 'hover:bg-muted/30'
+                                    }`}
+                                >
                                     {editingId === entry.id ? (
                                         <>
-                                            <td className="px-3 py-2 text-center text-gray-400">{entry.no}</td>
+                                            <td className="px-2 py-2 text-center text-muted-foreground/40">
+                                                <GripVertical size={15} />
+                                            </td>
+                                            <td className="px-3 py-2 text-center text-muted-foreground">{entry.no}</td>
                                             <td className="px-3 py-2"><input className="w-full border rounded px-2 py-1 text-sm bg-background" value={editForm.mataKuliah || ''} onChange={e => setEditForm({ ...editForm, mataKuliah: e.target.value })} placeholder="Mata Kuliah" /></td>
-                                            <td className="px-3 py-2"><input className="w-20 border rounded px-2 py-1 text-sm bg-background" value={editForm.hari || ''} onChange={e => setEditForm({ ...editForm, hari: e.target.value })} placeholder="Hari" /></td>
+                                            <td className="px-3 py-2">
+                                                <select
+                                                    className="w-24 border rounded px-2 py-1 text-sm bg-background"
+                                                    value={editForm.hari || 'Senin'}
+                                                    onChange={e => setEditForm({ ...editForm, hari: e.target.value })}
+                                                >
+                                                    {DAY_ORDER.map(day => (
+                                                        <option key={day} value={day}>{day}</option>
+                                                    ))}
+                                                </select>
+                                            </td>
                                             <td className="px-3 py-2"><input className="w-24 border rounded px-2 py-1 text-sm bg-background" value={editForm.jam || ''} onChange={e => setEditForm({ ...editForm, jam: e.target.value })} placeholder="Jam" /></td>
                                             <td className="px-3 py-2"><input className="w-16 border rounded px-2 py-1 text-sm bg-background" value={editForm.tempat || ''} onChange={e => setEditForm({ ...editForm, tempat: e.target.value })} placeholder="Tempat" /></td>
                                             <td className="px-3 py-2"><input className="w-16 border rounded px-2 py-1 text-sm bg-background" value={editForm.prodi || ''} onChange={e => setEditForm({ ...editForm, prodi: e.target.value })} placeholder="Prodi" /></td>
@@ -318,7 +380,10 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
                                         </>
                                     ) : (
                                         <>
-                                            <td className="px-3 py-2 text-center text-gray-400">{entry.no}</td>
+                                            <td className="px-2 py-2 text-center text-muted-foreground/40 cursor-grab active:cursor-grabbing">
+                                                <GripVertical size={15} />
+                                            </td>
+                                            <td className="px-3 py-2 text-center text-muted-foreground">{entry.no}</td>
                                             <td className="px-3 py-2 font-medium">{entry.mataKuliah}</td>
                                             <td className="px-3 py-2">{entry.hari}</td>
                                             <td className="px-3 py-2">{entry.jam}</td>
@@ -329,9 +394,10 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
                                             <td className="px-3 py-2">{entry.defaultPengajar}</td>
                                             <td className="px-3 py-2">{entry.defaultTeknisi}</td>
                                             <td className="px-3 py-2">
-                                                <div className="flex gap-1">
-                                                    <button onClick={() => startEdit(entry)} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">Edit</button>
-                                                    <button onClick={() => deleteEntry(entry.id)} className="text-xs text-red-500 hover:text-red-700 p-1"><Trash2 size={14} /></button>
+                                                <div className="flex items-center gap-1">
+                                                    <button onClick={() => startEdit(entry)} className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2 py-1 rounded hover:bg-blue-200">Edit</button>
+                                                    <button onClick={() => duplicateEntry(entry, index)} title="Duplikat baris" className="text-xs bg-muted text-foreground p-1 rounded hover:bg-accent"><Copy size={13} /></button>
+                                                    <button onClick={() => deleteEntry(entry.id)} title="Hapus jadwal" className="text-xs text-red-500 hover:text-red-700 p-1"><Trash2 size={14} /></button>
                                                 </div>
                                             </td>
                                         </>

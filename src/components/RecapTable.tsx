@@ -43,21 +43,14 @@ const RecapTable: React.FC<RecapTableProps> = ({ groups }) => {
                     </tr>
                 </thead>
                 <tbody>
-                    {groups.flatMap((group) => {
+                    {groups.flatMap((group, groupIndex) => {
                         const absentStudents = getAbsentStudents(group.allStudents);
                         const rows: React.ReactNode[] = [];
 
                         // Add session rows
                         group.items.forEach((item, itemIndex) => {
-                            // Calculate global index (optional, or just per group?)
-                            // Screenshot shows continuous numbering 1, 2...
                             rows.push(
-                                <tr key={`${group.key}-${itemIndex}`}>
-                                    {/* We need a way to track global index if we want 1, 2, 3... across groups. 
-                      Ideally we pass index from outside or calculate it. 
-                      Let's just use a simple counter if we can, but inside map is tricky.
-                      For now let's leave No blank or implement a counter in the transform.
-                   */}
+                                <tr key={`group-${groupIndex}-${group.key}-${itemIndex}`}>
                                     {/* 
                       Actually, let's just render the item.no if it exists in excel, 
                       otherwise we might need to re-index. 
@@ -82,7 +75,7 @@ const RecapTable: React.FC<RecapTableProps> = ({ groups }) => {
                         // Always show Absent List row
                         // Header for absent list
                         rows.push(
-                            <tr key={`${group.key}-absent-header`}>
+                            <tr key={`group-${groupIndex}-${group.key}-absent-header`}>
                                 <td colSpan={12} className="border border-black border-b-0 p-1 font-bold text-left bg-gray-50 text-[12px] uppercase tracking-wider">
                                     DAFTAR TIDAK HADIR (Nama, NIM, Keterangan)
                                 </td>
@@ -91,7 +84,7 @@ const RecapTable: React.FC<RecapTableProps> = ({ groups }) => {
 
                         // Combined absent row
                         rows.push(
-                            <tr key={`${group.key}-absent-body`}>
+                            <tr key={`group-${groupIndex}-${group.key}-absent-body`}>
                                 <td colSpan={12} className="border border-black border-t-0 p-1 text-left bg-green-100">
                                     <div className="grid grid-cols-3 gap-x-4 gap-y-1">
                                         {absentStudents.length > 0 ? (

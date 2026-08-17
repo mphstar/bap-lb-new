@@ -68,24 +68,27 @@ export const loadFromLocalStorage = (userId: string): AppData | null => {
  */
 export const initializeWeeks = (
     template: ScheduleEntry[],
-    smartWeeksData?: Record<number, WeekImportData>
+    smartWeeksData?: Record<number, WeekImportData>,
+    existingWeeks?: WeekData[]
 ): WeekData[] => {
     return Array.from({ length: 16 }, (_, i) => {
         const weekNum = i + 1;
         const weekImport = smartWeeksData?.[weekNum];
+        const existingWeek = existingWeeks?.find(w => w.weekNumber === weekNum);
 
         return {
             weekNumber: weekNum,
             entries: template.map((entry) => {
+                const existingEntry = existingWeek?.entries.find(e => e.scheduleId === entry.id);
                 const details = weekImport?.details?.[entry.id];
-                const students = weekImport?.students?.[entry.id] || [];
+                const students = weekImport?.students?.[entry.id] || existingEntry?.students || [];
 
                 return {
                     scheduleId: entry.id,
-                    pengajar: details ? details.pengajar : entry.defaultPengajar,
-                    materi: details ? details.materi : '',
-                    tanggal: details ? details.tanggal : '',
-                    teknisi: details ? details.teknisi : entry.defaultTeknisi,
+                    pengajar: details ? details.pengajar : (existingEntry?.pengajar || entry.defaultPengajar),
+                    materi: details ? details.materi : (existingEntry?.materi || ''),
+                    tanggal: details ? details.tanggal : (existingEntry?.tanggal || ''),
+                    teknisi: details ? details.teknisi : (existingEntry?.teknisi || entry.defaultTeknisi),
                     students: students,
                 };
             }),
