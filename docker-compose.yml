@@ -18,12 +18,12 @@ services:
       dockerfile: Dockerfile
     container_name: bap-web-local
     ports:
-      - "8080:3000"
+      - "${APP_PORT:-3002}:3000"
     env_file:
       - .env
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bap_lb
-      - BETTER_AUTH_URL=http://localhost:8080
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3002}
     depends_on:
       - postgres
 
