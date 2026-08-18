@@ -19,6 +19,7 @@ interface AppDataContextType {
   updateStudentMaster: (studentMaster: any[]) => void;
   updateDosenList: (dosenList: any[]) => void;
   clearAll: () => Promise<void>;
+  reload: () => Promise<void>;
   assessmentForms: AssessmentForm[];
   setAssessmentForms: (forms: any) => void;
   assessmentSaving: boolean;
@@ -43,7 +44,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     updateActiveWeek,
     updateStudentMaster,
     updateDosenList,
-    clearAll
+    clearAll,
+    reload
   } = useAppData(userId);
 
   const {
@@ -85,6 +87,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updateStudentMaster,
       updateDosenList,
       clearAll,
+      reload,
       assessmentForms,
       setAssessmentForms,
       assessmentSaving,

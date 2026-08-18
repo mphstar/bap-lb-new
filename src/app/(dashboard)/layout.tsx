@@ -18,6 +18,7 @@ import { exportWeeklyData } from "@/utils/excelExporter";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { DialogProvider, useDialog } from "@/context/DialogContext";
+import { AIAssistantWidget } from "@/components/AIAssistantWidget";
 
 function SavingPill({ children }: { children: React.ReactNode }) {
     return (
@@ -92,6 +93,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                     {children}
                 </main>
             </SidebarInset>
+
+            <AIAssistantWidget />
 
             {(saving || assessmentSaving) && <SavingPill>Menyimpan…</SavingPill>}
         </SidebarProvider>

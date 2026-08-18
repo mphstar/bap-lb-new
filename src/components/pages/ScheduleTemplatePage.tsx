@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { Upload, FileSpreadsheet, Trash2, Plus, Loader2, Printer, Download, X, Copy, GripVertical } from 'lucide-react';
+import { Upload, FileSpreadsheet, Trash2, Plus, Loader2, Printer, Download, X, Copy, GripVertical, Sparkles } from 'lucide-react';
 import type { ScheduleEntry, WeekImportData, MasterDosen } from '@/types';
 import { importSmart } from '@/utils/excelParser';
 import { generateId } from '@/utils/storage';
@@ -7,6 +7,7 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { useDialog } from '@/context/DialogContext';
 import { Button } from '@/components/ui/button';
 import { PageShell, PageHeader, EmptyState } from '@/components/shell';
+import { AIScheduleImportModal } from '@/components/AIScheduleImportModal';
 
 const DAY_ORDER = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
 
@@ -25,6 +26,42 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
     const [editForm, setEditForm] = useState<Partial<ScheduleEntry>>({});
     const [isPrintMode, setIsPrintMode] = useState(false);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+    const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+
+    const handleAIScheduleImport = (entries: ScheduleEntry[], appendMode: boolean) => {
+        let updated: ScheduleEntry[];
+        if (appendMode) {
+            const normalize = (str?: string) => (str || '').toLowerCase().replace(/[\s\.\:\-–—]/g, '');
+            const nonDuplicates = entries.filter(newEntry => {
+                const isDup = template.some(t => 
+                    normalize(t.hari) === normalize(newEntry.hari) && 
+                    normalize(t.jam) === normalize(newEntry.jam)
+                );
+                return !isDup;
+            });
+
+            const skippedCount = entries.length - nonDuplicates.length;
+            if (nonDuplicates.length === 0) {
+                showAlert('Jadwal Duplikat', 'Semua jadwal yang diimpor tidak dimasukkan karena hari dan jamnya sudah ada di database.');
+                return;
+            }
+
+            const startingNo = template.length;
+            const renumbered = nonDuplicates.map((e, idx) => ({ ...e, no: startingNo + idx + 1 }));
+            updated = [...template, ...renumbered];
+
+            if (skippedCount > 0) {
+                showAlert('Impor Selesai', `${nonDuplicates.length} jadwal berhasil ditambahkan. ${skippedCount} jadwal dilewati karena bentrok (hari & jam sudah ada).`);
+            } else {
+                showAlert('Berhasil Impor AI', `${nonDuplicates.length} jadwal berhasil ditambahkan.`);
+            }
+        } else {
+            updated = entries.map((e, idx) => ({ ...e, no: idx + 1 }));
+            showAlert('Berhasil Impor AI', `${entries.length} jadwal berhasil disimpan.`);
+        }
+        onTemplateChange(updated);
+    };
+
 
     // Group template entries by day and merge identical consecutive sessions for print view
     const scheduleByDay = useMemo(() => {
@@ -237,23 +274,30 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
                 actions={
                     <>
                         {template.length > 0 && (
-                            <Button variant="default" onClick={handlePrintJadwal}>
+                            <Button variant="outline" onClick={handlePrintJadwal}>
                                 <Printer /> Print
                             </Button>
                         )}
-                        <Button variant="default" onClick={addEntry} disabled={importing}>
-                            <Plus /> Tambah manual
+                        <Button variant="outline" asChild>
+                            <a href="/template_jadwal.xlsx" download="template_jadwal.xlsx">
+                                <Download /> Format
+                            </a>
                         </Button>
                         <Button
+                            variant="outline"
                             onClick={() => inputRef.current?.click()}
                             disabled={importing}
                         >
                             <Upload /> Impor Excel
                         </Button>
-                        <Button variant="default" asChild>
-                            <a href="/template_jadwal.xlsx" download="template_jadwal.xlsx">
-                                <Download /> Format
-                            </a>
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsAIModalOpen(true)}
+                        >
+                            <Sparkles className="size-4 text-primary" /> Smart Paste (AI)
+                        </Button>
+                        <Button variant="default" onClick={addEntry} disabled={importing}>
+                            <Plus /> Tambah manual
                         </Button>
                         <input
                             ref={inputRef}
@@ -282,14 +326,20 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
                     className="print:hidden"
                     icon={<FileSpreadsheet />}
                     title="Belum ada jadwal template"
-                    description="Impor file Excel jadwal, atau tambahkan entri satu per satu secara manual."
+                    description="Impor file Excel jadwal, copas teks tidak terstruktur dengan AI, atau tambahkan entri satu per satu secara manual."
                     actions={
                         <>
-                            <Button onClick={() => inputRef.current?.click()} disabled={importing}>
-                                <Upload /> Impor Excel
-                            </Button>
-                            <Button variant="outline" onClick={addEntry}>
+                            <Button onClick={addEntry}>
                                 <Plus /> Tambah manual
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsAIModalOpen(true)}
+                            >
+                                <Sparkles className="size-4 text-primary" /> Smart Paste (AI)
+                            </Button>
+                            <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={importing}>
+                                <Upload /> Impor Excel
                             </Button>
                         </>
                     }
@@ -494,6 +544,14 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
                     }
                 `}</style>
             )}
+
+            {/* AI Smart Paste Modal */}
+            <AIScheduleImportModal
+                isOpen={isAIModalOpen}
+                onClose={() => setIsAIModalOpen(false)}
+                onConfirm={handleAIScheduleImport}
+                existingCount={template.length}
+            />
         </PageShell>
     );
 };

@@ -37,6 +37,25 @@ export const useAppData = (
         };
     }, []);
 
+    // Load / reload data function
+    const reload = useCallback(async () => {
+        if (!userId) return;
+        try {
+            const res = await fetch('/api/weekly');
+            if (res.ok) {
+                const loadedData = await res.json();
+                if (loadedData) {
+                    if (!loadedData.activeWeek) loadedData.activeWeek = 1;
+                    if (!loadedData.dosenList) loadedData.dosenList = [];
+                    if (!loadedData.studentMaster) loadedData.studentMaster = [];
+                    setData(loadedData);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to reload data:", e);
+        }
+    }, [userId]);
+
     // Load data when userId changes
     useEffect(() => {
         const load = async () => {
@@ -76,6 +95,15 @@ export const useAppData = (
 
         load();
     }, [userId]);
+
+    // Listen to real-time refresh events (e.g. from AI assistant insert actions)
+    useEffect(() => {
+        const handleRefreshEvent = () => {
+            reload();
+        };
+        window.addEventListener('app-data-refresh', handleRefreshEvent);
+        return () => window.removeEventListener('app-data-refresh', handleRefreshEvent);
+    }, [reload]);
 
     // Prevent page reload during active saves
     useEffect(() => {
@@ -207,5 +235,6 @@ export const useAppData = (
         updateStudentMaster,
         updateDosenList,
         clearAll,
+        reload,
     };
 };
