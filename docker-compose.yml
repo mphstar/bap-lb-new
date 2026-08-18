@@ -19,15 +19,11 @@ services:
     container_name: bap-web-local
     ports:
       - "8080:3000"
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bap_lb
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-d2126db26f868ed0422e83fb1d2726a49f78eed4501e3ee51052d09303518eff}
       - BETTER_AUTH_URL=http://localhost:8080
-      - SIM_POLIJE_API_URL=${SIM_POLIJE_API_URL:-http://127.0.0.1:3000}
-      - SIM_POLIJE_API_KEY=${SIM_POLIJE_API_KEY:-secret}
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
-      - AI_PROVIDER=${AI_PROVIDER:-gemini}
     depends_on:
       - postgres
 
