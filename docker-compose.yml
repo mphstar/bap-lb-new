@@ -25,6 +25,9 @@ services:
       - BETTER_AUTH_URL=http://localhost:8080
       - SIM_POLIJE_API_URL=${SIM_POLIJE_API_URL:-http://127.0.0.1:3000}
       - SIM_POLIJE_API_KEY=${SIM_POLIJE_API_KEY:-secret}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
     depends_on:
       - postgres
 
