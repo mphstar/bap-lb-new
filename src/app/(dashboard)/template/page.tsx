@@ -10,6 +10,8 @@ export default function Page() {
       template={appData.scheduleTemplate}
       onTemplateChange={updateTemplate}
       dosenList={appData.dosenList}
+      academicYear={appData.academicYear}
+      academicSemester={appData.academicSemester}
     />
   );
 }

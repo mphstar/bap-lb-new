@@ -131,10 +131,15 @@ export async function GET() {
 
     const weeks = Array.from(weeksMap.values()).sort((a, b) => a.weekNumber - b.weekNumber);
 
+    const academicYear = userPref.academicYear || "2025/2026";
+    const academicSemester = userPref.academicSemester || "Genap";
+
     return NextResponse.json({
       scheduleTemplate,
       weeks,
       activeWeek,
+      academicYear,
+      academicSemester,
       dosenList: dosenListRecords,
       studentMaster: studentMasterRecords,
     });
@@ -153,20 +158,35 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { scheduleTemplate = [], weeks = [], activeWeek = 1, dosenList: dosenData = [], studentMaster: studentsMasterData = [] } = body;
+    const {
+      scheduleTemplate = [],
+      weeks = [],
+      activeWeek = 1,
+      academicYear = "2025/2026",
+      academicSemester = "Genap",
+      dosenList: dosenData = [],
+      studentMaster: studentsMasterData = []
+    } = body;
 
     await db.transaction(async (tx) => {
-      // 1. Sync User Preferences (active week)
+      // 1. Sync User Preferences (active week, academicYear, academicSemester)
       await tx
         .insert(userData)
         .values({
           userId: user.id,
           activeWeek,
+          academicYear: academicYear || "2025/2026",
+          academicSemester: academicSemester || "Genap",
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
           target: userData.userId,
-          set: { activeWeek, updatedAt: new Date() },
+          set: {
+            activeWeek,
+            academicYear: academicYear || "2025/2026",
+            academicSemester: academicSemester || "Genap",
+            updatedAt: new Date()
+          },
         });
 
       // 2. Sync Schedule Templates

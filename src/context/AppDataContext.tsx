@@ -16,6 +16,7 @@ interface AppDataContextType {
   updateTemplate: (template: any[], smartWeeksData?: any) => void;
   updateWeeks: (weeks: any[]) => void;
   updateActiveWeek: (activeWeek: number) => void;
+  updateAcademicSettings: (academicYear: string, academicSemester: string) => void;
   updateStudentMaster: (studentMaster: any[]) => void;
   updateDosenList: (dosenList: any[]) => void;
   clearAll: () => Promise<void>;
@@ -42,6 +43,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     updateTemplate,
     updateWeeks,
     updateActiveWeek,
+    updateAcademicSettings,
     updateStudentMaster,
     updateDosenList,
     clearAll,
@@ -84,6 +86,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updateTemplate,
       updateWeeks,
       updateActiveWeek,
+      updateAcademicSettings,
       updateStudentMaster,
       updateDosenList,
       clearAll,

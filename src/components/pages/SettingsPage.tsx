@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Calendar, CheckCircle2, Download, Upload, AlertCircle } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Calendar, CheckCircle2, Download, Upload, AlertCircle, GraduationCap } from 'lucide-react';
 import { useDialog } from '@/context/DialogContext';
 import {
     Select,
@@ -8,6 +8,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,9 @@ import { exportAllUserData, parseImportedUserData } from '@/utils/storage';
 interface SettingsPageProps {
     activeWeek: number;
     onActiveWeekChange: (week: number) => void;
+    academicYear?: string;
+    academicSemester?: string;
+    onAcademicSettingsChange?: (year: string, semester: string) => void;
     templateCount: number;
     weeksData: WeekData[];
     // Export/Import
@@ -36,6 +40,9 @@ interface SettingsPageProps {
 const SettingsPage: React.FC<SettingsPageProps> = ({
     activeWeek,
     onActiveWeekChange,
+    academicYear = "2025/2026",
+    academicSemester = "Genap",
+    onAcademicSettingsChange,
     templateCount,
     weeksData,
     appData,
@@ -46,6 +53,31 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     const [importError, setImportError] = useState<string | null>(null);
     const [importSuccess, setImportSuccess] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [yearValue, setYearValue] = useState(academicYear);
+    const [semesterValue, setSemesterValue] = useState(academicSemester);
+
+    useEffect(() => {
+        setYearValue(academicYear || "2025/2026");
+    }, [academicYear]);
+
+    useEffect(() => {
+        setSemesterValue(academicSemester || "Genap");
+    }, [academicSemester]);
+
+    const handleYearChange = (newYear: string) => {
+        setYearValue(newYear);
+        if (onAcademicSettingsChange) {
+            onAcademicSettingsChange(newYear, semesterValue);
+        }
+    };
+
+    const handleSemesterChange = (newSemester: string) => {
+        setSemesterValue(newSemester);
+        if (onAcademicSettingsChange) {
+            onAcademicSettingsChange(yearValue, newSemester);
+        }
+    };
 
     const getWeekStatus = (wk: WeekData) => {
         if (wk.entries.length === 0) return 'empty';
@@ -128,6 +160,57 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+                </PanelBody>
+            </Panel>
+
+            {/* Academic Period Setting */}
+            <Panel>
+                <PanelHeader
+                    icon={<GraduationCap />}
+                    title="Periode Akademik"
+                    meta="Pengaturan Semester dan Tahun Akademik untuk cetak BAP & Daftar Hadir."
+                />
+                <PanelBody className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium">Semester:</label>
+                            <Select
+                                value={semesterValue}
+                                onValueChange={handleSemesterChange}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Pilih semester" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Genap">Semester Genap</SelectItem>
+                                    <SelectItem value="Ganjil">Semester Ganjil</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium">Tahun Akademik:</label>
+                            <Input
+                                type="text"
+                                value={yearValue}
+                                onChange={(e) => handleYearChange(e.target.value)}
+                                placeholder="Contoh: 2025/2026"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Live Preview of Document Header */}
+                    <div className="rounded-control border border-rule bg-panel-2 p-3 space-y-1">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                            Pratinjau Kop Dokumen Cetak
+                        </span>
+                        <p className="font-serif text-xs font-bold text-foreground">
+                            DAFTAR HADIR PEMBIMBING PRAKTIKUM LABORATORIUM DAN LAPANG
+                        </p>
+                        <p className="font-serif text-xs font-bold text-primary">
+                            SEMESTER {(semesterValue || 'Genap').trim().toUpperCase()} TAHUN AKADEMIK {(yearValue || '2025/2026').trim()}
+                        </p>
                     </div>
                 </PanelBody>
             </Panel>

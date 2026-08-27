@@ -15,9 +15,17 @@ interface ScheduleTemplatePageProps {
     template: ScheduleEntry[];
     onTemplateChange: (template: ScheduleEntry[], smartWeeksData?: Record<number, WeekImportData>) => void;
     dosenList?: MasterDosen[];
+    academicYear?: string;
+    academicSemester?: string;
 }
 
-const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, onTemplateChange, dosenList = [] }) => {
+const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({
+    template,
+    onTemplateChange,
+    dosenList = [],
+    academicYear = "2025/2026",
+    academicSemester = "Genap"
+}) => {
     const inputRef = useRef<HTMLInputElement>(null);
     const { showAlert, showConfirm } = useDialog();
     const [importing, setImporting] = useState(false);
@@ -469,7 +477,7 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({ template, o
                         {/* Title */}
                         <div className="text-center mb-2">
                             <p className="font-bold text-sm uppercase tracking-wide">Jadwal Praktikum Laboratorium</p>
-                            <p className="font-bold text-xs">Semester Genap Tahun Akademik 2025/2026</p>
+                            <p className="font-bold text-xs">Semester {academicSemester || 'Genap'} Tahun Akademik {academicYear || '2025/2026'}</p>
                         </div>
 
                         {/* Schedule Table */}

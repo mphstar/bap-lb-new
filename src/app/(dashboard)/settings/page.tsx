@@ -7,6 +7,7 @@ export default function Page() {
   const {
     appData,
     updateActiveWeek,
+    updateAcademicSettings,
     assessmentForms,
     setAssessmentForms,
     updateTemplate,
@@ -19,6 +20,10 @@ export default function Page() {
     updateTemplate(importedAppData.scheduleTemplate);
     updateWeeks(importedAppData.weeks);
     updateActiveWeek(importedAppData.activeWeek || 1);
+    updateAcademicSettings(
+      importedAppData.academicYear || "2025/2026",
+      importedAppData.academicSemester || "Genap"
+    );
     updateStudentMaster(importedAppData.studentMaster || []);
     setAssessmentForms(importedAssessmentForms);
 
@@ -45,6 +50,9 @@ export default function Page() {
     <SettingsPage
       activeWeek={appData.activeWeek}
       onActiveWeekChange={updateActiveWeek}
+      academicYear={appData.academicYear}
+      academicSemester={appData.academicSemester}
+      onAcademicSettingsChange={updateAcademicSettings}
       templateCount={appData.scheduleTemplate.length}
       weeksData={appData.weeks}
       appData={appData}

@@ -7,9 +7,19 @@ interface DaftarHadirDocumentProps {
     showSignature?: boolean;
     dosenSignature?: string | null;
     teknisiSignature?: string | null;
+    academicYear?: string;
+    academicSemester?: string;
 }
 
-const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({ data, isLast = false, showSignature = true, dosenSignature = null, teknisiSignature = null }) => {
+const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
+    data,
+    isLast = false,
+    showSignature = true,
+    dosenSignature = null,
+    teknisiSignature = null,
+    academicYear = "2025/2026",
+    academicSemester = "Genap"
+}) => {
     // Filter students who have remarks (absent/special status)
     const absentStudents = data.students.filter(
         s => s.remarks && s.remarks.trim() !== '' && s.remarks.trim().toLowerCase() !== 'hadir'
@@ -20,6 +30,9 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({ data, isLast 
     // If there are absent students, we pad to nearest multiple of 2, minimum 6 rows.
     const totalSlots = Math.max(12, Math.ceil(absentStudents.length / 2) * 2);
     const numRows = totalSlots / 2;
+
+    const semesterDisplay = (academicSemester || 'Genap').trim().toUpperCase();
+    const yearDisplay = (academicYear || '2025/2026').trim();
 
     return (
         <div
@@ -41,7 +54,7 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({ data, isLast 
             {/* Title - Smaller */}
             <div className="mb-3 text-center" style={{ fontSize: '9pt' }}>
                 <p className="font-bold">DAFTAR HADIR PEMBIMBING PRAKTIKUM LABORATORIUM DAN LAPANG</p>
-                <p className="font-bold">SEMESTER GENAP TAHUN AKADEMIK 2025/2026</p>
+                <p className="font-bold">SEMESTER {semesterDisplay} TAHUN AKADEMIK {yearDisplay}</p>
             </div>
 
             {/* Session Details - Compact 2-column Grid */}

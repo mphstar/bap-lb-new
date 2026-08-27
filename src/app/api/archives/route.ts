@@ -5,11 +5,13 @@ import { getSessionUser } from "@/lib/session";
 
 // Helper function to capture the current active data snapshot for a user
 async function getActiveDataSnapshot(userId: string) {
-  // 1. Fetch preferences (active week)
+  // 1. Fetch preferences (active week, academicYear, academicSemester)
   const userPref = await db.query.userData.findFirst({
     where: eq(userData.userId, userId),
   });
   const activeWeek = userPref?.activeWeek ?? 1;
+  const academicYear = userPref?.academicYear ?? "2025/2026";
+  const academicSemester = userPref?.academicSemester ?? "Genap";
 
   // 2. Fetch other tables in parallel
   const [
@@ -72,6 +74,8 @@ async function getActiveDataSnapshot(userId: string) {
 
   return {
     activeWeek,
+    academicYear,
+    academicSemester,
     scheduleTemplates: templatesData,
     studentMaster: studentsMasterData,
     dosenList: dosenData,

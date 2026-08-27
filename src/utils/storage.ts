@@ -235,6 +235,12 @@ export const parseImportedUserData = (jsonString: string): UserDataExport => {
     if (!Array.isArray(appData.studentMaster)) {
         appData.studentMaster = [];
     }
+    if (!appData.academicYear) {
+        appData.academicYear = '2025/2026';
+    }
+    if (!appData.academicSemester) {
+        appData.academicSemester = 'Genap';
+    }
 
     const assessmentForms = Array.isArray(parsed.assessmentForms) ? parsed.assessmentForms : [];
 

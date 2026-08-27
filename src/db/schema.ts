@@ -59,6 +59,8 @@ export const userData = pgTable("user_data", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }).unique(),
   activeWeek: integer("active_week").notNull().default(1),
+  academicYear: text("academic_year").notNull().default("2025/2026"),
+  academicSemester: text("academic_semester").notNull().default("Genap"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 

@@ -59,6 +59,8 @@ export interface AppData {
     activeWeek: number; // 1-16, currently focused week
     dosenList: MasterDosen[]; // master list of dosen names
     studentMaster: MasterStudent[]; // auto-built master list of students
+    academicYear?: string; // e.g. "2025/2026"
+    academicSemester?: string; // e.g. "Genap" or "Ganjil"
 }
 
 // Legacy type for BapDocument/RecapTable rendering
@@ -131,6 +133,8 @@ export interface Archive {
 
 export interface ArchiveSnapshot {
     activeWeek: number;
+    academicYear?: string;
+    academicSemester?: string;
     scheduleTemplates: any[];
     studentMaster: any[];
     dosenList: any[];

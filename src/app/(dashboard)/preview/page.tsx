@@ -11,6 +11,8 @@ export default function Page() {
       weeks={appData.weeks}
       activeWeek={appData.activeWeek}
       dosenList={appData.dosenList}
+      academicYear={appData.academicYear}
+      academicSemester={appData.academicSemester}
     />
   );
 }

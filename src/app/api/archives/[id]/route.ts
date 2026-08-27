@@ -140,14 +140,27 @@ export async function POST(
         await tx.insert(examScheduleNotes).values(snapshot.examScheduleNotes.map(clean));
       }
 
-      // d. Update active week
+      // d. Update active week and academic period
       const targetActiveWeek = snapshot.activeWeek ?? 1;
+      const targetAcademicYear = snapshot.academicYear ?? "2025/2026";
+      const targetAcademicSemester = snapshot.academicSemester ?? "Genap";
       await tx
         .insert(userData)
-        .values({ userId: user.id, activeWeek: targetActiveWeek })
+        .values({
+          userId: user.id,
+          activeWeek: targetActiveWeek,
+          academicYear: targetAcademicYear,
+          academicSemester: targetAcademicSemester,
+          updatedAt: new Date(),
+        })
         .onConflictDoUpdate({
           target: userData.userId,
-          set: { activeWeek: targetActiveWeek, updatedAt: new Date() },
+          set: {
+            activeWeek: targetActiveWeek,
+            academicYear: targetAcademicYear,
+            academicSemester: targetAcademicSemester,
+            updatedAt: new Date()
+          },
         });
     });
 

@@ -10,6 +10,8 @@ const INITIAL_DATA: AppData = {
     scheduleTemplate: [],
     weeks: [],
     activeWeek: 1,
+    academicYear: '2025/2026',
+    academicSemester: 'Genap',
     dosenList: [],
     studentMaster: [],
 };
@@ -46,6 +48,8 @@ export const useAppData = (
                 const loadedData = await res.json();
                 if (loadedData) {
                     if (!loadedData.activeWeek) loadedData.activeWeek = 1;
+                    if (!loadedData.academicYear) loadedData.academicYear = '2025/2026';
+                    if (!loadedData.academicSemester) loadedData.academicSemester = 'Genap';
                     if (!loadedData.dosenList) loadedData.dosenList = [];
                     if (!loadedData.studentMaster) loadedData.studentMaster = [];
                     setData(loadedData);
@@ -79,6 +83,8 @@ export const useAppData = (
 
                 if (loadedData) {
                     if (!loadedData.activeWeek) loadedData.activeWeek = 1;
+                    if (!loadedData.academicYear) loadedData.academicYear = '2025/2026';
+                    if (!loadedData.academicSemester) loadedData.academicSemester = 'Genap';
                     if (!loadedData.dosenList) loadedData.dosenList = [];
                     if (!loadedData.studentMaster) loadedData.studentMaster = [];
 
@@ -199,6 +205,10 @@ export const useAppData = (
         withCurrentData(current => ({ ...current, dosenList }));
     }, [withCurrentData]);
 
+    const updateAcademicSettings = useCallback((academicYear: string, academicSemester: string) => {
+        withCurrentData(current => ({ ...current, academicYear, academicSemester }));
+    }, [withCurrentData]);
+
     const clearAll = useCallback(async () => {
         if (timerRef.current) {
             clearTimeout(timerRef.current);
@@ -232,6 +242,7 @@ export const useAppData = (
         updateTemplate,
         updateWeeks,
         updateActiveWeek,
+        updateAcademicSettings,
         updateStudentMaster,
         updateDosenList,
         clearAll,

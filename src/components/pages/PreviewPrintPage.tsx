@@ -44,6 +44,8 @@ interface PreviewPrintPageProps {
     weeks: WeekData[];
     activeWeek: number;
     dosenList?: MasterDosen[];
+    academicYear?: string;
+    academicSemester?: string;
 }
 
 /** Chip used by the week grid and the prodi filter — one control voice for both. */
@@ -66,7 +68,14 @@ function FilterChip({
     );
 }
 
-const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, activeWeek: defaultWeek, dosenList = [] }) => {
+const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
+    template,
+    weeks,
+    activeWeek: defaultWeek,
+    dosenList = [],
+    academicYear = "2025/2026",
+    academicSemester = "Genap"
+}) => {
     const [selectedWeek, setSelectedWeek] = useState(defaultWeek);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [scale, setScale] = useState(1);
@@ -446,6 +455,8 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, ac
                                             showSignature={showSignature}
                                             dosenSignature={showSignature ? (dosenList.find(d => d.name === currentDoc.pengajar)?.signature || null) : null}
                                             teknisiSignature={showSignature ? teknisiSignature : null}
+                                            academicYear={academicYear}
+                                            academicSemester={academicSemester}
                                         />
                                     </div>
                                 </div>
@@ -484,6 +495,8 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({ template, weeks, ac
                                                         showSignature={showSignature}
                                                         dosenSignature={showSignature ? (dosenList.find(d => d.name === item.pengajar)?.signature || null) : null}
                                                         teknisiSignature={showSignature ? teknisiSignature : null}
+                                                        academicYear={academicYear}
+                                                        academicSemester={academicSemester}
                                                     />
                                                 </div>
                                             ))}
