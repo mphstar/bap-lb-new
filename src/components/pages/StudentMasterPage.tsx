@@ -26,8 +26,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Building,
+  CalendarClock,
+  ClipboardList,
 } from "lucide-react";
 import type { MasterStudent, ScheduleEntry, WeekData } from "@/types";
+import { collectWeekAbsence, sessionBlockKey } from "@/utils/attendance";
 import { useDialog } from "@/context/DialogContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -110,6 +113,206 @@ function getAvatarColor(name: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
+// ─── Rekap Ketidakhadiran helpers ────────────────────────────────────────────
+
+interface AbsenceSession {
+  weekNumber: number;
+  hari: string;
+  tanggal: string;
+  mataKuliah: string;
+  jam: string;
+  start: number;
+  end: number;
+  remarks: string;
+}
+
+const DAY_ORDER = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+
+/** Convert a time token ("07:00", "07.00", or "7") to minutes since midnight. */
+function toMinutes(t: string): number | null {
+  const m = String(t).trim().match(/^(\d{1,2})(?::(\d{2})|\.(\d{2}))?$/);
+  if (!m) return null;
+  const h = parseInt(m[1], 10);
+  const min = parseInt(m[2] || m[3] || "0", 10);
+  const total = h * 60 + min;
+  return Number.isFinite(total) ? total : null;
+}
+
+/** Format minutes back to "07:00". */
+function minutesToHHMM(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/** Extract time tokens from a jam string in order (e.g. "07.00-09.00" → [7:00, 9:00]). */
+function extractTimeTokens(jamStr: string): string[] {
+  const tokens: string[] = [];
+  const re = /(\d{1,2}):(\d{2})|(\d{1,2})\.(\d{2})|\b(\d{1,2})\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(jamStr))) {
+    if (m[1] !== undefined) tokens.push(`${m[1]}:${m[2]}`);
+    else if (m[3] !== undefined) tokens.push(`${m[3]}:${m[4]}`);
+    else tokens.push(m[5]);
+  }
+  return tokens;
+}
+
+/** Split a jam string into [start, end] minute blocks (supports multi-block jams). */
+function buildJamBlocks(jamStr: string): { start: number; end: number }[] {
+  const minutes = extractTimeTokens(jamStr).map((t) => toMinutes(t));
+  const blocks: { start: number; end: number }[] = [];
+  for (let i = 0; i + 1 < minutes.length; i += 2) {
+    if (minutes[i] == null || minutes[i + 1] == null) continue;
+    if (minutes[i]! < minutes[i + 1]!) {
+      blocks.push({ start: minutes[i]!, end: minutes[i + 1]! });
+    }
+  }
+  return blocks;
+}
+
+/** All [start, end] minute slots across a group of template entries, sorted. */
+function blockTimeSlots(tpls: ScheduleEntry[]): { start: number; end: number }[] {
+  const slots: { start: number; end: number }[] = [];
+  tpls.forEach((t) => buildJamBlocks(t.jam).forEach((b) => slots.push(b)));
+  return slots.sort((a, b) => a.start - b.start);
+}
+
+/** Merge consecutive slots of one block into a readable jam label. */
+function blockJamDisplay(tpls: ScheduleEntry[]): string {
+  const slots = blockTimeSlots(tpls);
+  if (slots.length === 0) return "";
+  const merged: { start: number; end: number }[] = [];
+  slots.forEach((s) => {
+    if (merged.length === 0) {
+      merged.push(s);
+      return;
+    }
+    const last = merged[merged.length - 1];
+    if (s.start <= last.end) {
+      last.end = Math.max(last.end, s.end);
+    } else {
+      merged.push(s);
+    }
+  });
+  return merged
+    .map((m) => `${minutesToHHMM(m.start)}–${minutesToHHMM(m.end)}`)
+    .join(", ");
+}
+
+/**
+ * Build a list of absence sessions for one student.
+ *
+ * Counting reuses the dashboard's single source of truth (`sessionBlockKey` and
+ * `collectWeekAbsence`): one teaching block is keyed by hari · prodi · semester
+ * · golongan · mataKuliah and IGNORES jam. So a course split across two
+ * consecutive time slots on the same day (e.g. 07:00-09:00 & 09:00-11:00) is a
+ * single block and counts as ONE absence. Two different courses remain two
+ * separate absences. Where the block's slots disagree on the remark, the most
+ * severe wins.
+ */
+function buildAbsenceRecap(
+  nim: string,
+  scheduleTemplate: ScheduleEntry[],
+  weeks: WeekData[]
+): AbsenceSession[] {
+  const trimmedNim = nim.trim();
+  const blockByScheduleId = new Map<string, string>();
+  const tplsByBlock = new Map<string, ScheduleEntry[]>();
+  scheduleTemplate.forEach((t) => {
+    const k = sessionBlockKey(t);
+    blockByScheduleId.set(t.id, k);
+    const arr = tplsByBlock.get(k) || [];
+    arr.push(t);
+    tplsByBlock.set(k, arr);
+  });
+
+  const sessions: AbsenceSession[] = [];
+
+  weeks.forEach((w) => {
+    const records = collectWeekAbsence(scheduleTemplate, w);
+    records.forEach((r) => {
+      if (r.nim !== trimmedNim) return;
+      const tpls = tplsByBlock.get(r.blockKey);
+      if (!tpls || tpls.length === 0) return;
+
+      const tpl = tpls.find((t) => (t.hari || "").trim()) || tpls[0];
+      const mataKuliah =
+        (tpls.find((t) => (t.mataKuliah || "").trim())?.mataKuliah || "").trim();
+
+      // Pick the first date recorded in this week for this block.
+      let tanggal = "";
+      for (const e of w.entries) {
+        if (blockByScheduleId.get(e.scheduleId) === r.blockKey && (e.tanggal || "").trim()) {
+          tanggal = (e.tanggal || "").trim();
+          break;
+        }
+      }
+
+      const slots = blockTimeSlots(tpls);
+      sessions.push({
+        weekNumber: w.weekNumber,
+        hari: (tpl.hari || "").trim(),
+        tanggal,
+        mataKuliah,
+        jam: blockJamDisplay(tpls),
+        start: slots[0]?.start ?? 0,
+        end: slots[slots.length - 1]?.end ?? 0,
+        remarks: r.remarks,
+      });
+    });
+  });
+
+  const dayIdx = (d: string) => {
+    const i = DAY_ORDER.indexOf(d);
+    return i === -1 ? 99 : i;
+  };
+  sessions.sort((a, b) => {
+    if (a.weekNumber !== b.weekNumber) return a.weekNumber - b.weekNumber;
+    const di = dayIdx(a.hari) - dayIdx(b.hari);
+    if (di !== 0) return di;
+    return a.start - b.start;
+  });
+
+  return sessions;
+}
+
+/** Tailwind classes for a remark badge by type. */
+function remarkBadgeClass(rem: string): string {
+  const r = rem.toLowerCase();
+  if (r === "alpha")
+    return "bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800/60";
+  if (r === "sakit")
+    return "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800/60";
+  if (r === "izin")
+    return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/60";
+  if (r === "mbkm")
+    return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800/60";
+  return "bg-muted/50 text-foreground border-rule";
+}
+
+/** Solid dot color per remark type. */
+function remarkDotColor(rem: string): string {
+  const r = rem.toLowerCase();
+  if (r === "alpha") return "bg-red-500";
+  if (r === "sakit") return "bg-orange-500";
+  if (r === "izin") return "bg-amber-500";
+  if (r === "mbkm") return "bg-blue-500";
+  return "bg-muted";
+}
+
+/** Aggregate a student's absence sessions into total + per-reason counts. */
+function tallyRecap(
+  recaps: AbsenceSession[]
+): { total: number; counts: Record<string, number> } {
+  const counts: Record<string, number> = {};
+  recaps.forEach((s) => {
+    const k = s.remarks.trim().toLowerCase() || "lainnya";
+    counts[k] = (counts[k] || 0) + 1;
+  });
+  return { total: recaps.length, counts };
+}
+
 const selectClass =
   "w-full rounded-control border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring";
 
@@ -151,6 +354,9 @@ const StudentMasterPage: React.FC<StudentMasterPageProps> = ({
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedNims, setSelectedNims] = useState<Set<string>>(new Set());
+
+  // Rekap ketidakhadiran (detail dialog)
+  const [recapStudent, setRecapStudent] = useState<MasterStudent | null>(null);
 
   // === Load SIM Polije filter options ===
   const loadFilterOptions = useCallback(async () => {
@@ -527,6 +733,21 @@ const StudentMasterPage: React.FC<StudentMasterPageProps> = ({
     (s) => !studentMaster.some((m) => m.nim === s.nim)
   );
 
+  // === Rekap Ketidakhadiran per mahasiswa (disajikan langsung di tabel) ===
+  const recapByNim = useMemo(() => {
+    const map: Record<string, AbsenceSession[]> = {};
+    studentMaster.forEach((m) => {
+      const key = m.nim.trim();
+      if (key) map[key] = buildAbsenceRecap(key, scheduleTemplate, weeks);
+    });
+    return map;
+  }, [studentMaster, scheduleTemplate, weeks]);
+
+  const selectedRecap = recapStudent
+    ? recapByNim[recapStudent.nim.trim()] || []
+    : [];
+  const selectedTally = tallyRecap(selectedRecap);
+
   return (
     <PageShell>
       <PageHeader
@@ -712,6 +933,7 @@ const StudentMasterPage: React.FC<StudentMasterPageProps> = ({
                   <th className="py-3 px-4">Program Studi</th>
                   <th className="py-3 px-4 text-center w-24">Semester</th>
                   <th className="py-3 px-4 text-center w-24">Golongan</th>
+                  <th className="py-3 px-4">Rekap Tidak Hadir</th>
                   <th className="py-3 pl-3 pr-6 text-right w-28">Aksi</th>
                 </tr>
               </thead>
@@ -719,6 +941,7 @@ const StudentMasterPage: React.FC<StudentMasterPageProps> = ({
                 {filteredMaster.map((m, idx) => {
                   const initials = getInitials(m.name);
                   const avatarColor = getAvatarColor(m.name);
+                  const recaps = recapByNim[m.nim.trim()] || [];
 
                   return (
                     <tr
@@ -796,9 +1019,51 @@ const StudentMasterPage: React.FC<StudentMasterPageProps> = ({
                         )}
                       </td>
 
+                      {/* Rekap Tidak Hadir */}
+                      <td className="py-3.5 px-4 align-top">
+                        {recaps.length === 0 ? (
+                          <span className="text-xs text-muted-foreground italic">
+                            Tidak ada
+                          </span>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                            {(["ALPHA", "SAKIT", "IZIN", "MBKM"] as const).map(
+                              (k) => {
+                                const value = tallyRecap(recaps).counts[k.toLowerCase()] || 0;
+                                return (
+                                  <div key={k} className="flex items-center gap-1.5">
+                                    <span
+                                      className={`size-2 shrink-0 rounded-full ${
+                                        value > 0 ? remarkDotColor(k) : "bg-muted/40"
+                                      }`}
+                                    />
+                                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                      {k}
+                                    </span>
+                                    <span data-numeric className="text-xs font-semibold text-foreground">
+                                      {value}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                            )}
+                          </div>
+                        )}
+                      </td>
+
                       {/* Actions */}
                       <td className="py-3.5 pl-3 pr-6 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setRecapStudent(m)}
+                            className="h-8 px-2 text-xs font-medium text-primary"
+                            title="Lihat detail rekapan ketidakhadiran"
+                          >
+                            <CalendarClock className="h-3.5 w-3.5 mr-1" />
+                            Rekap
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1212,6 +1477,110 @@ const StudentMasterPage: React.FC<StudentMasterPageProps> = ({
             </Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Modal: Detail Rekap Ketidakhadiran ─────────────── */}
+      <Dialog
+        open={!!recapStudent}
+        onOpenChange={(open) => {
+          if (!open) setRecapStudent(null);
+        }}
+      >
+        {recapStudent && (
+          <DialogContent className="sm:max-w-[640px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+                <ClipboardList className="h-4.5 w-4.5 text-primary" />
+                <span>Rekap Ketidakhadiran — {recapStudent.name}</span>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                <span className="font-mono">{recapStudent.nim}</span>
+                {" · "}
+                Total {selectedTally.total} sesi tidak hadir. Mata kuliah yang sama pada
+                jam berurutan (mis. 07:00–09:00 &amp; 09:00–11:00) dihitung satu sesi.
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogBody className="space-y-4 px-6 py-5 max-h-[62vh] overflow-y-auto">
+              {/* Summary counts */}
+              <div className="flex flex-wrap gap-2">
+                {(["ALPHA", "SAKIT", "IZIN", "MBKM"] as const).map((k) => {
+                  const value = selectedTally.counts[k.toLowerCase()] || 0;
+                  return (
+                    <span
+                      key={k}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${
+                        value > 0
+                          ? remarkBadgeClass(k)
+                          : "bg-muted/40 text-muted-foreground border-rule"
+                      }`}
+                    >
+                      {k} <span data-numeric>{value}</span>
+                    </span>
+                  );
+                })}
+              </div>
+
+              {selectedRecap.length === 0 ? (
+                <EmptyState
+                  variant="bare"
+                  size="compact"
+                  icon={<CheckCircle2 className="h-8 w-8 text-emerald-600" />}
+                  title="Tidak ada ketidakhadiran"
+                  description="Mahasiswa ini tercatat hadir di seluruh sesi data mingguan."
+                />
+              ) : (
+                <ol className="space-y-3">
+                  {selectedRecap.map((s, i) => (
+                    <li
+                      key={i}
+                      className="rounded-control border border-rule bg-panel p-3.5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="text-sm font-semibold text-foreground">
+                            Minggu {s.weekNumber}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {" · "}
+                            {s.hari}
+                            {s.tanggal ? `, ${s.tanggal}` : ""}
+                          </span>
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className={remarkBadgeClass(s.remarks)}
+                        >
+                          {s.remarks}
+                        </Badge>
+                      </div>
+
+                      <p className="mt-2 border-t border-rule pt-2 text-sm font-medium text-foreground">
+                        {s.mataKuliah}
+                        {s.jam && (
+                          <span className="text-muted-foreground font-normal">
+                            {" "}
+                            ({s.jam})
+                          </span>
+                        )}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </DialogBody>
+
+            <DialogFooter className="px-6 py-4 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRecapStudent(null)}
+              >
+                Tutup
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
       </Dialog>
     </PageShell>
   );
