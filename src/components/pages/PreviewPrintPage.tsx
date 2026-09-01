@@ -14,7 +14,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Printer, ChevronLeft, ChevronRight, ChevronDown, FileSignature, FileX2, Filter, Pen, ClipboardList, FileText, CalendarDays, ZoomIn } from 'lucide-react';
+import { Printer, ChevronLeft, ChevronRight, ChevronDown, FileSignature, FileX2, Filter, Pen, ClipboardList, FileText, CalendarDays, Clock, ZoomIn } from 'lucide-react';
 import {
     PageShell,
     PageHeader,
@@ -38,6 +38,8 @@ import DaftarHadirDocument from '@/components/DaftarHadirDocument';
 import SignaturePad from '@/components/SignaturePad';
 
 type PrintMode = 'minggu' | 'per-sesi';
+
+const DAY_ORDER = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
 interface PreviewPrintPageProps {
     template: ScheduleEntry[];
@@ -82,6 +84,7 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
     const [printMode, setPrintMode] = useState<PrintMode>('minggu');
     const [showSignature, setShowSignature] = useState(true);
     const [selectedProdi, setSelectedProdi] = useState<string>('all');
+    const [selectedDay, setSelectedDay] = useState<string>('all');
     const [showSignaturePanel, setShowSignaturePanel] = useState(false);
 
     // Signature state — persisted in localStorage
@@ -109,17 +112,24 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
         return generateBapData(template, weekData);
     }, [template, weekData]);
 
-    // Extract unique prodi values from bapData
+    // Extract unique prodi & day values from bapData
     const prodiList = useMemo(() => {
         const set = new Set(bapData.map(d => d.prodi).filter(Boolean));
         return Array.from(set).sort();
     }, [bapData]);
 
-    // Filter bapData by selected prodi
+    const dayList = useMemo(() => {
+        const set = new Set(bapData.map(d => d.hari).filter(Boolean));
+        return DAY_ORDER.filter(day => set.has(day));
+    }, [bapData]);
+
+    // Filter bapData by selected prodi and day
     const filteredBapData = useMemo(() => {
-        if (selectedProdi === 'all') return bapData;
-        return bapData.filter(d => d.prodi === selectedProdi);
-    }, [bapData, selectedProdi]);
+        let result = bapData;
+        if (selectedProdi !== 'all') result = result.filter(d => d.prodi === selectedProdi);
+        if (selectedDay !== 'all') result = result.filter(d => d.hari === selectedDay);
+        return result;
+    }, [bapData, selectedProdi, selectedDay]);
 
     const groupedData = useMemo(() => groupSessions(filteredBapData), [filteredBapData]);
 
@@ -162,6 +172,7 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
         setSelectedWeek(week);
         setCurrentIndex(0);
         setSelectedProdi('all');
+        setSelectedDay('all');
     };
 
     const handleModeChange = (mode: PrintMode) => {
@@ -171,6 +182,11 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
 
     const handleProdiChange = (prodi: string) => {
         setSelectedProdi(prodi);
+        setCurrentIndex(0);
+    };
+
+    const handleDayChange = (day: string) => {
+        setSelectedDay(day);
         setCurrentIndex(0);
     };
 
@@ -301,6 +317,34 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                         </PanelBody>
                     </Panel>
 
+                    {/* Day filter */}
+                    <Panel>
+                        <PanelHeader
+                            icon={<Clock />}
+                            title="Hari"
+                            meta={selectedDay === 'all' ? 'Semua hari' : selectedDay}
+                        />
+                        <PanelBody>
+                            <div className="flex flex-wrap gap-1.5">
+                                <FilterChip
+                                    selected={selectedDay === 'all'}
+                                    onClick={() => handleDayChange('all')}
+                                >
+                                    Semua
+                                </FilterChip>
+                                {dayList.map(day => (
+                                    <FilterChip
+                                        key={day}
+                                        selected={selectedDay === day}
+                                        onClick={() => handleDayChange(day)}
+                                    >
+                                        {day}
+                                    </FilterChip>
+                                ))}
+                            </div>
+                        </PanelBody>
+                    </Panel>
+
                     {/* Zoom */}
                     <Panel>
                         <PanelHeader
@@ -384,9 +428,13 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                             icon={<FileText />}
                             title="Tidak ada dokumen"
                             description={
-                                selectedProdi === 'all'
-                                    ? `Minggu ${selectedWeek} belum punya data untuk dicetak.`
-                                    : `Tidak ada sesi untuk prodi ${selectedProdi} di minggu ${selectedWeek}.`
+                                selectedProdi !== 'all' && selectedDay !== 'all'
+                                    ? `Tidak ada sesi untuk prodi ${selectedProdi} dan hari ${selectedDay} di minggu ${selectedWeek}.`
+                                    : selectedProdi !== 'all'
+                                        ? `Tidak ada sesi untuk prodi ${selectedProdi} di minggu ${selectedWeek}.`
+                                        : selectedDay !== 'all'
+                                            ? `Tidak ada sesi pada hari ${selectedDay} di minggu ${selectedWeek}.`
+                                            : `Minggu ${selectedWeek} belum punya data untuk dicetak.`
                             }
                         />
                     ) : printMode === 'minggu' ? (
