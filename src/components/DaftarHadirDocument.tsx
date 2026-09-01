@@ -46,7 +46,7 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
         >
             {/* Institutional Header - Smaller */}
             <div className="mb-2 text-center" style={{ fontSize: '9pt' }}>
-                <p className="font-bold">KEMENTERIAN PENDIDIKAN, KEBUDAYAAN, RISET &amp; TEKNOLOGI</p>
+                <p className="font-bold">KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI</p>
                 <p className="font-bold">POLITEKNIK NEGERI JEMBER</p>
                 <div className="border-b-[1.5px] border-black mt-1 mb-1 w-[90%] mx-auto"></div>
             </div>
