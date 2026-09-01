@@ -58,29 +58,29 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
             </div>
 
             {/* Session Details - Compact 2-column Grid */}
-            <div className="grid grid-cols-2 gap-x-8 mb-3 ml-12 print:ml-6" style={{ width: '90%', fontSize: '9.5pt', lineHeight: '1.2' }}>
+            <div className="grid grid-cols-2 gap-x-8 mb-3 ml-0 px-16 print:px-10" style={{ width: '100%', fontSize: '9.5pt', lineHeight: '1.2' }}>
                 {/* Left Column */}
                 <div>
-                    <table style={{ width: '100%' }}>
+                    <table style={{ width: '100%', tableLayout: 'fixed' }}>
                         <tbody>
                             <tr>
-                                <td style={{ width: '100px', paddingBottom: '2px', verticalAlign: 'top' }}>Mata kuliah</td>
+                                <td style={{ width: '110px', paddingBottom: '2px', verticalAlign: 'top' }}>Mata kuliah</td>
                                 <td style={{ width: '15px', textAlign: 'center', paddingBottom: '2px', verticalAlign: 'top' }}>:</td>
                                 <td style={{ paddingBottom: '2px', verticalAlign: 'top' }}>{data.mataKuliah}</td>
                             </tr>
                             <tr>
-                                <td style={{ paddingBottom: '2px', verticalAlign: 'top' }}>Hari / Tanggal</td>
-                                <td style={{ textAlign: 'center', paddingBottom: '2px', verticalAlign: 'top' }}>:</td>
+                                <td style={{ width: '110px', paddingBottom: '2px', verticalAlign: 'top' }}>Hari / Tanggal</td>
+                                <td style={{ width: '15px', textAlign: 'center', paddingBottom: '2px', verticalAlign: 'top' }}>:</td>
                                 <td style={{ paddingBottom: '2px', verticalAlign: 'top' }}>{data.hari} / {data.tanggal}</td>
                             </tr>
                             <tr>
-                                <td style={{ paddingBottom: '2px', verticalAlign: 'top' }}>Tempat</td>
-                                <td style={{ textAlign: 'center', paddingBottom: '2px', verticalAlign: 'top' }}>:</td>
+                                <td style={{ width: '110px', paddingBottom: '2px', verticalAlign: 'top' }}>Tempat</td>
+                                <td style={{ width: '15px', textAlign: 'center', paddingBottom: '2px', verticalAlign: 'top' }}>:</td>
                                 <td style={{ paddingBottom: '2px', verticalAlign: 'top' }}>{data.tempat}</td>
                             </tr>
                             <tr>
-                                <td style={{ paddingBottom: '2px', verticalAlign: 'top' }}>Jam</td>
-                                <td style={{ textAlign: 'center', paddingBottom: '2px', verticalAlign: 'top' }}>:</td>
+                                <td style={{ width: '110px', paddingBottom: '2px', verticalAlign: 'top' }}>Jam</td>
+                                <td style={{ width: '15px', textAlign: 'center', paddingBottom: '2px', verticalAlign: 'top' }}>:</td>
                                 <td style={{ paddingBottom: '2px', verticalAlign: 'top' }}>{data.jam}</td>
                             </tr>
                         </tbody>
@@ -89,7 +89,7 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
 
                 {/* Right Column */}
                 <div>
-                    <table style={{ width: '100%' }}>
+                    <table style={{ width: '100%', tableLayout: 'fixed' }}>
                         <tbody>
                             <tr>
                                 <td style={{ width: '110px', paddingBottom: '2px', verticalAlign: 'top' }}>Program Studi</td>
@@ -97,13 +97,13 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
                                 <td style={{ paddingBottom: '2px', verticalAlign: 'top' }}>{data.prodi}</td>
                             </tr>
                             <tr>
-                                <td style={{ paddingBottom: '2px', verticalAlign: 'top' }}>Semester / gol</td>
-                                <td style={{ textAlign: 'center', paddingBottom: '2px', verticalAlign: 'top' }}>:</td>
+                                <td style={{ width: '110px', paddingBottom: '2px', verticalAlign: 'top' }}>Semester / gol</td>
+                                <td style={{ width: '15px', textAlign: 'center', paddingBottom: '2px', verticalAlign: 'top' }}>:</td>
                                 <td style={{ paddingBottom: '2px', verticalAlign: 'top' }}>{data.semester} / {data.golongan}</td>
                             </tr>
                             <tr>
-                                <td style={{ paddingBottom: '2px', verticalAlign: 'top' }}>Materi Praktikum</td>
-                                <td style={{ textAlign: 'center', paddingBottom: '2px', verticalAlign: 'top' }}>:</td>
+                                <td style={{ width: '110px', paddingBottom: '2px', verticalAlign: 'top' }}>Materi Praktikum</td>
+                                <td style={{ width: '15px', textAlign: 'center', paddingBottom: '2px', verticalAlign: 'top' }}>:</td>
                                 <td style={{ paddingBottom: '2px', verticalAlign: 'top' }}>{data.materi}</td>
                             </tr>
                         </tbody>
@@ -130,18 +130,18 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
                             <td className="border border-black p-0 text-center" style={{ height: '35px', verticalAlign: 'middle' }}>
                                 <div className="relative flex items-center justify-center" style={{ height: '35px' }}>
                                     {dosenSignature && (
-                                        <img 
-                                            src={dosenSignature} 
-                                            alt="TTD Dosen" 
-                                            style={{ 
-                                                position: 'absolute', 
-                                                maxHeight: '55px', 
-                                                maxWidth: '180px', 
+                                        <img
+                                            src={dosenSignature}
+                                            alt="TTD Dosen"
+                                            style={{
+                                                position: 'absolute',
+                                                maxHeight: '55px',
+                                                maxWidth: '180px',
                                                 objectFit: 'contain',
                                                 top: '50%',
                                                 transform: 'translateY(-50%)',
                                                 zIndex: 10
-                                            }} 
+                                            }}
                                         />
                                     )}
                                 </div>
@@ -155,18 +155,18 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
                             <td className="border border-black p-0 text-center" style={{ height: '35px', verticalAlign: 'middle' }}>
                                 <div className="relative flex items-center justify-center" style={{ height: '35px' }}>
                                     {teknisiSignature && (
-                                        <img 
-                                            src={teknisiSignature} 
-                                            alt="TTD Teknisi" 
-                                            style={{ 
-                                                position: 'absolute', 
-                                                maxHeight: '55px', 
-                                                maxWidth: '180px', 
+                                        <img
+                                            src={teknisiSignature}
+                                            alt="TTD Teknisi"
+                                            style={{
+                                                position: 'absolute',
+                                                maxHeight: '55px',
+                                                maxWidth: '180px',
                                                 objectFit: 'contain',
                                                 top: '50%',
                                                 transform: 'translateY(-50%)',
                                                 zIndex: 10
-                                            }} 
+                                            }}
                                         />
                                     )}
                                 </div>
