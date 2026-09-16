@@ -3,6 +3,7 @@ import { Upload, FileSpreadsheet, Trash2, Plus, Loader2, Printer, Download, X, C
 import type { ScheduleEntry, WeekImportData, MasterDosen } from '@/types';
 import { importSmart } from '@/utils/excelParser';
 import { generateId } from '@/utils/storage';
+import { compareSchedule, startMinutes } from '@/utils/scheduleOrder';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { useDialog } from '@/context/DialogContext';
 import { Button } from '@/components/ui/button';
@@ -71,47 +72,48 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({
     };
 
 
-    // Group template entries by day and merge identical consecutive sessions for print view
+    // Group template entries by day and merge continuous sessions of one class.
+    // Crash schedules (same course & hour, different class) must be grouped by
+    // class BEFORE merging, otherwise an interleaved template order splits one
+    // class's block into two rows on the printed jadwal.
     const scheduleByDay = useMemo(() => {
         const map = new Map<string, ScheduleEntry[]>();
         DAY_ORDER.forEach(day => map.set(day, []));
 
         template.forEach(entry => {
             const day = entry.hari?.trim();
-            if (day && map.has(day)) {
-                map.get(day)!.push({ ...entry }); // create a copy for merging
-            } else if (day) {
-                // Unknown day — append at the end
-                if (!map.has(day)) map.set(day, []);
-                map.get(day)!.push({ ...entry });
-            }
+            if (!day) return;
+            if (!map.has(day)) map.set(day, []);
+            map.get(day)!.push({ ...entry }); // create a copy for merging
         });
 
-        // Merge adjacent continuous sessions for the same class
         for (const [day, entries] of map.entries()) {
             if (entries.length === 0) continue;
 
-            const merged: ScheduleEntry[] = [];
+            // 1. Group rows by class identity.
+            const byClass = new Map<string, ScheduleEntry[]>();
             for (const entry of entries) {
-                if (merged.length === 0) {
-                    merged.push(entry);
-                    continue;
-                }
+                const key = [
+                    entry.mataKuliah, entry.tempat, entry.prodi, entry.semester,
+                    entry.golongan, entry.defaultPengajar, entry.defaultTeknisi,
+                ].map(v => (v ?? '').trim().toUpperCase()).join('|');
+                const group = byClass.get(key) ?? [];
+                group.push(entry);
+                byClass.set(key, group);
+            }
 
-                const last = merged[merged.length - 1];
-                if (
-                    last.mataKuliah === entry.mataKuliah &&
-                    last.tempat === entry.tempat &&
-                    last.prodi === entry.prodi &&
-                    last.semester === entry.semester &&
-                    last.golongan === entry.golongan &&
-                    last.defaultPengajar === entry.defaultPengajar &&
-                    last.defaultTeknisi === entry.defaultTeknisi
-                ) {
-                    // Match found, attempt to merge time strings
+            // 2. Merge each class's continuous slots, then 3. order the blocks by time.
+            const merged: ScheduleEntry[] = [];
+            for (const group of byClass.values()) {
+                group.sort((a, b) => startMinutes(a.jam) - startMinutes(b.jam));
+                let last: ScheduleEntry | null = null;
+                for (const entry of group) {
+                    if (!last) {
+                        last = entry;
+                        continue;
+                    }
                     const t1 = last.jam.trim();
                     const t2 = entry.jam.trim();
-
                     const p1 = t1.split(/-|s\/d|\s+s\/d\s+/i).map(s => s.trim());
                     const p2 = t2.split(/-|s\/d|\s+s\/d\s+/i).map(s => s.trim());
 
@@ -119,13 +121,13 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({
                         // Consecutive times (e.g. 07.00-09.00 and 09.00-11.00 -> 07.00-11.00)
                         last.jam = `${p1[0]}-${p2[1]}`;
                     } else {
-                        // If not strictly consecutive (e.g., morning and afternoon), join with comma
+                        // Not strictly consecutive (e.g., morning and afternoon) — join
                         last.jam = `${t1}, ${t2}`;
                     }
-                } else {
-                    merged.push(entry);
                 }
+                if (last) merged.push(last);
             }
+            merged.sort(compareSchedule);
             map.set(day, merged);
         }
 

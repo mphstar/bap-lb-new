@@ -35,6 +35,7 @@ import {
 } from '@/components/shell';
 import type { ScheduleEntry, WeekData } from '@/types';
 import { tallyWeekAbsence, countEntryAbsence } from '@/utils/attendance';
+import { groupSchedule } from '@/utils/scheduleOrder';
 import {
     ChartContainer,
     ChartTooltip,
@@ -151,9 +152,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ template, weeks, activeWe
     // ─── Today's schedule table ───
     const todayEntries = useMemo(() => {
         if (!weekData) return [];
-        return template
-            .filter(t => t.hari === selectedDay)
-            .sort((a, b) => a.no - b.no)
+        return groupSchedule(template.filter(t => t.hari === selectedDay))
             .map(t => {
                 const entry = weekData.entries.find(e => e.scheduleId === t.id);
                 return {

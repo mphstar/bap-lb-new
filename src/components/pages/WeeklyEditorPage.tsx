@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Copy, Check, ChevronDown, ChevronRight, Users, Plus, Trash2, Eye, Calendar, CalendarRange, Search, X } from 'lucide-react';
 import type { ScheduleEntry, WeekData, WeeklyEntry, Student, MasterStudent, MasterDosen } from '@/types';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { compareSchedule, groupSchedule, scheduleClassLabel, scheduleGroupKey } from '@/utils/scheduleOrder';
 import { useDialog } from '@/context/DialogContext';
 import { Button } from '@/components/ui/button';
 import { PageShell, PageHeader, EmptyState } from '@/components/shell';
@@ -74,17 +75,18 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
         );
     }
 
-    // Group entries by Day (preserve template order within each day)
+    // Group entries by Day, then by course + class, so each class's slots
+    // (e.g. 07.00-09.00 and 09.00-11.00) are read together.
     const entriesByDay = DAYS.reduce((acc, day) => {
-        const dayEntries = template.filter(t => t.hari === day);
+        const dayEntries = groupSchedule(template.filter(t => t.hari === day));
         if (dayEntries.length > 0) {
             acc[day] = dayEntries;
         }
         return acc;
     }, {} as Record<string, ScheduleEntry[]>);
 
-    // Catch-all for entries with undefined/non-standard days (preserve template order)
-    const otherEntries = template.filter(t => !DAYS.includes(t.hari));
+    // Catch-all for entries with undefined/non-standard days
+    const otherEntries = groupSchedule(template.filter(t => !DAYS.includes(t.hari)));
     if (otherEntries.length > 0) {
         entriesByDay['Lainnya'] = otherEntries;
     }
@@ -415,15 +417,16 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                 {day}
                                             </td>
                                         </tr>
-                                        {entries.map((entry) => {
+                                        {entries.map((entry, entryIdx) => {
                                             const we = weekData.entries.find(e => e.scheduleId === entry.id);
                                             if (!we) return null;
                                             const isExpanded = expandedEntry === entry.id;
                                             const studentCount = we.students?.length || 0;
+                                            const isGroupStart = entryIdx === 0 || scheduleGroupKey(entry) !== scheduleGroupKey(entries[entryIdx - 1]);
 
                                             return (
                                                 <React.Fragment key={entry.id}>
-                                                    <tr className="border-b hover:bg-muted/30 transition-colors">
+                                                    <tr className={`border-b hover:bg-muted/30 transition-colors${isGroupStart ? ' border-t-2 border-t-slate-300 dark:border-t-slate-700' : ''}`}>
                                                         <td className="px-2 py-2 text-center">
                                                             <button
                                                                 onClick={() => toggleExpand(entry.id)}
@@ -503,6 +506,9 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                                         <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                                                                             <Users size={12} />
                                                                             Data Mahasiswa — {entry.mataKuliah}
+                                                                            {scheduleClassLabel(entry) && (
+                                                                                <span className="font-normal text-muted-foreground">({scheduleClassLabel(entry)})</span>
+                                                                            )}
                                                                         </div>
                                                                         <div className="flex gap-2">
                                                                             <select
@@ -515,19 +521,14 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                                                 <option value="">Salin dari No...</option>
                                                                                 {weekData.entries
                                                                                     .filter(e => e.scheduleId !== entry.id && e.students?.length > 0)
-                                                                                    .sort((a, b) => { // Sort by Entry Number
-                                                                                        const tA = template.find(t => t.id === a.scheduleId);
-                                                                                        const tB = template.find(t => t.id === b.scheduleId);
-                                                                                        return (tA?.no || 0) - (tB?.no || 0);
-                                                                                    })
-                                                                                    .map(e => {
-                                                                                        const t = template.find(temp => temp.id === e.scheduleId);
-                                                                                        return (
-                                                                                            <option key={e.scheduleId} value={e.scheduleId}>
-                                                                                                No. {t?.no} - {t?.mataKuliah}
-                                                                                            </option>
-                                                                                        );
-                                                                                    })
+                                                                                    .map(e => ({ e, t: template.find(temp => temp.id === e.scheduleId) }))
+                                                                                    .filter(x => !!x.t)
+                                                                                    .sort((a, b) => compareSchedule(a.t as ScheduleEntry, b.t as ScheduleEntry))
+                                                                                    .map(({ e, t }) => (
+                                                                                        <option key={e.scheduleId} value={e.scheduleId}>
+                                                                                            No. {t?.no} - {t?.mataKuliah}{t && scheduleClassLabel(t) ? ` — ${scheduleClassLabel(t)}` : ''}
+                                                                                        </option>
+                                                                                    ))
                                                                                 }
                                                                             </select>
                                                                             <button
@@ -793,9 +794,7 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
         }
     }, [availableDays, selectedDay]);
 
-    const filteredTemplate = template
-        .filter(t => t.hari === selectedDay)
-        .sort((a, b) => a.no - b.no);
+    const filteredTemplate = groupSchedule(template.filter(t => t.hari === selectedDay));
 
     const toggleSelect = (id: string) => {
         setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -913,9 +912,14 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                                             onChange={() => toggleSelect(t.id)}
                                             className="mt-1"
                                         />
-                                        <div>
+                                        <div className="min-w-0">
                                             <div className="font-medium">No. {t.no} - {t.mataKuliah}</div>
-                                            <div className="text-xs text-muted-foreground">{t.jam}</div>
+                                            {scheduleClassLabel(t) && (
+                                                <div className="text-xs font-medium text-primary">{scheduleClassLabel(t)}</div>
+                                            )}
+                                            <div className="text-xs text-muted-foreground">
+                                                {t.jam}{t.tempat ? ` · ${t.tempat}` : ''}
+                                            </div>
                                         </div>
                                     </label>
                                 ))}

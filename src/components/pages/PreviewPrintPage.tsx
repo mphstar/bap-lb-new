@@ -33,6 +33,7 @@ import {
 import type { ScheduleEntry, WeekData, MasterDosen } from '@/types';
 import { generateBapData } from '@/utils/storage';
 import { groupSessions } from '@/utils/dataGrouper';
+import { groupSchedule } from '@/utils/scheduleOrder';
 import RecapTable from '@/components/RecapTable';
 import DaftarHadirDocument from '@/components/DaftarHadirDocument';
 import SignaturePad from '@/components/SignaturePad';
@@ -109,7 +110,9 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
     const weekData = weeks.find(w => w.weekNumber === selectedWeek);
     const bapData = useMemo(() => {
         if (!weekData) return [];
-        return generateBapData(template, weekData);
+        // Order like the weekly editor: each course + class grouped together,
+        // so per-sesi pagination and the recap follow the same sequence.
+        return groupSchedule(generateBapData(template, weekData));
     }, [template, weekData]);
 
     // Extract unique prodi & day values from bapData

@@ -11,8 +11,10 @@ export const groupSessions = (data: BapData[]): SessionGroup[] => {
     let currentGroup: SessionGroup | null = null;
 
     data.forEach((item) => {
-        // Unique key to identify a "class" or "subject" group
-        const key = `${item.mataKuliah}-${item.hari}-${item.tanggal}-${item.golongan}`;
+        // Unique key to identify a "class" or "subject" group. Includes prodi
+        // and semester so a shared course name on the same day never merges
+        // two different classes.
+        const key = `${item.mataKuliah}-${item.hari}-${item.tanggal}-${item.prodi}-${item.semester}-${item.golongan}`;
 
         if (currentGroup && currentGroup.key === key) {
             currentGroup.items.push(item);
