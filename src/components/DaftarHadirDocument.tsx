@@ -9,6 +9,7 @@ interface DaftarHadirDocumentProps {
     teknisiSignature?: string | null;
     academicYear?: string;
     academicSemester?: string;
+    paperSize?: 'a4' | 'f4';
 }
 
 const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
@@ -18,17 +19,21 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
     dosenSignature = null,
     teknisiSignature = null,
     academicYear = "2025/2026",
-    academicSemester = "Genap"
+    academicSemester = "Genap",
+    paperSize = 'a4'
 }) => {
     // Filter students who have remarks (absent/special status)
     const absentStudents = data.students.filter(
         s => s.remarks && s.remarks.trim() !== '' && s.remarks.trim().toLowerCase() !== 'hadir'
     );
 
+    const isF4 = paperSize === 'f4';
+    const minSingleRows = isF4 ? 9 : 7;
+    const minGridSlots = isF4 ? 18 : 14;
+
     // Calculate how many rows we need for the 2-column grid.
-    // Minimum 6 rows (12 empty slots) if there are no absent students.
-    // If there are absent students, we pad to nearest multiple of 2, minimum 6 rows.
-    const totalSlots = Math.max(12, Math.ceil(absentStudents.length / 2) * 2);
+    // Minimum rows: 9 rows (18 slots) for F4, 7 rows (14 slots) for A4.
+    const totalSlots = Math.max(minGridSlots, Math.ceil(absentStudents.length / 2) * 2);
     const numRows = totalSlots / 2;
 
     const semesterDisplay = (academicSemester || 'Genap').trim().toUpperCase();
@@ -36,7 +41,7 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
 
     return (
         <div
-            className={`bg-white text-black leading-snug mx-auto pb-[5mm] mb-[5mm] pt-[5mm] ${isLast ? '' : 'border-b-2 border-dashed border-gray-800'}`}
+            className={`bg-white text-black leading-snug mx-auto ${isF4 ? 'pt-[4mm] pb-[1mm]' : 'pt-[3mm] pb-[1mm]'} ${isLast ? '' : 'border-b-2 border-dashed border-gray-800'}`}
             style={{
                 width: '100%',
                 boxSizing: 'border-box',
@@ -45,20 +50,20 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
             }}
         >
             {/* Institutional Header - Smaller */}
-            <div className="mb-2 text-center" style={{ fontSize: '9pt' }}>
+            <div className={`${isF4 ? 'mb-2.5' : 'mb-1.5'} text-center`} style={{ fontSize: '9pt' }}>
                 <p className="font-bold">KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI</p>
                 <p className="font-bold">POLITEKNIK NEGERI JEMBER</p>
                 <div className="border-b-[1.5px] border-black mt-1 mb-1 w-[90%] mx-auto"></div>
             </div>
 
             {/* Title - Smaller */}
-            <div className="mb-3 text-center" style={{ fontSize: '9pt' }}>
+            <div className={`${isF4 ? 'mb-2.5' : 'mb-1.5'} text-center`} style={{ fontSize: '9pt' }}>
                 <p className="font-bold">DAFTAR HADIR PEMBIMBING PRAKTIKUM LABORATORIUM DAN LAPANG</p>
                 <p className="font-bold">SEMESTER {semesterDisplay} TAHUN AKADEMIK {yearDisplay}</p>
             </div>
 
             {/* Session Details - Compact 2-column Grid */}
-            <div className="grid grid-cols-2 gap-x-8 mb-3 ml-0 px-16 print:px-10" style={{ width: '100%', fontSize: '9.5pt', lineHeight: '1.2' }}>
+            <div className={`grid grid-cols-2 gap-x-8 ${isF4 ? 'mb-3' : 'mb-2'} ml-0 px-16 print:px-10`} style={{ width: '100%', fontSize: '9.5pt', lineHeight: '1.2' }}>
                 {/* Left Column */}
                 <div>
                     <table style={{ width: '100%', tableLayout: 'fixed' }}>
@@ -112,7 +117,7 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
             </div>
 
             {/* Pembimbing Table - Compact */}
-            <table className="w-[90%] mx-auto border-collapse border border-black mb-4">
+            <table className={`w-[90%] mx-auto border-collapse border border-black ${isF4 ? 'mb-3' : 'mb-2'}`}>
                 <thead>
                     <tr>
                         <th className="border border-black px-2 py-0.5 text-center font-normal" style={{ width: '40px', fontSize: '9pt' }}>NO</th>
@@ -127,15 +132,15 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
                         <td className="border border-black px-2 py-0.5 text-center">1.</td>
                         <td className="border border-black px-2 py-0.5">{data.pengajar}</td>
                         {showSignature && (
-                            <td className="border border-black p-0 text-center" style={{ height: '35px', verticalAlign: 'middle' }}>
-                                <div className="relative flex items-center justify-center" style={{ height: '35px' }}>
+                            <td className="border border-black p-0 text-center" style={{ height: isF4 ? '38px' : '34px', verticalAlign: 'middle' }}>
+                                <div className="relative flex items-center justify-center" style={{ height: isF4 ? '38px' : '34px' }}>
                                     {dosenSignature && (
                                         <img
                                             src={dosenSignature}
                                             alt="TTD Dosen"
                                             style={{
                                                 position: 'absolute',
-                                                maxHeight: '55px',
+                                                maxHeight: isF4 ? '55px' : '50px',
                                                 maxWidth: '180px',
                                                 objectFit: 'contain',
                                                 top: '50%',
@@ -152,15 +157,15 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
                         <td className="border border-black px-2 py-0.5 text-center">2.</td>
                         <td className="border border-black px-2 py-0.5">{data.teknisi}</td>
                         {showSignature && (
-                            <td className="border border-black p-0 text-center" style={{ height: '35px', verticalAlign: 'middle' }}>
-                                <div className="relative flex items-center justify-center" style={{ height: '35px' }}>
+                            <td className="border border-black p-0 text-center" style={{ height: isF4 ? '38px' : '34px', verticalAlign: 'middle' }}>
+                                <div className="relative flex items-center justify-center" style={{ height: isF4 ? '38px' : '34px' }}>
                                     {teknisiSignature && (
                                         <img
                                             src={teknisiSignature}
                                             alt="TTD Teknisi"
                                             style={{
                                                 position: 'absolute',
-                                                maxHeight: '55px',
+                                                maxHeight: isF4 ? '55px' : '50px',
                                                 maxWidth: '180px',
                                                 objectFit: 'contain',
                                                 top: '50%',
@@ -182,7 +187,7 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
             </div>
 
             {/* Absent Students Table - Conditional Grid */}
-            {absentStudents.length > 6 ? (
+            {absentStudents.length > (isF4 ? 9 : 7) ? (
                 <table className="w-[98%] mx-auto border-collapse border border-black mb-2">
                     <thead>
                         <tr>
@@ -245,8 +250,8 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
                                         <td className="border border-black px-2 py-px text-center truncate max-w-[80px]">{student.remarks}</td>
                                     </tr>
                                 ))}
-                                {/* Pad to exactly 6 rows */}
-                                {Array.from({ length: Math.max(0, 6 - absentStudents.length) }).map((_, idx) => (
+                                {/* Pad to exactly minSingleRows */}
+                                {Array.from({ length: Math.max(0, minSingleRows - absentStudents.length) }).map((_, idx) => (
                                     <tr key={`empty-${idx}`}>
                                         <td className="border border-black px-2 py-px text-center text-transparent">{absentStudents.length + idx + 1}.</td>
                                         <td className="border border-black px-2 py-px">&nbsp;</td>
@@ -256,7 +261,7 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
                                 ))}
                             </>
                         ) : (
-                            Array.from({ length: 6 }).map((_, idx) => (
+                            Array.from({ length: minSingleRows }).map((_, idx) => (
                                 <tr key={`empty-${idx}`}>
                                     <td className="border border-black px-2 py-px text-center text-transparent">{idx + 1}.</td>
                                     <td className="border border-black px-2 py-px">&nbsp;</td>

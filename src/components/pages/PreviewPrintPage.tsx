@@ -39,6 +39,7 @@ import DaftarHadirDocument from '@/components/DaftarHadirDocument';
 import SignaturePad from '@/components/SignaturePad';
 
 type PrintMode = 'minggu' | 'per-sesi';
+type PaperSize = 'a4' | 'f4';
 
 const DAY_ORDER = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
@@ -83,10 +84,24 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
     const [currentIndex, setCurrentIndex] = useState(0);
     const [scale, setScale] = useState(1);
     const [printMode, setPrintMode] = useState<PrintMode>('minggu');
+    const [paperSize, setPaperSize] = useState<PaperSize>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('bap_paper_size');
+            if (saved === 'f4' || saved === 'a4') return saved;
+        }
+        return 'a4';
+    });
     const [showSignature, setShowSignature] = useState(true);
     const [selectedProdi, setSelectedProdi] = useState<string>('all');
     const [selectedDay, setSelectedDay] = useState<string>('all');
     const [showSignaturePanel, setShowSignaturePanel] = useState(false);
+
+    const handlePaperSizeChange = (size: PaperSize) => {
+        setPaperSize(size);
+        try {
+            localStorage.setItem('bap_paper_size', size);
+        } catch {}
+    };
 
     // Signature state — persisted in localStorage
     const [teknisiSignature, setTeknisiSignature] = useState<string | null>(() => {
@@ -261,6 +276,42 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                     >
                                         {opt.icon}
                                         {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </PanelBody>
+                    </Panel>
+
+                    {/* Paper Size — A4 vs F4 */}
+                    <Panel>
+                        <PanelHeader
+                            icon={<FileText />}
+                            title="Ukuran kertas"
+                            meta={paperSize === 'a4' ? 'A4 (210 × 297 mm)' : 'F4 / Folio (215 × 330 mm)'}
+                        />
+                        <PanelBody>
+                            <div
+                                role="group"
+                                aria-label="Ukuran kertas"
+                                className="grid grid-cols-2 gap-1 rounded-control border border-rule bg-panel-2 p-1"
+                            >
+                                {([
+                                    { size: 'a4' as const, label: 'A4', desc: '210 × 297 mm' },
+                                    { size: 'f4' as const, label: 'F4 / Folio', desc: '215 × 330 mm' },
+                                ]).map(opt => (
+                                    <button
+                                        key={opt.size}
+                                        type="button"
+                                        aria-pressed={paperSize === opt.size}
+                                        onClick={() => handlePaperSizeChange(opt.size)}
+                                        className={`inline-flex flex-col items-center justify-center rounded-md py-1.5 px-2 transition-colors duration-[180ms] ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring
+                                            ${paperSize === opt.size
+                                                ? 'bg-panel text-foreground font-semibold shadow-xs'
+                                                : 'text-muted-foreground hover:text-foreground active:bg-tile'
+                                            }`}
+                                    >
+                                        <span className="text-sm font-semibold">{opt.label}</span>
+                                        <span className="text-[10px] text-muted-foreground font-normal">{opt.desc}</span>
                                     </button>
                                 ))}
                             </div>
@@ -449,9 +500,9 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                 className="print:hidden"
                                 icon={<ClipboardList />}
                                 title={`Rekap Minggu ${selectedWeek}`}
-                                meta={`${filteredBapData.length} sesi · orientasi lanskap`}
+                                meta={`${filteredBapData.length} sesi · Format ${paperSize.toUpperCase()} · Orientasi lanskap`}
                             />
-                            <div className="hm-scrollbar overflow-x-auto bg-white print:overflow-visible">
+                            <div className="hm-scrollbar overflow-x-auto bg-white p-4 print:p-0 print:overflow-visible">
                                 {/* `zoom`, not `transform: scale` — zoom reflows the
                                     box, so the frame tracks the preview instead of
                                     leaving a phantom gap under it. */}
@@ -474,7 +525,7 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                 <PanelHeader
                                     icon={<FileText />}
                                     title="Daftar Hadir"
-                                    meta={`Dokumen ${safeIndex + 1} dari ${filteredBapData.length} · ${currentDoc.mataKuliah ?? ''}`}
+                                    meta={`Dokumen ${safeIndex + 1} dari ${filteredBapData.length} · Format ${paperSize.toUpperCase()} · ${currentDoc.mataKuliah ?? ''}`}
                                     action={
                                         <div className="flex items-center gap-1">
                                             <Button
@@ -498,11 +549,12 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                         </div>
                                     }
                                 />
-                                <div className="hm-scrollbar overflow-x-auto bg-white">
+                                <div className="hm-scrollbar overflow-x-auto bg-white p-4">
                                     <div style={{ zoom: scale }}>
                                         <DaftarHadirDocument
                                             data={currentDoc}
                                             isLast={true}
+                                            paperSize={paperSize}
                                             showSignature={showSignature}
                                             dosenSignature={showSignature ? (dosenList.find(d => d.name === currentDoc.pengajar)?.signature || null) : null}
                                             teknisiSignature={showSignature ? teknisiSignature : null}
@@ -517,13 +569,18 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                             <div className="hidden print:block print-persesi-view bg-white">
                                 {Array.from({ length: Math.ceil(filteredBapData.length / 2) }).map((_, pageIdx) => {
                                     const itemsOnPage = filteredBapData.slice(pageIdx * 2, pageIdx * 2 + 2);
+                                    const pageHeight = paperSize === 'f4' ? '330mm' : '297mm';
+                                    const halfHeight = paperSize === 'f4' ? '165mm' : '148.5mm';
                                     return (
                                         <div
                                             key={pageIdx}
                                             style={{
-                                                width: '210mm',
-                                                height: '297mm',
+                                                width: '100%',
+                                                height: pageHeight,
+                                                maxHeight: pageHeight,
                                                 pageBreakAfter: pageIdx < Math.ceil(filteredBapData.length / 2) - 1 ? 'always' : 'auto',
+                                                pageBreakInside: 'avoid',
+                                                breakAfter: pageIdx < Math.ceil(filteredBapData.length / 2) - 1 ? 'page' : 'auto',
                                                 display: 'flex',
                                                 flexDirection: 'column',
                                                 boxSizing: 'border-box'
@@ -533,16 +590,22 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                                 <div
                                                     key={itemIdx}
                                                     style={{
-                                                        flex: '1 1 50%',
-                                                        height: '50%',
-                                                        overflow: 'hidden',
-                                                        borderBottom: itemIdx === 0 && itemsOnPage.length > 1 ? '2px dashed #1f2937' : 'none',
-                                                        boxSizing: 'border-box'
+                                                        flex: `0 0 ${halfHeight}`,
+                                                        height: halfHeight,
+                                                        maxHeight: halfHeight,
+                                                        overflow: 'visible',
+                                                        borderBottom: itemIdx === 0 && itemsOnPage.length > 1 ? '1.5px dashed #000' : 'none',
+                                                        boxSizing: 'border-box',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        justifyContent: 'flex-start',
+                                                        padding: '1mm 0 0 0'
                                                     }}
                                                 >
                                                     <DaftarHadirDocument
                                                         data={item}
                                                         isLast={true}
+                                                        paperSize={paperSize}
                                                         showSignature={showSignature}
                                                         dosenSignature={showSignature ? (dosenList.find(d => d.name === item.pengajar)?.signature || null) : null}
                                                         teknisiSignature={showSignature ? teknisiSignature : null}
@@ -553,7 +616,7 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                             ))}
                                             {/* Fill empty space if only 1 item on the last page */}
                                             {itemsOnPage.length === 1 && (
-                                                <div style={{ flex: '1 1 50%', height: '50%' }} />
+                                                <div style={{ flex: `0 0 ${halfHeight}`, height: halfHeight, maxHeight: halfHeight }} />
                                             )}
                                         </div>
                                     );
@@ -568,7 +631,7 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
             {printMode === 'minggu' ? (
                 <style>{`
                     @media print {
-                        @page { size: landscape; margin: 15mm; }
+                        @page { margin: 10mm; }
                         body { -webkit-print-color-adjust: exact; background-color: white !important; font-family: 'Times New Roman', Times, serif !important; }
                         * { font-family: 'Times New Roman', Times, serif !important; }
                         .print-persesi-view { display: none !important; }
@@ -577,7 +640,7 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
             ) : (
                 <style>{`
                     @media print {
-                        @page { size: portrait; margin: 0mm; }
+                        @page { margin: 0mm; size: ${paperSize === 'f4' ? '215mm 330mm' : '210mm 297mm'}; }
                         body { -webkit-print-color-adjust: exact; background-color: white !important; font-family: 'Times New Roman', Times, serif !important; }
                         * { font-family: 'Times New Roman', Times, serif !important; }
                         .print-minggu-view { display: none !important; }
