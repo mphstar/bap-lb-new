@@ -115,7 +115,7 @@ export const AIAssistantWidget: React.FC = () => {
         id: `err-${Date.now()}`,
         role: "assistant",
         content: `⚠️ Terjadi kendala: ${
-          err.message || "Pastikan GEMINI_API_KEY telah diatur di .env."
+          err.message || "Pastikan OPENAI_API_KEY telah diatur di .env."
         }`,
         timestamp: new Date(),
       };

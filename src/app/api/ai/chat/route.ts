@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
-import { getGeminiClient, generateContentWithFallback } from "@/lib/gemini";
-import { isDeepSeekConfigured, chatWithDeepSeek } from "@/lib/deepseek";
+import { isAIConfigured, chatWithAI } from "@/lib/ai";
 import { db, scheduleTemplates, weeklyEntries, weeklyStudents, studentMaster, notes, examSchedules, examScheduleEntries, dosenList, assessmentForms, archives } from "@/db";
 import { eq, and, inArray, sql } from "drizzle-orm";
-import { Type, FunctionDeclaration } from "@google/genai";
+import { buildWeeklyPatches } from "@/lib/weeklyImport";
+
+const Type = {
+  OBJECT: "object",
+  STRING: "string",
+  INTEGER: "integer",
+  NUMBER: "number",
+  BOOLEAN: "boolean",
+  ARRAY: "array",
+} as const;
 
 // Definitions of tools available to AI (strictly scoped to current user session)
-const functionDeclarations: FunctionDeclaration[] = [
+const functionDeclarations: any[] = [
   {
     name: "getScheduleTemplates",
     description: "Mengambil daftar seluruh jadwal perkuliahan / template jadwal milik user saat ini (hari, jam, mata kuliah, prodi, semester, golongan, tempat, dosen default, teknisi default).",
@@ -211,6 +219,61 @@ const functionDeclarations: FunctionDeclaration[] = [
       },
     },
   },
+  {
+    name: "updateWeeklyEntries",
+    description: "Memperbarui data mingguan (materi dan pengajar) untuk minggu 1-16 secara massal dari tabel/Excel. WAJIB menentukan cakupan jadwal lewat scope (minimal mataKuliah). Satu objek 'weeks' = satu minggu, berisi materi minggu itu dan peta pengampu per golongan (urutan pertemuan). Jangan mengirim sel satu per satu. Jika data banyak, panggil tool ini beberapa kali per kelompok minggu.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        scope: {
+          type: Type.OBJECT,
+          description: "Cakupan jadwal yang boleh diubah. Minimal salah satu field harus diisi. Semua field yang diisi harus cocok (AND).",
+          properties: {
+            mataKuliah: {
+              type: Type.STRING,
+              description: "Nama mata kuliah (pencocokan mengandung, tidak case-sensitive).",
+            },
+            prodi: {
+              type: Type.STRING,
+              description: "Program studi (mis. 'TIF', 'MIF', 'TKK').",
+            },
+            semester: {
+              type: Type.STRING,
+              description: "Semester (mis. '2', '4', '6').",
+            },
+            golongan: {
+              type: Type.STRING,
+              description: "Golongan/kelas (mis. 'A', 'B', 'Inter').",
+            },
+          },
+        },
+        weeks: {
+          type: Type.ARRAY,
+          description: "Daftar data per minggu (1 objek per baris minggu).",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              weekNumber: {
+                type: Type.INTEGER,
+                description: "Nomor minggu (1 s/d 16)",
+              },
+              materi: {
+                type: Type.STRING,
+                description: "Materi minggu tersebut. Ambil HANYA dari kolom Materi. JANGAN menyertakan kolom Keterangan/deskripsi.",
+              },
+              pengampu: {
+                type: Type.OBJECT,
+                description: "Peta golongan -> pengampu. Nilai boleh satu nama (string) bila semua pertemuan sama, atau daftar nama sesuai urutan pertemuan (Pertemuan 1, Pertemuan 2, ...). Contoh: { \"A\": \"Elly\", \"B\": [\"Elly\", \"Denny T\"], \"Inter\": \"Munih\" }. Kosongkan bila minggu tersebut tanpa pengampu (mis. UTS/UAS).",
+                additionalProperties: true,
+              },
+            },
+            required: ["weekNumber"],
+          },
+        },
+      },
+      required: ["scope", "weeks"],
+    },
+  },
 ];
 
 export async function POST(req: NextRequest) {
@@ -228,15 +291,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const ai = getGeminiClient();
-
     // System instruction explaining role, concise response style, and boundaries
     const systemInstruction = `Anda adalah asisten AI cerdas untuk Sistem Informasi Manajemen BAP & Jadwal Laboratorium.
 Pengguna saat ini: ${user.name || user.email || "Pengguna"}.
 
 PEDOMAN GAYA MENJAWAB (PENTING):
 1. RINGKAS & TO THE POINT UNTUK AKSI (MUTATION):
-   - Jika pengguna meminta melakukan suatu aksi (seperti menambah jadwal 'createSchedule', mengurutkan jadwal 'reorderScheduleTemplates'), CUKUP berikan pesan konfirmasi singkat bahwa aksi telah berhasil dijalankan di database.
+   - Jika pengguna meminta melakukan suatu aksi (seperti menambah jadwal 'createSchedule', mengurutkan jadwal 'reorderScheduleTemplates', atau mengubah data mingguan 'updateWeeklyEntries'), CUKUP berikan pesan konfirmasi singkat bahwa aksi telah berhasil dijalankan di database.
    - JANGAN menampilkan atau mencantumkan tabel daftar data yang panjang kecuali jika pengguna secara eksplisit memintanya (contoh: "tampilkan daftarnya", "apa saja jadwalnya").
 2. HANYA TAMPILKAN DATA JIKA DIMINTA EKSPLISIT:
    - Tampilkan tabel atau rincian data hanya jika pengguna bertanya/meminta informasi (misal: "tampilkan jadwal hari Senin", "rekap BAP minggu 2", "apa saja arsip saya").
@@ -245,7 +306,17 @@ PEDOMAN GAYA MENJAWAB (PENTING):
    - JANGAN berpura-pura atau berhalusinasi seolah-olah aksi sudah selesai jika tidak ada tool yang dieksekusi.
 4. ISOLASI DATA USER:
    - Anda hanya memiliki akses ke data milik pengguna saat ini. Data pengguna lain 100% tidak bisa diakses.
-5. Gunakan Bahasa Indonesia yang baik, lugas, ramah, dan profesional.`;
+5. Gunakan Bahasa Indonesia yang baik, lugas, ramah, dan profesional.
+
+PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
+- Tujuan: mengisi kolom Materi dan Pengajar untuk minggu 1-16 pada jadwal DALAM CAKUPAN tertentu.
+- WAJIB menentukan cakupan lewat field scope: minimal salah satu dari mataKuliah, prodi, semester, atau golongan. Data Excel biasanya hanya untuk SATU mata kuliah — pastikan scope diisi agar matkul lain tidak ikut terubah. Contoh: "Workshop Tata Kelola prodi TIF semester 6" -> scope: { mataKuliah: "Workshop Tata Kelola", prodi: "TIF", semester: "6" }.
+- Bentuk data: kirim array 'weeks', SATU objek per baris minggu (bukan per sel). Tiap objek: { weekNumber, materi, pengampu }.
+  - materi: ambil HANYA dari kolom "Materi". JANGAN menyertakan kolom "Keterangan"/deskripsi agar tidak panjang.
+  - pengampu: objek peta golongan -> pengampu. Bila semua pertemuan memakai orang yang sama, cukup satu string: { "A": "Elly", "Inter": "Munih" }. Bila berbeda antar pertemuan, kirim array berurutan: { "A": ["Elly", "Denny T"] } (indeks 0 = Pertemuan 1, indeks 1 = Pertemuan 2, dst). Untuk minggu tanpa pengampu (mis. UTS/UAS), kosongkan pengampu.
+- Golongan yang tidak ada di jadwal akan dilewati dan dilaporkan (unmatched). Jangan mengarang golongan.
+- Bila data besar (>8 minggu), panggil tool beberapa kali (mis. per 4-8 minggu).
+- Setelah selesai, laporkan jumlah entri yang diperbarui dan sebutkan entri yang dilewati (unmatched) bila ada.`;
 
     // Tool execution handler (strictly filtered by user.id)
     const executeFunction = async (name: string, args: any) => {
@@ -719,6 +790,68 @@ PEDOMAN GAYA MENJAWAB (PENTING):
             };
           }
 
+          case "updateWeeklyEntries": {
+            const rawWeeks = Array.isArray(args.weeks) ? args.weeks : [];
+            if (rawWeeks.length === 0) {
+              return { success: false, error: "Tidak ada data mingguan yang dikirim." };
+            }
+
+            const templates = await db.query.scheduleTemplates.findMany({
+              where: eq(scheduleTemplates.userId, user.id),
+            });
+
+            let patches, unmatched, scopedSchedules;
+            try {
+              ({ patches, unmatched, scopedSchedules } = buildWeeklyPatches(
+                templates,
+                args.scope && typeof args.scope === "object" ? args.scope : {},
+                rawWeeks
+              ));
+            } catch (e: any) {
+              return { success: false, error: e.message, scope: args.scope };
+            }
+
+            let updatedCount = 0;
+            for (const p of patches) {
+              const setObj: any = { updatedAt: new Date() };
+              if (p.materi !== undefined) setObj.materi = p.materi;
+              if (p.pengajar !== undefined) setObj.pengajar = p.pengajar;
+
+              await db
+                .insert(weeklyEntries)
+                .values({
+                  userId: user.id,
+                  weekNumber: p.weekNumber,
+                  scheduleId: p.scheduleId,
+                  materi: p.materi ?? "",
+                  pengajar: p.pengajar ?? "",
+                })
+                .onConflictDoUpdate({
+                  target: [
+                    weeklyEntries.userId,
+                    weeklyEntries.weekNumber,
+                    weeklyEntries.scheduleId,
+                  ],
+                  set: setObj,
+                });
+
+              updatedCount++;
+            }
+
+            return {
+              success: updatedCount > 0,
+              updatedCount,
+              scopedSchedules,
+              unmatchedCount: unmatched.length,
+              unmatched: unmatched.slice(0, 20),
+              message:
+                `Berhasil memperbarui ${updatedCount} entri mingguan pada ${scopedSchedules} jadwal dalam cakupan.` +
+                (unmatched.length
+                  ? ` ${unmatched.length} entri dilewati (lihat unmatched).`
+                  : ""),
+            };
+          }
+
           default:
             return { error: `Tool ${name} tidak ditemukan.` };
         }
@@ -728,124 +861,31 @@ PEDOMAN GAYA MENJAWAB (PENTING):
       }
     };
 
-    // Check if primary provider is specified
-    const preferredProvider = process.env.AI_PROVIDER?.toLowerCase();
-
-    if (preferredProvider === "deepseek" && isDeepSeekConfigured()) {
-      try {
-        const reply = await chatWithDeepSeek({
-          messages,
-          systemInstruction,
-          tools: functionDeclarations,
-          executeFunction,
-        });
-        return NextResponse.json({ success: true, reply, provider: "deepseek" });
-      } catch (dsErr: any) {
-        console.error("DeepSeek primary chat error:", dsErr);
-      }
+    if (!isAIConfigured()) {
+      throw new Error(
+        "Tidak ada AI provider yang aktif. Silakan atur OPENAI_API_KEY di file .env."
+      );
     }
 
-    // Try Gemini first if key exists
-    let geminiError: any = null;
-    if (process.env.GEMINI_API_KEY) {
-      try {
-        const ai = getGeminiClient();
+    const reply = await chatWithAI({
+      messages,
+      systemInstruction,
+      tools: functionDeclarations,
+      executeFunction,
+    });
 
-        // Format conversation history for Gemini API
-        const contents: any[] = messages.map((m: { role: string; content: string }) => ({
-          role: m.role === "assistant" || m.role === "model" ? "model" : "user",
-          parts: [{ text: m.content }],
-        }));
-
-        // Multi-turn tool execution loop (max 5 turns)
-        let turns = 0;
-        const maxTurns = 5;
-
-        while (turns < maxTurns) {
-          turns++;
-
-          const { response } = await generateContentWithFallback(ai, {
-            contents: contents,
-            config: {
-              systemInstruction,
-              tools: [{ functionDeclarations }],
-            },
-          });
-
-          const functionCalls = response.functionCalls;
-
-          if (!functionCalls || functionCalls.length === 0) {
-            return NextResponse.json({
-              success: true,
-              reply: response.text || "Tidak ada respons dari AI.",
-            });
-          }
-
-          const candidateContent = response.candidates?.[0]?.content;
-          if (candidateContent) {
-            contents.push(candidateContent);
-          }
-
-          const functionResponseParts = [];
-          for (const call of functionCalls) {
-            const fnName = call.name || "";
-            const result = await executeFunction(fnName, call.args || {});
-            functionResponseParts.push({
-              functionResponse: {
-                name: fnName,
-                response: result,
-              },
-            });
-          }
-
-          contents.push({
-            role: "user",
-            parts: functionResponseParts,
-          });
-        }
-
-        return NextResponse.json({
-          success: true,
-          reply: "Selesai memproses data.",
-        });
-      } catch (err: any) {
-        console.warn("Gemini chat failed, attempting DeepSeek fallback...", err.message);
-        geminiError = err;
-      }
-    }
-
-    // Fallback to DeepSeek if configured
-    if (isDeepSeekConfigured()) {
-      try {
-        const reply = await chatWithDeepSeek({
-          messages,
-          systemInstruction,
-          tools: functionDeclarations,
-          executeFunction,
-        });
-        return NextResponse.json({
-          success: true,
-          reply,
-          provider: "deepseek (fallback)",
-        });
-      } catch (dsErr: any) {
-        console.error("DeepSeek fallback chat error:", dsErr);
-        throw dsErr;
-      }
-    }
-
-    if (geminiError) {
-      throw geminiError;
-    }
-
-    throw new Error("Tidak ada AI provider yang aktif. Silakan atur GEMINI_API_KEY atau DEEPSEEK_API_KEY di file .env.");
+    return NextResponse.json({
+      success: true,
+      reply,
+      provider: `openai (${process.env.OPENAI_MODEL || "default"})`,
+    });
   } catch (error: any) {
     console.error("POST /api/ai/chat error:", error);
     return NextResponse.json(
       {
         error:
           error.message ||
-          "Gagal memproses percakapan AI. Pastikan GEMINI_API_KEY atau DEEPSEEK_API_KEY valid.",
+          "Gagal memproses percakapan AI. Pastikan OPENAI_API_KEY valid.",
       },
       { status: 500 }
     );

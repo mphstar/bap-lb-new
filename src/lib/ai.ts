@@ -1,21 +1,28 @@
-// DeepSeek API Client (OpenAI-compatible)
-// Platform: https://platform.deepseek.com/
+// [OI]-compatible AI client (works with 9router gateway and any compatible endpoint).
 
-const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
+function getConfig() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey || !apiKey.trim()) {
+    throw new Error("OPENAI_API_KEY belum dikonfigurasi di .env");
+  }
+  const baseUrl = (process.env.OPENAI_BASE_URL || "https://api.9router.com/v1").replace(/\/+$/, "");
+  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  return { apiKey, url: `${baseUrl}/chat/completions`, model };
+}
 
-export function isDeepSeekConfigured(): boolean {
-  return Boolean(process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.trim());
+export function isAIConfigured(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim());
 }
 
 /**
- * Normalizes Google GenAI schemas (uppercase Types like "STRING", "OBJECT")
- * into OpenAI/DeepSeek-compliant JSON Schema format (lowercase "string", "object", etc.)
+ * Lowercases schema "type" values (e.g. "OBJECT" -> "object") so tool
+ * parameters match [OI] JSON Schema format.
  */
-function normalizeSchemaToOpenAI(schema: any): any {
+function normalizeSchema(schema: any): any {
   if (!schema || typeof schema !== "object") return schema;
 
   if (Array.isArray(schema)) {
-    return schema.map(normalizeSchemaToOpenAI);
+    return schema.map(normalizeSchema);
   }
 
   const result: Record<string, any> = {};
@@ -23,7 +30,7 @@ function normalizeSchemaToOpenAI(schema: any): any {
     if (key === "type" && typeof value === "string") {
       result[key] = value.toLowerCase();
     } else if (typeof value === "object" && value !== null) {
-      result[key] = normalizeSchemaToOpenAI(value);
+      result[key] = normalizeSchema(value);
     } else {
       result[key] = value;
     }
@@ -32,11 +39,75 @@ function normalizeSchemaToOpenAI(schema: any): any {
   return result;
 }
 
-export async function parseScheduleWithDeepSeek(rawText: string) {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) {
-    throw new Error("DEEPSEEK_API_KEY belum dikonfigurasi di .env");
+/**
+ * Reads an [OI]-compatible response. Handles both plain JSON and SSE
+ * (`data: {...}`) streams, since some gateways stream regardless of `stream: false`.
+ */
+async function readCompletion(res: Response): Promise<any> {
+  const text = await res.text();
+
+  if (!text.trimStart().startsWith("data:")) {
+    return JSON.parse(text);
   }
+
+  let content = "";
+  let finishReason: string | undefined;
+  let id: string | undefined;
+  let model: string | undefined;
+  const toolCalls: any[] = [];
+
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) continue;
+    const payload = trimmed.slice(5).trim();
+    if (!payload || payload === "[DONE]") continue;
+
+    let chunk: any;
+    try {
+      chunk = JSON.parse(payload);
+    } catch {
+      continue;
+    }
+
+    id = chunk.id ?? id;
+    model = chunk.model ?? model;
+    const choice = chunk.choices?.[0];
+    if (!choice) continue;
+
+    if (choice.delta?.content) content += choice.delta.content;
+    if (choice.finish_reason) finishReason = choice.finish_reason;
+
+    for (const tc of choice.delta?.tool_calls || []) {
+      const idx = tc.index ?? 0;
+      toolCalls[idx] ||= {
+        id: "",
+        type: "function",
+        function: { name: "", arguments: "" },
+      };
+      if (tc.id) toolCalls[idx].id = tc.id;
+      if (tc.function?.name) toolCalls[idx].function.name += tc.function.name;
+      if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
+    }
+  }
+
+  return {
+    id,
+    model,
+    choices: [
+      {
+        finish_reason: finishReason,
+        message: {
+          role: "assistant",
+          content,
+          ...(toolCalls.length ? { tool_calls: toolCalls.filter(Boolean) } : {}),
+        },
+      },
+    ],
+  };
+}
+
+export async function parseScheduleWithAI(rawText: string) {
+  const { apiKey, url, model } = getConfig();
 
   const systemPrompt = `Anda adalah asisten data akademik profesional. Ekstrak data jadwal perkuliahan / praktikum dari teks tidak terstruktur menjadi JSON array murni tanpa markdown/penjelasan tambahan.
 Format JSON yang diharapkan adalah array dari objek:
@@ -55,28 +126,29 @@ Format JSON yang diharapkan adalah array dari objek:
 ]
 Wajib hanya mengembalikan JSON array murni.`;
 
-  const res = await fetch(DEEPSEEK_API_URL, {
+  const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "deepseek-chat",
+      model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Ekstrak jadwal dari teks berikut:\n\n${rawText}` },
       ],
       temperature: 0.1,
+      stream: false,
     }),
   });
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`DeepSeek API error (${res.status}): ${errText}`);
+    throw new Error(`AI API error (${res.status}): ${errText}`);
   }
 
-  const json = await res.json();
+  const json = await readCompletion(res);
   const rawContent = json.choices?.[0]?.message?.content || "[]";
 
   // Clean markdown code fence if present (e.g. ```json ... ```)
@@ -88,24 +160,20 @@ Wajib hanya mengembalikan JSON array murni.`;
   return JSON.parse(cleaned);
 }
 
-export async function chatWithDeepSeek(params: {
+export async function chatWithAI(params: {
   messages: Array<{ role: string; content: string }>;
   systemInstruction: string;
   tools: any[];
   executeFunction: (name: string, args: any) => Promise<any>;
 }) {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) {
-    throw new Error("DEEPSEEK_API_KEY belum dikonfigurasi di .env");
-  }
+  const { apiKey, url, model } = getConfig();
 
-  // Convert and sanitize tools to OpenAI / DeepSeek JSON Schema format
-  const deepseekTools = params.tools.map((t) => ({
+  const aiTools = params.tools.map((t) => ({
     type: "function",
     function: {
       name: t.name,
       description: t.description,
-      parameters: normalizeSchemaToOpenAI(t.parameters),
+      parameters: normalizeSchema(t.parameters),
     },
   }));
 
@@ -123,31 +191,32 @@ export async function chatWithDeepSeek(params: {
   while (turns < maxTurns) {
     turns++;
 
-    const res = await fetch(DEEPSEEK_API_URL, {
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model,
         messages: conversation,
-        tools: deepseekTools,
+        tools: aiTools,
         tool_choice: "auto",
         temperature: 0.3,
+        stream: false,
       }),
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`DeepSeek Chat API error (${res.status}): ${errText}`);
+      throw new Error(`AI Chat API error (${res.status}): ${errText}`);
     }
 
-    const json = await res.json();
+    const json = await readCompletion(res);
     const message = json.choices?.[0]?.message;
 
     if (!message) {
-      throw new Error("Tidak ada respons yang diterima dari DeepSeek.");
+      throw new Error("Tidak ada respons yang diterima dari AI.");
     }
 
     conversation.push(message);
