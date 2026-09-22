@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Calendar, CheckCircle2, Download, Upload, AlertCircle, GraduationCap } from 'lucide-react';
+import { Calendar, CheckCircle2, Download, Upload, AlertCircle, GraduationCap, LayoutList, Plus } from 'lucide-react';
 import { useDialog } from '@/context/DialogContext';
+import { CustomSidebarManagerModal } from '@/components/CustomSidebarManagerModal';
 import {
     Select,
     SelectContent,
@@ -56,6 +57,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
 
     const [yearValue, setYearValue] = useState(academicYear);
     const [semesterValue, setSemesterValue] = useState(academicSemester);
+    const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
 
     useEffect(() => {
         setYearValue(academicYear || "2025/2026");
@@ -277,6 +279,23 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                 </PanelBody>
             </Panel>
 
+            {/* Custom Sidebar Menu Management */}
+            <Panel>
+                <PanelHeader
+                    icon={<LayoutList />}
+                    title="Menu Sidebar Kustom"
+                    meta="Kelola menu tambahan di sidebar (ikon, judul, href, urutan, dan privasi privat/publik)."
+                />
+                <PanelBody className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                        Anda dapat menambah menu kustom yang tampil di sidebar. Menu privat hanya muncul di akun Anda, sedangkan menu publik dapat diakses semua orang secara default.
+                    </p>
+                    <Button variant="outline" onClick={() => setIsCustomModalOpen(true)}>
+                        <Plus className="size-4 mr-1.5" /> Kelola Menu Sidebar Kustom
+                    </Button>
+                </PanelBody>
+            </Panel>
+
             {/* Export / Import */}
             <Panel>
                 <PanelHeader
@@ -330,6 +349,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                 </PanelBody>
             </Panel>
             </PageSections>
+            <CustomSidebarManagerModal
+                isOpen={isCustomModalOpen}
+                onClose={() => setIsCustomModalOpen(false)}
+            />
         </PageShell>
     );
 };

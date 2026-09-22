@@ -43,9 +43,13 @@ import {
     ChevronsUpDown,
     PanelLeftClose,
     PanelLeftOpen,
+    Plus,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { BapLogo } from "@/components/BapLogo";
+import { useCustomSidebar } from "@/hooks/useCustomSidebar";
+import { renderCustomIcon } from "@/components/CustomIconRenderer";
+import { CustomSidebarManagerModal } from "@/components/CustomSidebarManagerModal";
 
 import {
     Sidebar,
@@ -169,6 +173,8 @@ export function AppSidebar({
     const [isDark, setIsDark] = useDarkMode();
     const { toggleSidebar, state } = useSidebar();
     const { data: session } = authClient.useSession();
+    const { items: customItems } = useCustomSidebar();
+    const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
 
     const userName = session?.user?.name?.trim() || "Akun";
     const userEmail = session?.user?.email ?? "";
@@ -253,6 +259,54 @@ export function AppSidebar({
                         </SidebarGroupContent>
                     </SidebarGroup>
                 ))}
+
+                {/* Custom Menu Section */}
+                <SidebarGroup className="px-0 pb-3 pt-0">
+                    <div className="flex items-center justify-between px-2 py-1 text-xs text-sidebar-foreground/70 font-semibold group-data-[collapsible=icon]:hidden">
+                        <span>Menu Kustom</span>
+                        <button
+                            type="button"
+                            onClick={() => setIsCustomModalOpen(true)}
+                            className="rounded p-0.5 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                            title="Tambah / Kelola Menu Kustom"
+                        >
+                            <Plus className="size-3.5" />
+                        </button>
+                    </div>
+                    <SidebarGroupContent>
+                        <SidebarMenu className="gap-1.5">
+                            {customItems.map((item) => (
+                                <SidebarMenuItem key={item.id}>
+                                    <SidebarMenuButton
+                                        isActive={pathname === item.href}
+                                        tooltip={item.title}
+                                        onClick={() => {
+                                            if (item.href.startsWith("http://") || item.href.startsWith("https://")) {
+                                                window.open(item.href, "_blank", "noopener,noreferrer");
+                                            } else {
+                                                router.push(item.href);
+                                            }
+                                        }}
+                                    >
+                                        {renderCustomIcon(item.icon)}
+                                        <span>{item.title}</span>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            ))}
+                            {customItems.length === 0 && (
+                                <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsCustomModalOpen(true)}
+                                        className="w-full text-left px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50 rounded-control transition-colors"
+                                    >
+                                        + Tambah menu kustom
+                                    </button>
+                                </SidebarMenuItem>
+                            )}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
 
                 {/* Ambient counts. Quiet metadata, not a card — the reference
                     has no equivalent, but this data earns its place here. */}
@@ -360,6 +414,10 @@ export function AppSidebar({
                     </DropdownMenu>
                 </div>
             </SidebarFooter>
+            <CustomSidebarManagerModal
+                isOpen={isCustomModalOpen}
+                onClose={() => setIsCustomModalOpen(false)}
+            />
         </Sidebar>
     );
 }

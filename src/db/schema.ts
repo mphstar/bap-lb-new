@@ -192,3 +192,16 @@ export const archives = pgTable("archives", {
   data: jsonb("data").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Custom Sidebar Items
+export const customSidebarItems = pgTable("custom_sidebar_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  href: text("href").notNull(),
+  icon: text("icon").notNull().default("Link"),
+  order: integer("order").notNull().default(0),
+  isPrivate: boolean("is_private").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
