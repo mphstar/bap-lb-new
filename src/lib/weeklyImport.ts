@@ -29,6 +29,28 @@ export interface WeeklyPatch {
   pengajar?: string;
 }
 
+/** Helper matching input name against master dosen list (e.g., "Elly" -> "Elly Antika, ST, M.Kom") */
+export function matchDosenName(inputName: string, masterDosenList: { name: string }[]): string {
+  const trimmed = inputName.trim();
+  if (!trimmed || masterDosenList.length === 0) return trimmed;
+
+  const inputLower = trimmed.toLowerCase();
+
+  // 1. Exact match
+  const exact = masterDosenList.find((d) => d.name.trim().toLowerCase() === inputLower);
+  if (exact) return exact.name;
+
+  // 2. Fuzzy match: check if master name starts with input or contains input word
+  const match = masterDosenList.find((d) => {
+    const dLower = d.name.toLowerCase();
+    // Match word boundary or prefix (e.g. "Elly" in "Elly Antika, ST, M.Kom")
+    const words = dLower.split(/[\s,.]+/).filter(Boolean);
+    return words.some((w) => w === inputLower || w.startsWith(inputLower));
+  });
+
+  return match ? match.name : trimmed;
+}
+
 const DAY_RANK: Record<string, number> = {
   senin: 1,
   selasa: 2,
@@ -45,7 +67,8 @@ export const norm = (s: unknown) =>
 export function buildWeeklyPatches(
   templates: WeeklyTemplate[],
   scope: WeeklyScope,
-  weeks: WeekInput[]
+  weeks: WeekInput[],
+  dosenList: { name: string }[] = []
 ): { patches: WeeklyPatch[]; unmatched: any[]; scopedSchedules: number } {
   const scopeMataKuliah = norm(scope.mataKuliah);
   const scopeProdi = norm(scope.prodi);
@@ -154,12 +177,15 @@ export function buildWeeklyPatches(
 
       if (dayGroups.length >= names.length) {
         dayGroups.forEach((group, i) => {
-          const name = names[Math.min(i, names.length - 1)];
+          const rawName = names[Math.min(i, names.length - 1)];
+          const name = matchDosenName(rawName, dosenList);
           for (const t of group) addPatch(weekNumber, t.scheduleId, { pengajar: name });
         });
       } else {
         slots.forEach((t, i) => {
-          addPatch(weekNumber, t.scheduleId, { pengajar: names[i % names.length] });
+          const rawName = names[i % names.length];
+          const name = matchDosenName(rawName, dosenList);
+          addPatch(weekNumber, t.scheduleId, { pengajar: name });
         });
       }
     }

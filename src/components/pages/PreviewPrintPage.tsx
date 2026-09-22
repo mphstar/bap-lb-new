@@ -334,13 +334,20 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                             </div>
 
                             {/* Print margin hint — the dialog's own margin setting wins over
-                                our @page rule, so the user must pick "None". */}
+                                our @page rule, and each mode needs a different value. */}
                             <div className="flex gap-2 rounded-control border border-rule bg-brand-soft/60 px-3 py-2 text-xs leading-snug text-foreground">
                                 <Info className="mt-0.5 size-3.5 shrink-0 text-brand" />
-                                <span>
-                                    Saat dialog cetak muncul, setel <strong>Margin</strong> ke <strong>None / 0</strong> agar
-                                    hasil tidak terpotong dan pembagian dua dokumen per lembar rapi.
-                                </span>
+                                {printMode === 'minggu' ? (
+                                    <span>
+                                        Saat dialog cetak muncul, biarkan <strong>Margin</strong> di <strong>Default</strong> (10&nbsp;mm)
+                                        agar margin tetap ada di setiap halaman.
+                                    </span>
+                                ) : (
+                                    <span>
+                                        Saat dialog cetak muncul, setel <strong>Margin</strong> ke <strong>None / 0</strong> agar
+                                        hasil tidak terpotong dan pembagian dua dokumen per lembar rapi.
+                                    </span>
+                                )}
                             </div>
                         </PanelBody>
                     </Panel>
@@ -529,7 +536,7 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                 title={`Rekap Minggu ${selectedWeek}`}
                                 meta={`${filteredBapData.length} sesi · Format ${paperSize.toUpperCase()} · Orientasi lanskap`}
                             />
-                            <div className="hm-scrollbar overflow-x-auto bg-white p-4 print:p-0 print:overflow-visible print-minggu-frame">
+                            <div className="hm-scrollbar overflow-x-auto bg-white p-4 print:p-0 print:overflow-visible">
                                 {/* `zoom`, not `transform: scale` — zoom reflows the
                                     box, so the frame tracks the preview instead of
                                     leaving a phantom gap under it. */}
@@ -661,15 +668,13 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
             {printMode === 'minggu' ? (
                 <style>{`
                     @media print {
-                        /* Margin is delivered as inner padding (see .print-minggu-frame),
-                           not via @page: the print dialog's own margin setting overrides
-                           @page, so relying on it makes the recap stick to the paper edge
-                           whenever the user picks "None". */
-                        @page { margin: 0mm; }
-                        html, body { margin: 0 !important; padding: 0 !important; }
+                        /* The recap flows across many pages, so the margin must come
+                           from @page — a container padding would only pad the first and
+                           last page. Keep the print dialog margin on "Default" for this
+                           mode; picking "None" removes it. */
+                        @page { margin: 10mm; }
                         body { -webkit-print-color-adjust: exact; background-color: white !important; font-family: 'Times New Roman', Times, serif !important; }
                         * { font-family: 'Times New Roman', Times, serif !important; }
-                        .print-minggu-frame { padding: 10mm !important; box-sizing: border-box; }
                         .print-persesi-view { display: none !important; }
                     }
                 `}</style>

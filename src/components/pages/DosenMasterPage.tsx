@@ -4,7 +4,7 @@
  * design-system: design.md · designed-as-app
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   Search,
   Plus,
@@ -21,6 +21,10 @@ import {
   X,
   Edit2,
   FileSignature,
+  Download,
+  Loader2,
+  WifiOff,
+  AlertTriangle,
 } from "lucide-react";
 import type { MasterDosen, WeekData, ScheduleEntry } from "@/types";
 import SignaturePad from "@/components/SignaturePad";
@@ -55,6 +59,16 @@ interface DosenMasterPageProps {
 
 type FilterStatus = "all" | "has_signature" | "no_signature";
 type SortOption = "name_asc" | "name_desc" | "status";
+
+/** Row returned by GET /api/sim-polije/dosen */
+interface SimDosen {
+  no?: number;
+  nama: string;
+  nip?: string;
+  nidn?: string;
+  photo?: string;
+  detail_url?: string;
+}
 
 /** Generate initials from lecturer name (e.g., "Dr. Ir. Budi Santoso, M.T." -> "BS") */
 function getInitials(name: string): string {
@@ -110,6 +124,14 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
 
   // Zoom preview modal for signature
   const [previewSigDosen, setPreviewSigDosen] = useState<MasterDosen | null>(null);
+
+  // SIM Polije import modal state
+  const [isSimModalOpen, setIsSimModalOpen] = useState(false);
+  const [simResults, setSimResults] = useState<SimDosen[]>([]);
+  const [simLoading, setSimLoading] = useState(false);
+  const [simError, setSimError] = useState<string | null>(null);
+  const [simSearch, setSimSearch] = useState("");
+  const [selectedSimNames, setSelectedSimNames] = useState<Set<string>>(new Set());
 
   // Active teaching lecturers calculation (from template & weeks)
   const activeLecturerCounts = useMemo(() => {
@@ -263,6 +285,96 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
     }
   };
 
+  // === SIM Polije import ===
+  const loadSimDosen = useCallback(async () => {
+    setSimLoading(true);
+    setSimError(null);
+    setSimResults([]);
+    setSelectedSimNames(new Set());
+    try {
+      const res = await fetch("/api/sim-polije/dosen");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
+      const json = await res.json();
+      const rows: SimDosen[] = json.data || [];
+      setSimResults(rows);
+      if (rows.length === 0) {
+        setSimError("Tidak ada data dosen yang dikembalikan oleh SIM Polije.");
+      }
+    } catch (err: any) {
+      setSimError(err.message);
+    } finally {
+      setSimLoading(false);
+    }
+  }, []);
+
+  const handleOpenSim = () => {
+    setIsSimModalOpen(true);
+    setSimSearch("");
+    loadSimDosen();
+  };
+
+  // Names already in the master list (case-insensitive)
+  const existingNames = useMemo(
+    () => new Set(dosenList.map((d) => d.name.trim().toLowerCase())),
+    [dosenList]
+  );
+
+  const simAddable = useMemo(
+    () => simResults.filter((s) => !existingNames.has(s.nama.trim().toLowerCase())),
+    [simResults, existingNames]
+  );
+
+  const simFiltered = useMemo(() => {
+    const q = simSearch.trim().toLowerCase();
+    if (!q) return simAddable;
+    return simAddable.filter(
+      (s) =>
+        s.nama.toLowerCase().includes(q) ||
+        (s.nip || "").toLowerCase().includes(q) ||
+        (s.nidn || "").toLowerCase().includes(q)
+    );
+  }, [simAddable, simSearch]);
+
+  const toggleSimSelect = (name: string) => {
+    setSelectedSimNames((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  const toggleSimSelectAll = () => {
+    if (selectedSimNames.size === simFiltered.length && simFiltered.length > 0) {
+      setSelectedSimNames(new Set());
+    } else {
+      setSelectedSimNames(new Set(simFiltered.map((s) => s.nama)));
+    }
+  };
+
+  const addSimDosen = (rows: SimDosen[]) => {
+    if (rows.length === 0) return;
+    const newEntries: MasterDosen[] = rows.map((s) => ({
+      id: Math.random().toString(36).substring(2, 9),
+      name: s.nama.trim(),
+      signature: "",
+    }));
+    onDosenListChange([...dosenList, ...newEntries]);
+    setIsSimModalOpen(false);
+    showAlert(
+      "Berhasil Menambahkan",
+      `Berhasil mengimpor ${newEntries.length} dosen dari SIM Polije ke master data.`
+    );
+  };
+
+  const handleAddSelectedFromSim = () => {
+    const rows = simResults.filter((s) => selectedSimNames.has(s.nama));
+    addSimDosen(rows);
+  };
+
   // Filtered and sorted data
   const filteredAndSortedDosen = useMemo(() => {
     let list = [...dosenList];
@@ -307,6 +419,10 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
         meta={`${totalDosen} dosen terdaftar — tanda tangan digital otomatis terpasang pada BAP dan Daftar Hadir`}
         actions={
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleOpenSim}>
+              <Download className="h-4 w-4" />
+              <span>Ambil dari SIM</span>
+            </Button>
             <Button variant="outline" onClick={handleImportFromWeekly}>
               <RefreshCw className="h-4 w-4" />
               <span>Ambil dari Jadwal</span>
@@ -591,6 +707,9 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
                   </Button>
                 ) : (
                   <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleOpenSim}>
+                      <Download className="h-4 w-4" /> Ambil dari SIM
+                    </Button>
                     <Button variant="outline" onClick={handleImportFromWeekly}>
                       <RefreshCw className="h-4 w-4" /> Ambil dari Jadwal
                     </Button>
@@ -723,6 +842,165 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
               <Edit2 className="h-4 w-4 mr-1" />
               <span>Ubah Tanda Tangan</span>
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* ── Dialog Modal: Import dari SIM Polije ─────────────────── */}
+      <Dialog open={isSimModalOpen} onOpenChange={setIsSimModalOpen}>
+        <DialogContent className="sm:max-w-[620px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <Download className="h-4.5 w-4.5 text-primary" />
+              <span>Import Dosen dari SIM Polije</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+              Ambil data dosen resmi dari SIM Polije untuk ditambahkan ke master data.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogBody className="space-y-4 px-6 py-5">
+            {simLoading ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
+                <Loader2 className="size-4 animate-spin text-primary" />
+                <span className="text-sm">Memuat data dosen dari SIM Polije…</span>
+              </div>
+            ) : simError ? (
+              <div className="rounded-control border border-destructive/30 bg-destructive/10 p-4">
+                <div className="flex items-start gap-3">
+                  <WifiOff className="mt-0.5 size-4 shrink-0 text-destructive" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground">
+                      Koneksi ke API SIM Polije Terkendala
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">{simError}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={loadSimDosen}
+                      className="mt-3 text-xs"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 mr-1" /> Coba Lagi
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : simResults.length > 0 ? (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="relative flex-1">
+                    <Search
+                      size={14}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <Input
+                      type="text"
+                      value={simSearch}
+                      onChange={(e) => setSimSearch(e.target.value)}
+                      placeholder="Cari nama, NIP, atau NIDN..."
+                      className="pl-8 h-8 text-xs"
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleSimSelectAll}
+                    className="h-8 text-xs shrink-0"
+                  >
+                    {selectedSimNames.size === simFiltered.length && simFiltered.length > 0
+                      ? "Batal Pilih Semua"
+                      : `Pilih Semua (${simFiltered.length})`}
+                  </Button>
+                </div>
+
+                <div className="max-h-[300px] overflow-y-auto border border-rule rounded-panel divide-y divide-rule">
+                  {simFiltered.length > 0 ? (
+                    simFiltered.map((item) => {
+                      const isSelected = selectedSimNames.has(item.nama);
+                      return (
+                        <div
+                          key={item.nama}
+                          onClick={() => toggleSimSelect(item.nama)}
+                          className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${
+                            isSelected ? "bg-primary/5" : "hover:bg-panel-2/50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="rounded border-rule text-primary focus:ring-primary h-4 w-4"
+                            />
+                            <div className="min-w-0">
+                              <p className="font-medium text-xs text-foreground truncate">
+                                {item.nama}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground truncate">
+                                NIP: {item.nip || "-"} | NIDN: {item.nidn || "-"}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addSimDosen([item]);
+                            }}
+                            className="h-7 text-[11px] px-2.5 shrink-0"
+                          >
+                            + Tambah
+                          </Button>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="p-6 text-center text-xs text-muted-foreground">
+                      {simAddable.length === 0
+                        ? "Semua dosen dari SIM Polije sudah terdaftar di master data."
+                        : "Tidak ada dosen yang cocok dengan pencarian."}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                  <span>
+                    Terpilih: <strong>{selectedSimNames.size}</strong> dosen
+                  </span>
+                  <span>
+                    Tersedia dikimpor: <strong>{simAddable.length}</strong> dari {simResults.length}
+                  </span>
+                </div>
+              </>
+            ) : null}
+          </DialogBody>
+
+          <DialogFooter className="px-6 py-4 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsSimModalOpen(false)}
+            >
+              Batal
+            </Button>
+            {simResults.length > 0 && simAddable.length > 0 && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => addSimDosen(simAddable)}
+                >
+                  Import Semua ({simAddable.length})
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleAddSelectedFromSim}
+                  disabled={selectedSimNames.size === 0}
+                >
+                  Import Terpilih ({selectedSimNames.size})
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

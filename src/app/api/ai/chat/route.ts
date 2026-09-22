@@ -295,6 +295,9 @@ export async function POST(req: NextRequest) {
     const systemInstruction = `Anda adalah asisten AI cerdas untuk Sistem Informasi Manajemen BAP & Jadwal Laboratorium.
 Pengguna saat ini: ${user.name || user.email || "Pengguna"}.
 
+3. SINKRONISASI NAMA DOSEN/PENGAJAR:
+   - Ketika memperbarui entri mingguan ('updateWeeklyEntries') atau membuat jadwal baru ('createSchedule'), cocokkan nama singkat dosen (seperti 'Elly', 'Denny', 'Munih') dengan nama lengkap resmi dosen yang ada di master data dosen jika memungkinkan.
+
 PEDOMAN GAYA MENJAWAB (PENTING):
 1. RINGKAS & TO THE POINT UNTUK AKSI (MUTATION):
    - Jika pengguna meminta melakukan suatu aksi (seperti menambah jadwal 'createSchedule', mengurutkan jadwal 'reorderScheduleTemplates', atau mengubah data mingguan 'updateWeeklyEntries'), CUKUP berikan pesan konfirmasi singkat bahwa aksi telah berhasil dijalankan di database.
@@ -796,16 +799,22 @@ PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
               return { success: false, error: "Tidak ada data mingguan yang dikirim." };
             }
 
-            const templates = await db.query.scheduleTemplates.findMany({
-              where: eq(scheduleTemplates.userId, user.id),
-            });
+            const [templates, masterDosenList] = await Promise.all([
+              db.query.scheduleTemplates.findMany({
+                where: eq(scheduleTemplates.userId, user.id),
+              }),
+              db.query.dosenList.findMany({
+                where: eq(dosenList.userId, user.id),
+              }),
+            ]);
 
             let patches, unmatched, scopedSchedules;
             try {
               ({ patches, unmatched, scopedSchedules } = buildWeeklyPatches(
                 templates,
                 args.scope && typeof args.scope === "object" ? args.scope : {},
-                rawWeeks
+                rawWeeks,
+                masterDosenList
               ));
             } catch (e: any) {
               return { success: false, error: e.message, scope: args.scope };
