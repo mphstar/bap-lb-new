@@ -396,6 +396,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                 <th className="px-3 py-3 w-10">No</th>
                                 <th className="px-3 py-3">Mata Kuliah</th>
                                 <th className="px-3 py-3 w-16 text-center">Smt</th>
+                                <th className="px-3 py-3 w-16 text-center">Prodi</th>
                                 <th className="px-3 py-3 w-16 text-center">Gol</th>
                                 <th className="px-3 py-3">Jam</th>
                                 <th className="px-3 py-3 bg-primary/5 text-primary">Tanggal</th>
@@ -413,7 +414,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                 return (
                                     <React.Fragment key={day}>
                                         <tr className="bg-muted/20 border-b">
-                                            <td colSpan={11} className="px-4 py-2 font-bold text-foreground bg-slate-100 dark:bg-slate-900">
+                                            <td colSpan={12} className="px-4 py-2 font-bold text-foreground bg-slate-100 dark:bg-slate-900">
                                                 {day}
                                             </td>
                                         </tr>
@@ -440,6 +441,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                         <td className="px-3 py-2 text-center text-muted-foreground">{entry.no}</td>
                                                         <td className="px-3 py-2 font-medium">{entry.mataKuliah}</td>
                                                         <td className="px-3 py-2 text-center text-muted-foreground">{entry.semester}</td>
+                                                        <td className="px-3 py-2 text-center text-muted-foreground">{entry.prodi}</td>
                                                         <td className="px-3 py-2 text-center text-muted-foreground">{entry.golongan}</td>
                                                         <td className="px-3 py-2 text-muted-foreground">{entry.jam}</td>
                                                         <td className="px-3 py-2 bg-primary/[0.02]">
@@ -500,7 +502,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                                     {/* Expanded: Student Attendance */}
                                                     {isExpanded && (
                                                         <tr>
-                                                            <td colSpan={11} className="p-0">
+                                                            <td colSpan={12} className="p-0">
                                                                 <div className="bg-muted/20 border-b px-6 py-3">
                                                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
                                                                         <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
