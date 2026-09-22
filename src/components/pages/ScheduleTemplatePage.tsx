@@ -363,109 +363,139 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({
                     }
                 />
             ) : (
-                <div className="hm-scrollbar overflow-x-auto rounded-panel border border-rule bg-panel print:hidden">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="bg-muted/50 text-left text-muted-foreground font-semibold border-b">
-                                <th className="px-2 py-3 w-8"></th>
-                                <th className="px-3 py-3 w-10">No</th>
-                                <th className="px-3 py-3">Mata Kuliah</th>
-                                <th className="px-3 py-3">Hari</th>
-                                <th className="px-3 py-3">Jam</th>
-                                <th className="px-3 py-3">Tempat</th>
-                                <th className="px-3 py-3">Prodi</th>
-                                <th className="px-3 py-3">Smt</th>
-                                <th className="px-3 py-3">Gol</th>
-                                <th className="px-3 py-3">Pengajar (Default)</th>
-                                <th className="px-3 py-3 w-32">Teknisi (Default)</th>
-                                <th className="px-3 py-3 w-28">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {template.map((entry, index) => (
-                                <tr
-                                    key={entry.id}
-                                    draggable={editingId === null}
-                                    onDragStart={(e) => handleDragStart(e, index)}
-                                    onDragEnter={() => handleDragEnter(index)}
-                                    onDragOver={(e) => e.preventDefault()}
-                                    onDragEnd={handleDragEnd}
-                                    className={`border-b transition-all duration-150 ${
-                                        draggedIndex === index
-                                            ? 'opacity-40 bg-accent scale-[0.99]'
-                                            : 'hover:bg-muted/30'
-                                    }`}
-                                >
-                                    {editingId === entry.id ? (
-                                        <>
-                                            <td className="px-2 py-2 text-center text-muted-foreground/40">
-                                                <GripVertical size={15} />
-                                            </td>
-                                            <td className="px-3 py-2 text-center text-muted-foreground">{entry.no}</td>
-                                            <td className="px-3 py-2"><input className="w-full border rounded px-2 py-1 text-sm bg-background" value={editForm.mataKuliah || ''} onChange={e => setEditForm({ ...editForm, mataKuliah: e.target.value })} placeholder="Mata Kuliah" /></td>
-                                            <td className="px-3 py-2">
-                                                <select
-                                                    className="w-24 border rounded px-2 py-1 text-sm bg-background"
-                                                    value={editForm.hari || 'Senin'}
-                                                    onChange={e => setEditForm({ ...editForm, hari: e.target.value })}
+                <div className="space-y-6 print:hidden">
+                    {Array.from(
+                        // Grouping by day for UI display, preserving custom days if any
+                        (() => {
+                            const daysInOrder = [...DAY_ORDER];
+                            template.forEach(t => {
+                                const d = t.hari?.trim();
+                                if (d && !daysInOrder.includes(d)) daysInOrder.push(d);
+                            });
+                            const groups = new Map<string, { entry: ScheduleEntry; originalIndex: number }[]>();
+                            daysInOrder.forEach(d => groups.set(d, []));
+                            template.forEach((entry, idx) => {
+                                const day = entry.hari?.trim() || 'Senin';
+                                if (!groups.has(day)) groups.set(day, []);
+                                groups.get(day)!.push({ entry, originalIndex: idx });
+                            });
+                            return groups;
+                        })().entries()
+                    ).map(([day, items]) => {
+                        if (items.length === 0) return null;
+                        return (
+                            <div key={day} className="rounded-panel border border-rule bg-panel overflow-hidden">
+                                <div className="bg-muted/70 px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-rule flex items-center justify-between">
+                                    <span>{day}</span>
+                                    <span className="text-[11px] font-normal text-muted-foreground/80">{items.length} sesi</span>
+                                </div>
+                                <div className="hm-scrollbar overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="bg-muted/30 text-left text-muted-foreground font-semibold border-b text-xs">
+                                                <th className="px-2 py-2 w-8"></th>
+                                                <th className="px-3 py-2 w-10">No</th>
+                                                <th className="px-3 py-2">Mata Kuliah</th>
+                                                <th className="px-3 py-2 w-24">Hari</th>
+                                                <th className="px-3 py-2">Jam</th>
+                                                <th className="px-3 py-2">Tempat</th>
+                                                <th className="px-3 py-2">Prodi</th>
+                                                <th className="px-3 py-2">Smt</th>
+                                                <th className="px-3 py-2">Gol</th>
+                                                <th className="px-3 py-2">Pengajar (Default)</th>
+                                                <th className="px-3 py-2 w-32">Teknisi (Default)</th>
+                                                <th className="px-3 py-2 w-28">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {items.map(({ entry, originalIndex }) => (
+                                                <tr
+                                                    key={entry.id}
+                                                    draggable={editingId === null}
+                                                    onDragStart={(e) => handleDragStart(e, originalIndex)}
+                                                    onDragEnter={() => handleDragEnter(originalIndex)}
+                                                    onDragOver={(e) => e.preventDefault()}
+                                                    onDragEnd={handleDragEnd}
+                                                    className={`border-b transition-all duration-150 ${
+                                                        draggedIndex === originalIndex
+                                                            ? 'opacity-40 bg-accent scale-[0.99]'
+                                                            : 'hover:bg-muted/30'
+                                                    }`}
                                                 >
-                                                    {DAY_ORDER.map(day => (
-                                                        <option key={day} value={day}>{day}</option>
-                                                    ))}
-                                                </select>
-                                            </td>
-                                            <td className="px-3 py-2"><input className="w-24 border rounded px-2 py-1 text-sm bg-background" value={editForm.jam || ''} onChange={e => setEditForm({ ...editForm, jam: e.target.value })} placeholder="Jam" /></td>
-                                            <td className="px-3 py-2"><input className="w-16 border rounded px-2 py-1 text-sm bg-background" value={editForm.tempat || ''} onChange={e => setEditForm({ ...editForm, tempat: e.target.value })} placeholder="Tempat" /></td>
-                                            <td className="px-3 py-2"><input className="w-16 border rounded px-2 py-1 text-sm bg-background" value={editForm.prodi || ''} onChange={e => setEditForm({ ...editForm, prodi: e.target.value })} placeholder="Prodi" /></td>
-                                            <td className="px-3 py-2"><input className="w-12 border rounded px-2 py-1 text-sm bg-background" value={editForm.semester || ''} onChange={e => setEditForm({ ...editForm, semester: e.target.value })} placeholder="Smt" /></td>
-                                            <td className="px-3 py-2"><input className="w-12 border rounded px-2 py-1 text-sm bg-background" value={editForm.golongan || ''} onChange={e => setEditForm({ ...editForm, golongan: e.target.value })} placeholder="Gol" /></td>
-                                            <td className="px-3 py-2">
-                                                {dosenList.length > 0 ? (
-                                                    <SearchableSelect
-                                                        value={editForm.defaultPengajar || ''}
-                                                        onChange={val => setEditForm({ ...editForm, defaultPengajar: val })}
-                                                        options={dosenList.map(d => ({ value: d.name, label: d.name }))}
-                                                    />
-                                                ) : (
-                                                    <input className="w-full border rounded px-2 py-1 text-sm bg-background" value={editForm.defaultPengajar || ''} onChange={e => setEditForm({ ...editForm, defaultPengajar: e.target.value })} placeholder="Pengajar" />
-                                                )}
-                                            </td>
-                                            <td className="px-3 py-2"><input className="w-full border rounded px-2 py-1 text-sm bg-background" value={editForm.defaultTeknisi || ''} onChange={e => setEditForm({ ...editForm, defaultTeknisi: e.target.value })} placeholder="Teknisi" /></td>
-                                            <td className="px-3 py-2">
-                                                <div className="flex gap-1">
-                                                    <button onClick={saveEdit} className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">OK</button>
-                                                    <Button variant="ghost" size="icon-xs" onClick={cancelEdit} aria-label="Batal edit"><X /></Button>
-                                                </div>
-                                            </td>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <td className="px-2 py-2 text-center text-muted-foreground/40 cursor-grab active:cursor-grabbing">
-                                                <GripVertical size={15} />
-                                            </td>
-                                            <td className="px-3 py-2 text-center text-muted-foreground">{entry.no}</td>
-                                            <td className="px-3 py-2 font-medium">{entry.mataKuliah}</td>
-                                            <td className="px-3 py-2">{entry.hari}</td>
-                                            <td className="px-3 py-2">{entry.jam}</td>
-                                            <td className="px-3 py-2">{entry.tempat}</td>
-                                            <td className="px-3 py-2">{entry.prodi}</td>
-                                            <td className="px-3 py-2">{entry.semester}</td>
-                                            <td className="px-3 py-2">{entry.golongan}</td>
-                                            <td className="px-3 py-2">{entry.defaultPengajar}</td>
-                                            <td className="px-3 py-2">{entry.defaultTeknisi}</td>
-                                            <td className="px-3 py-2">
-                                                <div className="flex items-center gap-1">
-                                                    <button onClick={() => startEdit(entry)} className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2 py-1 rounded hover:bg-blue-200">Edit</button>
-                                                    <button onClick={() => duplicateEntry(entry, index)} title="Duplikat baris" className="text-xs bg-muted text-foreground p-1 rounded hover:bg-accent"><Copy size={13} /></button>
-                                                    <button onClick={() => deleteEntry(entry.id)} title="Hapus jadwal" className="text-xs text-red-500 hover:text-red-700 p-1"><Trash2 size={14} /></button>
-                                                </div>
-                                            </td>
-                                        </>
-                                    )}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                                    {editingId === entry.id ? (
+                                                        <>
+                                                            <td className="px-2 py-2 text-center text-muted-foreground/40">
+                                                                <GripVertical size={15} />
+                                                            </td>
+                                                            <td className="px-3 py-2 text-center text-muted-foreground">{entry.no}</td>
+                                                            <td className="px-3 py-2"><input className="w-full border rounded px-2 py-1 text-sm bg-background" value={editForm.mataKuliah || ''} onChange={e => setEditForm({ ...editForm, mataKuliah: e.target.value })} placeholder="Mata Kuliah" /></td>
+                                                            <td className="px-3 py-2">
+                                                                <select
+                                                                    className="w-24 border rounded px-2 py-1 text-sm bg-background"
+                                                                    value={editForm.hari || 'Senin'}
+                                                                    onChange={e => setEditForm({ ...editForm, hari: e.target.value })}
+                                                                >
+                                                                    {DAY_ORDER.map(d => (
+                                                                        <option key={d} value={d}>{d}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </td>
+                                                            <td className="px-3 py-2"><input className="w-24 border rounded px-2 py-1 text-sm bg-background" value={editForm.jam || ''} onChange={e => setEditForm({ ...editForm, jam: e.target.value })} placeholder="Jam" /></td>
+                                                            <td className="px-3 py-2"><input className="w-16 border rounded px-2 py-1 text-sm bg-background" value={editForm.tempat || ''} onChange={e => setEditForm({ ...editForm, tempat: e.target.value })} placeholder="Tempat" /></td>
+                                                            <td className="px-3 py-2"><input className="w-16 border rounded px-2 py-1 text-sm bg-background" value={editForm.prodi || ''} onChange={e => setEditForm({ ...editForm, prodi: e.target.value })} placeholder="Prodi" /></td>
+                                                            <td className="px-3 py-2"><input className="w-12 border rounded px-2 py-1 text-sm bg-background" value={editForm.semester || ''} onChange={e => setEditForm({ ...editForm, semester: e.target.value })} placeholder="Smt" /></td>
+                                                            <td className="px-3 py-2"><input className="w-12 border rounded px-2 py-1 text-sm bg-background" value={editForm.golongan || ''} onChange={e => setEditForm({ ...editForm, golongan: e.target.value })} placeholder="Gol" /></td>
+                                                            <td className="px-3 py-2">
+                                                                {dosenList.length > 0 ? (
+                                                                    <SearchableSelect
+                                                                        value={editForm.defaultPengajar || ''}
+                                                                        onChange={val => setEditForm({ ...editForm, defaultPengajar: val })}
+                                                                        options={dosenList.map(d => ({ value: d.name, label: d.name }))}
+                                                                    />
+                                                                ) : (
+                                                                    <input className="w-full border rounded px-2 py-1 text-sm bg-background" value={editForm.defaultPengajar || ''} onChange={e => setEditForm({ ...editForm, defaultPengajar: e.target.value })} placeholder="Pengajar" />
+                                                                )}
+                                                            </td>
+                                                            <td className="px-3 py-2"><input className="w-full border rounded px-2 py-1 text-sm bg-background" value={editForm.defaultTeknisi || ''} onChange={e => setEditForm({ ...editForm, defaultTeknisi: e.target.value })} placeholder="Teknisi" /></td>
+                                                            <td className="px-3 py-2">
+                                                                <div className="flex gap-1">
+                                                                    <button onClick={saveEdit} className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">OK</button>
+                                                                    <Button variant="ghost" size="icon-xs" onClick={cancelEdit} aria-label="Batal edit"><X /></Button>
+                                                                </div>
+                                                            </td>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <td className="px-2 py-2 text-center text-muted-foreground/40 cursor-grab active:cursor-grabbing">
+                                                                <GripVertical size={15} />
+                                                            </td>
+                                                            <td className="px-3 py-2 text-center text-muted-foreground">{entry.no}</td>
+                                                            <td className="px-3 py-2 font-medium">{entry.mataKuliah}</td>
+                                                            <td className="px-3 py-2">{entry.hari}</td>
+                                                            <td className="px-3 py-2">{entry.jam}</td>
+                                                            <td className="px-3 py-2">{entry.tempat}</td>
+                                                            <td className="px-3 py-2">{entry.prodi}</td>
+                                                            <td className="px-3 py-2">{entry.semester}</td>
+                                                            <td className="px-3 py-2">{entry.golongan}</td>
+                                                            <td className="px-3 py-2">{entry.defaultPengajar}</td>
+                                                            <td className="px-3 py-2">{entry.defaultTeknisi}</td>
+                                                            <td className="px-3 py-2">
+                                                                <div className="flex items-center gap-1">
+                                                                    <button onClick={() => startEdit(entry)} className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2 py-1 rounded hover:bg-blue-200">Edit</button>
+                                                                    <button onClick={() => duplicateEntry(entry, originalIndex)} title="Duplikat baris" className="text-xs bg-muted text-foreground p-1 rounded hover:bg-accent"><Copy size={13} /></button>
+                                                                    <button onClick={() => deleteEntry(entry.id)} title="Hapus jadwal" className="text-xs text-red-500 hover:text-red-700 p-1"><Trash2 size={14} /></button>
+                                                                </div>
+                                                            </td>
+                                                        </>
+                                                    )}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
             {template.length > 0 && (
