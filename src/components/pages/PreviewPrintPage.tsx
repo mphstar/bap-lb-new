@@ -14,7 +14,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Printer, ChevronLeft, ChevronRight, ChevronDown, FileSignature, FileX2, Filter, Pen, ClipboardList, FileText, CalendarDays, Clock, ZoomIn } from 'lucide-react';
+import { Printer, ChevronLeft, ChevronRight, ChevronDown, FileSignature, FileX2, Filter, Pen, ClipboardList, FileText, CalendarDays, Clock, ZoomIn, Check, Info } from 'lucide-react';
 import {
     PageShell,
     PageHeader,
@@ -42,6 +42,13 @@ type PrintMode = 'minggu' | 'per-sesi';
 type PaperSize = 'a4' | 'f4';
 
 const DAY_ORDER = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
+/**
+ * Distance from the top of each half-page to the document. Identical for the
+ * top and bottom section, so the kop sits the exact same distance from the cut
+ * edge and both halves match once the sheet is cut in two.
+ */
+const PERSESI_SECTION_PAD_TOP = '2mm';
 
 interface PreviewPrintPageProps {
     template: ScheduleEntry[];
@@ -289,31 +296,51 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                             title="Ukuran kertas"
                             meta={paperSize === 'a4' ? 'A4 (210 × 297 mm)' : 'F4 / Folio (215 × 330 mm)'}
                         />
-                        <PanelBody>
+                        <PanelBody className="space-y-3">
                             <div
                                 role="group"
                                 aria-label="Ukuran kertas"
-                                className="grid grid-cols-2 gap-1 rounded-control border border-rule bg-panel-2 p-1"
+                                className="grid grid-cols-2 gap-1.5"
                             >
                                 {([
                                     { size: 'a4' as const, label: 'A4', desc: '210 × 297 mm' },
                                     { size: 'f4' as const, label: 'F4 / Folio', desc: '215 × 330 mm' },
-                                ]).map(opt => (
-                                    <button
-                                        key={opt.size}
-                                        type="button"
-                                        aria-pressed={paperSize === opt.size}
-                                        onClick={() => handlePaperSizeChange(opt.size)}
-                                        className={`inline-flex flex-col items-center justify-center rounded-md py-1.5 px-2 transition-colors duration-[180ms] ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring
-                                            ${paperSize === opt.size
-                                                ? 'bg-panel text-foreground font-semibold shadow-xs'
-                                                : 'text-muted-foreground hover:text-foreground active:bg-tile'
-                                            }`}
-                                    >
-                                        <span className="text-sm font-semibold">{opt.label}</span>
-                                        <span className="text-[10px] text-muted-foreground font-normal">{opt.desc}</span>
-                                    </button>
-                                ))}
+                                ]).map(opt => {
+                                    const active = paperSize === opt.size;
+                                    return (
+                                        <button
+                                            key={opt.size}
+                                            type="button"
+                                            aria-pressed={active}
+                                            onClick={() => handlePaperSizeChange(opt.size)}
+                                            className={`relative inline-flex flex-col items-center justify-center gap-0.5 rounded-control border-2 px-2 py-2.5 transition-colors duration-[180ms] ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring
+                                                ${active
+                                                    ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                                                    : 'border-rule bg-panel text-muted-foreground hover:border-foreground/30 hover:text-foreground active:bg-tile'
+                                                }`}
+                                        >
+                                            {active && (
+                                                <span className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-primary-foreground text-primary">
+                                                    <Check className="size-3" strokeWidth={3} />
+                                                </span>
+                                            )}
+                                            <span className="text-sm font-bold">{opt.label}</span>
+                                            <span className={`text-[10px] font-normal ${active ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                                                {opt.desc}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Print margin hint — the dialog's own margin setting wins over
+                                our @page rule, so the user must pick "None". */}
+                            <div className="flex gap-2 rounded-control border border-rule bg-brand-soft/60 px-3 py-2 text-xs leading-snug text-foreground">
+                                <Info className="mt-0.5 size-3.5 shrink-0 text-brand" />
+                                <span>
+                                    Saat dialog cetak muncul, setel <strong>Margin</strong> ke <strong>None / 0</strong> agar
+                                    hasil tidak terpotong dan pembagian dua dokumen per lembar rapi.
+                                </span>
                             </div>
                         </PanelBody>
                     </Panel>
@@ -502,7 +529,7 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                 title={`Rekap Minggu ${selectedWeek}`}
                                 meta={`${filteredBapData.length} sesi · Format ${paperSize.toUpperCase()} · Orientasi lanskap`}
                             />
-                            <div className="hm-scrollbar overflow-x-auto bg-white p-4 print:p-0 print:overflow-visible">
+                            <div className="hm-scrollbar overflow-x-auto bg-white p-4 print:p-0 print:overflow-visible print-minggu-frame">
                                 {/* `zoom`, not `transform: scale` — zoom reflows the
                                     box, so the frame tracks the preview instead of
                                     leaving a phantom gap under it. */}
@@ -570,19 +597,18 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                 {Array.from({ length: Math.ceil(filteredBapData.length / 2) }).map((_, pageIdx) => {
                                     const itemsOnPage = filteredBapData.slice(pageIdx * 2, pageIdx * 2 + 2);
                                     const pageHeight = paperSize === 'f4' ? '330mm' : '297mm';
-                                    const halfHeight = paperSize === 'f4' ? '165mm' : '148.5mm';
                                     return (
                                         <div
                                             key={pageIdx}
                                             style={{
+                                                position: 'relative',
                                                 width: '100%',
                                                 height: pageHeight,
                                                 maxHeight: pageHeight,
+                                                overflow: 'hidden',
                                                 pageBreakAfter: pageIdx < Math.ceil(filteredBapData.length / 2) - 1 ? 'always' : 'auto',
                                                 pageBreakInside: 'avoid',
                                                 breakAfter: pageIdx < Math.ceil(filteredBapData.length / 2) - 1 ? 'page' : 'auto',
-                                                display: 'flex',
-                                                flexDirection: 'column',
                                                 boxSizing: 'border-box'
                                             }}
                                         >
@@ -590,16 +616,24 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                                 <div
                                                     key={itemIdx}
                                                     style={{
-                                                        flex: `0 0 ${halfHeight}`,
-                                                        height: halfHeight,
-                                                        maxHeight: halfHeight,
-                                                        overflow: 'visible',
+                                                        // Absolute halves: the sheet is exactly 50:50 no
+                                                        // matter the paper size. Top half starts at the paper
+                                                        // edge, bottom half starts at the cut line — both get
+                                                        // the identical top padding, so the kop offset matches.
+                                                        position: 'absolute',
+                                                        left: 0,
+                                                        right: 0,
+                                                        top: itemIdx === 0 ? 0 : '50%',
+                                                        height: '50%',
+                                                        // Clip at the cut line: a taller document must not
+                                                        // bleed into the other half.
+                                                        overflow: 'hidden',
                                                         borderBottom: itemIdx === 0 && itemsOnPage.length > 1 ? '1.5px dashed #000' : 'none',
                                                         boxSizing: 'border-box',
                                                         display: 'flex',
                                                         flexDirection: 'column',
                                                         justifyContent: 'flex-start',
-                                                        padding: '1mm 0 0 0'
+                                                        padding: `${PERSESI_SECTION_PAD_TOP} 0 0 0`
                                                     }}
                                                 >
                                                     <DaftarHadirDocument
@@ -614,10 +648,6 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                                     />
                                                 </div>
                                             ))}
-                                            {/* Fill empty space if only 1 item on the last page */}
-                                            {itemsOnPage.length === 1 && (
-                                                <div style={{ flex: `0 0 ${halfHeight}`, height: halfHeight, maxHeight: halfHeight }} />
-                                            )}
                                         </div>
                                     );
                                 })}
@@ -631,9 +661,15 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
             {printMode === 'minggu' ? (
                 <style>{`
                     @media print {
-                        @page { margin: 10mm; }
+                        /* Margin is delivered as inner padding (see .print-minggu-frame),
+                           not via @page: the print dialog's own margin setting overrides
+                           @page, so relying on it makes the recap stick to the paper edge
+                           whenever the user picks "None". */
+                        @page { margin: 0mm; }
+                        html, body { margin: 0 !important; padding: 0 !important; }
                         body { -webkit-print-color-adjust: exact; background-color: white !important; font-family: 'Times New Roman', Times, serif !important; }
                         * { font-family: 'Times New Roman', Times, serif !important; }
+                        .print-minggu-frame { padding: 10mm !important; box-sizing: border-box; }
                         .print-persesi-view { display: none !important; }
                     }
                 `}</style>
@@ -641,9 +677,14 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                 <style>{`
                     @media print {
                         @page { margin: 0mm; size: ${paperSize === 'f4' ? '215mm 330mm' : '210mm 297mm'}; }
+                        html, body { margin: 0 !important; padding: 0 !important; }
                         body { -webkit-print-color-adjust: exact; background-color: white !important; font-family: 'Times New Roman', Times, serif !important; }
                         * { font-family: 'Times New Roman', Times, serif !important; }
                         .print-minggu-view { display: none !important; }
+                        /* No flow offset above the sheets, so each sheet starts exactly
+                           at the paper's top edge. */
+                        .print-persesi-view { margin: 0 !important; padding: 0 !important; }
+                        .print-persesi-view > div { margin: 0 !important; }
                     }
                 `}</style>
             )}
