@@ -9,18 +9,21 @@ interface RecapTableProps {
 const RecapTable: React.FC<RecapTableProps> = ({ groups }) => {
     // Helper to extract unique absent students
     const getAbsentStudents = (students: Student[]) => {
-        // Assuming "remarks" being non-empty means absent or special status
-        // Or we filter by specific keywords if needed, but for now just non-empty remarks
-        // Also remove duplicates based on NIM
         const uniqueMap = new Map();
-        students.forEach(s => {
-            if (s.remarks && s.remarks.trim() !== "") {
+        (students || []).forEach(s => {
+            if (!s.remarks || s.remarks.trim().toLowerCase() !== 'hadir') {
                 if (!uniqueMap.has(s.nim)) {
-                    uniqueMap.set(s.nim, s);
+                    uniqueMap.set(s.nim, {
+                        ...s,
+                        remarks: s.remarks && s.remarks.trim() !== '' ? s.remarks : 'ALPHA'
+                    });
                 }
             }
         });
-        return Array.from(uniqueMap.values());
+        return Array.from(uniqueMap.values()).sort((a, b) => 
+            (a.name || '').localeCompare(b.name || '', 'id') ||
+            (a.nim || '').localeCompare(b.nim || '', undefined, { numeric: true })
+        );
     };
 
     return (

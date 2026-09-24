@@ -22,10 +22,15 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
     academicSemester = "Genap",
     paperSize = 'a4'
 }) => {
-    // Filter students who have remarks (absent/special status)
-    const absentStudents = data.students.filter(
-        s => s.remarks && s.remarks.trim() !== '' && s.remarks.trim().toLowerCase() !== 'hadir'
-    );
+    // All students entered in weekly data are absent/special status students.
+    // Filter out only if remarks is explicitly set to 'hadir'. Empty remarks fallback to 'ALPHA'.
+    const absentStudents = (data.students || [])
+        .filter(s => !s.remarks || s.remarks.trim().toLowerCase() !== 'hadir')
+        .map(s => ({
+            ...s,
+            remarks: s.remarks && s.remarks.trim() !== '' ? s.remarks : 'ALPHA'
+        }))
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'id') || (a.nim || '').localeCompare(b.nim || '', undefined, { numeric: true }));
 
     const isF4 = paperSize === 'f4';
     const minSingleRows = isF4 ? 9 : 7;
@@ -188,20 +193,20 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
 
             {/* Absent Students Table - Conditional Grid */}
             {absentStudents.length > (isF4 ? 9 : 7) ? (
-                <table className="w-[98%] mx-auto border-collapse border border-black mb-2">
+                <table className="w-[90%] mx-auto border-collapse border border-black mb-2">
                     <thead>
                         <tr>
                             {/* Column 1 */}
-                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ width: '25px', fontSize: '8pt' }}>NO</th>
-                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ fontSize: '8pt' }}>NAMA MAHASISWA</th>
-                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ width: '80px', fontSize: '8pt' }}>NIM</th>
-                            <th className="border border-black px-1 py-0.5 text-center font-normal border-r-2" style={{ width: '50px', fontSize: '8pt' }}>KET</th>
+                            <th className="border border-black px-1.5 py-0.5 text-center font-normal" style={{ width: '30px', fontSize: '8.5pt' }}>NO</th>
+                            <th className="border border-black px-1.5 py-0.5 text-center font-normal" style={{ fontSize: '8.5pt' }}>NAMA MAHASISWA</th>
+                            <th className="border border-black px-1.5 py-0.5 text-center font-normal" style={{ width: '90px', fontSize: '8.5pt' }}>NIM</th>
+                            <th className="border border-black px-1.5 py-0.5 text-center font-normal border-r-2" style={{ width: '60px', fontSize: '8.5pt' }}>KET</th>
 
                             {/* Column 2 */}
-                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ width: '25px', fontSize: '8pt' }}>NO</th>
-                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ fontSize: '8pt' }}>NAMA MAHASISWA</th>
-                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ width: '80px', fontSize: '8pt' }}>NIM</th>
-                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ width: '50px', fontSize: '8pt' }}>KET</th>
+                            <th className="border border-black px-1.5 py-0.5 text-center font-normal" style={{ width: '30px', fontSize: '8.5pt' }}>NO</th>
+                            <th className="border border-black px-1.5 py-0.5 text-center font-normal" style={{ fontSize: '8.5pt' }}>NAMA MAHASISWA</th>
+                            <th className="border border-black px-1.5 py-0.5 text-center font-normal" style={{ width: '90px', fontSize: '8.5pt' }}>NIM</th>
+                            <th className="border border-black px-1.5 py-0.5 text-center font-normal" style={{ width: '60px', fontSize: '8.5pt' }}>KET</th>
                         </tr>
                     </thead>
                     <tbody style={{ fontSize: '9pt' }}>
@@ -214,16 +219,16 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
                             return (
                                 <tr key={rowIdx}>
                                     {/* Left Column */}
-                                    <td className="border border-black px-1 py-px text-center">{idx1 + 1}.</td>
-                                    <td className="border border-black px-1 py-px truncate max-w-[120px]">{s1?.name || '\u00A0'}</td>
-                                    <td className="border border-black px-1 py-px text-center">{s1?.nim || '\u00A0'}</td>
-                                    <td className="border border-black px-1 py-px text-center truncate max-w-[50px] border-r-2">{s1?.remarks || '\u00A0'}</td>
+                                    <td className="border border-black px-1.5 py-px text-center">{idx1 + 1}.</td>
+                                    <td className="border border-black px-1.5 py-px truncate max-w-[140px]">{s1?.name || '\u00A0'}</td>
+                                    <td className="border border-black px-1.5 py-px text-center">{s1?.nim || '\u00A0'}</td>
+                                    <td className="border border-black px-1.5 py-px text-center truncate max-w-[60px] border-r-2">{s1?.remarks || '\u00A0'}</td>
 
                                     {/* Right Column */}
-                                    <td className={`border border-black px-1 py-px text-center ${!s2 && idx2 >= absentStudents.length ? 'text-transparent' : ''}`}>{idx2 + 1}.</td>
-                                    <td className="border border-black px-1 py-px truncate max-w-[120px]">{s2?.name || '\u00A0'}</td>
-                                    <td className="border border-black px-1 py-px text-center">{s2?.nim || '\u00A0'}</td>
-                                    <td className="border border-black px-1 py-px text-center truncate max-w-[50px]">{s2?.remarks || '\u00A0'}</td>
+                                    <td className={`border border-black px-1.5 py-px text-center ${!s2 && idx2 >= absentStudents.length ? 'text-transparent' : ''}`}>{idx2 + 1}.</td>
+                                    <td className="border border-black px-1.5 py-px truncate max-w-[140px]">{s2?.name || '\u00A0'}</td>
+                                    <td className="border border-black px-1.5 py-px text-center">{s2?.nim || '\u00A0'}</td>
+                                    <td className="border border-black px-1.5 py-px text-center truncate max-w-[60px]">{s2?.remarks || '\u00A0'}</td>
                                 </tr>
                             );
                         })}

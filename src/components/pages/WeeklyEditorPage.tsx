@@ -183,11 +183,11 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                 ...w,
                 entries: w.entries.map(e => {
                     if (e.scheduleId !== targetScheduleId) return e;
-                    // Deep copy students to avoid reference issues
+                    // Deep copy students to avoid reference issues while preserving remarks
                     const newStudents = sourceEntry.students.map((s, idx) => ({
                         ...s,
                         id: Math.floor(Math.random() * 1000000000) + idx, // Ensure unique IDs
-                        remarks: '' // Reset remarks when copying roster
+                        remarks: s.remarks || 'ALPHA'
                     }));
                     return { ...e, students: newStudents };
                 }),
