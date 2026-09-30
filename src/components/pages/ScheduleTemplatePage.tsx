@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { Upload, FileSpreadsheet, Trash2, Plus, Loader2, Printer, Download, X, Copy, GripVertical, Sparkles } from 'lucide-react';
+import { Upload, FileSpreadsheet, Trash2, Plus, Loader2, Printer, Download, X, Copy, GripVertical, Sparkles, Edit3 } from 'lucide-react';
 import type { ScheduleEntry, WeekImportData, MasterDosen } from '@/types';
 import { importSmart } from '@/utils/excelParser';
 import { generateId } from '@/utils/storage';
@@ -7,6 +7,7 @@ import { compareSchedule, startMinutes } from '@/utils/scheduleOrder';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { useDialog } from '@/context/DialogContext';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { PageShell, PageHeader, EmptyState } from '@/components/shell';
 import { AIScheduleImportModal } from '@/components/AIScheduleImportModal';
 
@@ -389,7 +390,91 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({
                                     <span>{day}</span>
                                     <span className="text-[11px] font-normal text-muted-foreground/80">{items.length} sesi</span>
                                 </div>
-                                <div className="hm-scrollbar overflow-x-auto">
+                                {/* Mobile Card View per Day (md:hidden) */}
+                                <div className="md:hidden divide-y divide-rule">
+                                    {items.map(({ entry, originalIndex }) => (
+                                        <div
+                                            key={entry.id}
+                                            className="p-4 flex flex-col gap-2.5 bg-panel hover:bg-panel-2/50 transition-colors"
+                                        >
+                                            {/* Header: No, Time & Room */}
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-mono font-bold text-muted-foreground bg-panel-2 px-1.5 py-0.5 rounded">
+                                                        #{entry.no}
+                                                    </span>
+                                                    <span className="text-xs font-mono font-semibold text-foreground">
+                                                        {entry.jam || '-'}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground font-medium">
+                                                        • {entry.tempat || '-'}
+                                                    </span>
+                                                </div>
+                                                <Badge variant="secondary" className="text-[10px] font-normal bg-primary/10 text-primary border-transparent">
+                                                    {entry.prodi || 'Sem ' + (entry.semester || '-')} ({entry.golongan || '-'})
+                                                </Badge>
+                                            </div>
+
+                                            {/* Subject Title */}
+                                            <div>
+                                                <h4 className="font-semibold text-foreground text-sm leading-snug">
+                                                    {entry.mataKuliah}
+                                                </h4>
+                                                <p className="text-xs text-muted-foreground mt-0.5">
+                                                    Prodi {entry.prodi} · Semester {entry.semester}
+                                                </p>
+                                            </div>
+
+                                            {/* Teacher & Technician */}
+                                            <div className="p-2.5 rounded-control bg-panel-2/70 border border-rule/60 flex flex-col gap-1 text-xs">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-muted-foreground">Pengajar:</span>
+                                                    <span className="font-medium text-foreground">{entry.defaultPengajar || '-'}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-muted-foreground">Teknisi:</span>
+                                                    <span className="font-medium text-foreground">{entry.defaultTeknisi || '-'}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="flex items-center justify-end gap-2 pt-1 border-t border-rule/40">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => startEdit(entry)}
+                                                    className="h-8 text-xs text-primary hover:text-primary flex-1 sm:flex-initial"
+                                                >
+                                                    <Edit3 className="size-3.5 mr-1" />
+                                                    Edit Jadwal
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => duplicateEntry(entry, originalIndex)}
+                                                    className="h-8 px-2.5 text-xs text-muted-foreground"
+                                                    title="Duplikat baris"
+                                                >
+                                                    <Copy className="size-3.5 mr-1" />
+                                                    Duplikat
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => deleteEntry(entry.id)}
+                                                    className="h-8 px-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                    title="Hapus jadwal"
+                                                >
+                                                    <Trash2 className="size-3.5 mr-1" />
+                                                    Hapus
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Desktop Table View (hidden md:block) */}
+                                <div className="hidden md:block hm-scrollbar overflow-x-auto">
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="bg-muted/30 text-left text-muted-foreground font-semibold border-b text-xs">

@@ -1,0 +1,24 @@
+{
+  "name": "BAP System",
+  "short_name": "BAP-LB",
+  "description": "Sistem Informasi Berita Acara Perkuliahan & Presensi Praktikum Laboratorium",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/newlogo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/newlogo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

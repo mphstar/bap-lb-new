@@ -14,7 +14,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Printer, ChevronLeft, ChevronRight, ChevronDown, FileSignature, FileX2, Filter, Pen, ClipboardList, FileText, CalendarDays, Clock, ZoomIn, Check, Info } from 'lucide-react';
+import { Printer, ChevronLeft, ChevronRight, ChevronDown, FileSignature, FileX2, Filter, Pen, ClipboardList, FileText, CalendarDays, Clock, ZoomIn, Check, Info, SlidersHorizontal, Settings2 } from 'lucide-react';
 import {
     PageShell,
     PageHeader,
@@ -24,6 +24,13 @@ import {
     EmptyState,
 } from '@/components/shell';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -102,6 +109,7 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
     const [selectedProdi, setSelectedProdi] = useState<string>('all');
     const [selectedDay, setSelectedDay] = useState<string>('all');
     const [showSignaturePanel, setShowSignaturePanel] = useState(false);
+    const [isMobileOptionsOpen, setIsMobileOptionsOpen] = useState(false);
 
     const handlePaperSizeChange = (size: PaperSize) => {
         setPaperSize(size);
@@ -221,38 +229,258 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                 title="Preview & Print"
                 meta={`Minggu ${selectedWeek} — ${filteredBapData.length} dokumen`}
                 actions={
-                    printMode === 'minggu' ? (
-                        <Button onClick={handlePrintMinggu} disabled={filteredBapData.length === 0}>
-                            <Printer />
-                            Cetak minggu {selectedWeek}
+                    <div className="flex items-center gap-2">
+                        {/* Mobile Settings Drawer Button */}
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsMobileOptionsOpen(true)}
+                            className="lg:hidden text-xs h-9 gap-1.5 border-rule bg-panel-2"
+                        >
+                            <SlidersHorizontal className="size-3.5 text-primary" />
+                            <span>Opsi Cetak</span>
                         </Button>
-                    ) : (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button disabled={filteredBapData.length === 0}>
-                                    <Printer />
-                                    Cetak per sesi
-                                    <ChevronDown />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="min-w-56">
-                                <DropdownMenuItem onSelect={() => handlePrint(true)}>
-                                    <FileSignature />
-                                    Dengan tanda tangan
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => handlePrint(false)}>
-                                    <FileX2 />
-                                    Tanpa tanda tangan
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    )
+
+                        {printMode === 'minggu' ? (
+                            <Button onClick={handlePrintMinggu} disabled={filteredBapData.length === 0} className="text-xs h-9">
+                                <Printer className="size-3.5" />
+                                <span>Cetak Minggu {selectedWeek}</span>
+                            </Button>
+                        ) : (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button disabled={filteredBapData.length === 0} className="text-xs h-9">
+                                        <Printer className="size-3.5" />
+                                        <span>Cetak Per Sesi</span>
+                                        <ChevronDown className="size-3.5" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="min-w-56">
+                                    <DropdownMenuItem onSelect={() => handlePrint(true)}>
+                                        <FileSignature />
+                                        Dengan tanda tangan
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => handlePrint(false)}>
+                                        <FileX2 />
+                                        Tanpa tanda tangan
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+                    </div>
                 }
             />
 
+            {/* Mobile Quick Control Bar (Mode, Week, Paper Chip) */}
+            <div className="lg:hidden flex flex-col gap-2.5 mb-4 p-3 rounded-panel bg-panel border border-rule print:hidden">
+                <div className="flex items-center justify-between gap-2">
+                    {/* Mode Toggle */}
+                    <div className="inline-flex rounded-control border border-rule bg-panel-2 p-0.5 text-xs">
+                        <button
+                            type="button"
+                            onClick={() => handleModeChange('minggu')}
+                            className={`px-2.5 py-1 rounded-control font-medium transition-colors ${
+                                printMode === 'minggu'
+                                    ? 'bg-foreground text-background shadow-xs'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            Per Minggu
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleModeChange('per-sesi')}
+                            className={`px-2.5 py-1 rounded-control font-medium transition-colors ${
+                                printMode === 'per-sesi'
+                                    ? 'bg-foreground text-background shadow-xs'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            Per Sesi
+                        </button>
+                    </div>
+
+                    {/* Paper Size Pill */}
+                    <div className="inline-flex rounded-control border border-rule bg-panel-2 p-0.5 text-xs">
+                        <button
+                            type="button"
+                            onClick={() => handlePaperSizeChange('a4')}
+                            className={`px-2 py-0.5 rounded font-bold transition-colors ${
+                                paperSize === 'a4'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground'
+                            }`}
+                        >
+                            A4
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handlePaperSizeChange('f4')}
+                            className={`px-2 py-0.5 rounded font-bold transition-colors ${
+                                paperSize === 'f4'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'text-muted-foreground'
+                            }`}
+                        >
+                            F4
+                        </button>
+                </div>
+            </div>
+
+            {/* ── Mobile Options Bottom Sheet ────────────────────── */}
+            <Sheet open={isMobileOptionsOpen} onOpenChange={setIsMobileOptionsOpen}>
+                <SheetContent side="bottom" className="rounded-t-2xl px-4 pb-6 pt-4 max-h-[85vh] overflow-y-auto">
+                    <SheetHeader className="pb-3 border-b border-rule">
+                        <SheetTitle className="text-base font-semibold flex items-center gap-2">
+                            <Settings2 className="size-4 text-primary" />
+                            <span>Pengaturan Cetak & Dokumen</span>
+                        </SheetTitle>
+                    </SheetHeader>
+
+                    <div className="py-4 space-y-4 text-xs">
+                        {/* Filter Prodi */}
+                        <div>
+                            <span className="font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
+                                Program Studi ({selectedProdi === 'all' ? 'Semua' : selectedProdi})
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                                <FilterChip
+                                    selected={selectedProdi === 'all'}
+                                    onClick={() => handleProdiChange('all')}
+                                >
+                                    Semua Prodi
+                                </FilterChip>
+                                {prodiList.map(prodi => (
+                                    <FilterChip
+                                        key={prodi}
+                                        selected={selectedProdi === prodi}
+                                        onClick={() => handleProdiChange(prodi)}
+                                    >
+                                        {prodi}
+                                    </FilterChip>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Filter Hari */}
+                        <div className="pt-3 border-t border-rule/60">
+                            <span className="font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
+                                Filter Hari ({selectedDay === 'all' ? 'Semua' : selectedDay})
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                                <FilterChip
+                                    selected={selectedDay === 'all'}
+                                    onClick={() => handleDayChange('all')}
+                                >
+                                    Semua Hari
+                                </FilterChip>
+                                {dayList.map(day => (
+                                    <FilterChip
+                                        key={day}
+                                        selected={selectedDay === day}
+                                        onClick={() => handleDayChange(day)}
+                                    >
+                                        {day}
+                                    </FilterChip>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Zoom Control */}
+                        <div className="pt-3 border-t border-rule/60 flex items-center justify-between">
+                            <span className="font-semibold text-muted-foreground uppercase tracking-wider">
+                                Zoom Pratinjau
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setScale(s => Math.max(0.4, Number((s - 0.1).toFixed(1))))}
+                                    className="h-7 w-8 text-xs"
+                                >
+                                    -
+                                </Button>
+                                <span className="font-mono font-bold text-xs">{Math.round(scale * 100)}%</span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setScale(s => Math.min(1.5, Number((s + 0.1).toFixed(1))))}
+                                    className="h-7 w-8 text-xs"
+                                >
+                                    +
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setScale(1)}
+                                    className="h-7 text-xs"
+                                >
+                                    Reset
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Tanda Tangan Teknisi Toggle & Pad */}
+                        <div className="pt-3 border-t border-rule/60">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Paraf / TTD Teknisi
+                                </span>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowSignaturePanel(!showSignaturePanel)}
+                                    className="h-7 text-xs text-primary"
+                                >
+                                    {showSignaturePanel ? 'Tutup' : 'Atur Paraf'}
+                                </Button>
+                            </div>
+                            {showSignaturePanel && (
+                                <div className="mt-2 p-3 rounded-panel bg-panel-2 border border-rule">
+                                    <SignaturePad
+                                        value={teknisiSignature}
+                                        onChange={handleTeknisiSigChange}
+                                        label="Paraf Teknisi"
+                                        height={120}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-rule">
+                        <Button
+                            className="w-full text-xs h-9 font-semibold"
+                            onClick={() => setIsMobileOptionsOpen(false)}
+                        >
+                            Terapkan & Tutup
+                        </Button>
+                    </div>
+                </SheetContent>
+            </Sheet>
+
+                {/* Horizontal Scroll Week Chips */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1 border-t border-rule/50">
+                    <span className="text-[11px] font-semibold text-muted-foreground uppercase mr-1 shrink-0">Mg:</span>
+                    {weeks.map(w => (
+                        <button
+                            key={w.weekNumber}
+                            type="button"
+                            onClick={() => handleWeekChange(w.weekNumber)}
+                            className={`size-7 rounded-control text-xs font-semibold shrink-0 transition-colors ${
+                                w.weekNumber === selectedWeek
+                                    ? 'bg-foreground text-background shadow-xs'
+                                    : 'bg-panel-2 border border-rule text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            {w.weekNumber}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[19rem_minmax(0,1fr)] print:block">
-                {/* ── Settings rail ─────────────────────────────────────── */}
-                <div className="flex flex-col gap-4 lg:sticky lg:top-7 lg:self-start print:hidden">
+                {/* ── Settings rail (Desktop only, hidden on mobile) ─────── */}
+                <div className="hidden lg:flex flex-col gap-4 lg:sticky lg:top-7 lg:self-start print:hidden">
                     <Panel>
                         <PanelHeader
                             icon={<ClipboardList />}
@@ -583,8 +811,8 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                         </div>
                                     }
                                 />
-                                <div className="hm-scrollbar overflow-x-auto bg-white p-4">
-                                    <div style={{ zoom: scale }}>
+                                <div className="hm-scrollbar overflow-x-auto bg-white p-2 sm:p-4 rounded-b-panel border-t border-rule">
+                                    <div className="inline-block min-w-full" style={{ zoom: scale }}>
                                         <DaftarHadirDocument
                                             data={currentDoc}
                                             isLast={true}

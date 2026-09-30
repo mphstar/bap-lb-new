@@ -15,12 +15,12 @@
 
 import React, { useState, useMemo } from 'react';
 import {
-    BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
+    LineChart, Line, XAxis, YAxis, CartesianGrid,
     PieChart, Pie, Cell, Label,
 } from 'recharts';
 import {
     Calendar, Users, CheckCircle2, TrendingUp, BookOpen, Check,
-    PieChart as PieChartIcon, CalendarDays, ListChecks, Activity,
+    PieChart as PieChartIcon, CalendarDays, Activity,
 } from 'lucide-react';
 import { CalendarWidget } from '@/components/CalendarWidget';
 import {
@@ -55,10 +55,6 @@ interface DashboardPageProps {
     weeks: WeekData[];
     activeWeek: number;
 }
-
-const progressConfig: ChartConfig = {
-    filled: { label: 'Entri terisi', color: 'var(--color-chart-1)' },
-};
 
 const absenceConfig: ChartConfig = {
     absent: { label: 'Tidak hadir', color: 'var(--color-chart-2)' },
@@ -101,21 +97,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ template, weeks, activeWe
 
         return { totalSchedule, filledEntries, filledWeeks };
     }, [template, weekData, weeks]);
-
-    // ─── Chart: how far each of the 16 weeks has been filled in ───
-    // The single most actionable view for this app: it answers "which week am I
-    // behind on", which the old per-subject bar chart never did.
-    const weeklyProgress = useMemo(
-        () =>
-            weeks.map(w => {
-                const total = w.entries.length;
-                const filled = w.entries.filter(e => e.materi.trim() !== '').length;
-                return { week: w.weekNumber, filled, total };
-            }),
-        [weeks]
-    );
-
-    const hasProgressData = weeklyProgress.some(w => w.total > 0);
 
     // ─── Chart: absence across the semester ───
     const weeklyAbsence = useMemo(
@@ -243,80 +224,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ template, weeks, activeWe
                     />
                 </div>
 
-                {/* ── Tier 2 · the semester at a glance ────────────── */}
-                <Panel>
-                    <PanelHeader
-                        icon={<ListChecks />}
-                        title="Progress pengisian per minggu"
-                        meta="Klik salah satu batang untuk berpindah minggu"
-                    />
-                    <PanelBody>
-                        {!hasProgressData ? (
-                            <ChartEmpty label="Belum ada entri mingguan" />
-                        ) : (
-                            <ChartContainer config={progressConfig} className="h-[240px] w-full">
-                                <BarChart
-                                    accessibilityLayer
-                                    data={weeklyProgress}
-                                    margin={{ top: 8, right: 8, bottom: 4, left: -16 }}
-                                >
-                                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                                    <XAxis
-                                        dataKey="week"
-                                        tickLine={false}
-                                        axisLine={false}
-                                        fontSize={11}
-                                        interval={0}
-                                        tickFormatter={(v: number) => String(v)}
-                                    />
-                                    <YAxis
-                                        tickLine={false}
-                                        axisLine={false}
-                                        fontSize={11}
-                                        allowDecimals={false}
-                                        width={36}
-                                    />
-                                    <ChartTooltip
-                                        content={
-                                            <ChartTooltipContent
-                                                labelFormatter={(label) => `Minggu ${label}`}
-                                                formatter={(value, _name, item) => (
-                                                    <span>
-                                                        {String(value)} dari{' '}
-                                                        {(item?.payload as { total?: number })?.total ?? 0} entri terisi
-                                                    </span>
-                                                )}
-                                            />
-                                        }
-                                    />
-                                    <Bar
-                                        dataKey="filled"
-                                        radius={[4, 4, 0, 0]}
-                                        maxBarSize={36}
-                                        className="cursor-pointer"
-                                        onClick={(d: unknown) => {
-                                            const week = (d as { week?: number })?.week;
-                                            if (week) setSelectedWeek(week);
-                                        }}
-                                    >
-                                        {weeklyProgress.map(w => (
-                                            <Cell
-                                                key={w.week}
-                                                fill={
-                                                    w.week === selectedWeek
-                                                        ? 'var(--color-chart-1)'
-                                                        : 'var(--color-chart-4)'
-                                                }
-                                            />
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ChartContainer>
-                        )}
-                    </PanelBody>
-                </Panel>
-
-                {/* ── Tier 3 · absence, over time and by cause ─────── */}
+                {/* ── Tier 2 · absence, over time and by cause ─────── */}
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
                     <Panel>
                         <PanelHeader
@@ -354,7 +262,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ template, weeks, activeWe
                                                 <ChartTooltipContent
                                                     labelFormatter={(label) => `Minggu ${label}`}
                                                     formatter={(value) => (
-                                                        <span>{String(value)} mahasiswa</span>
+                                                        <span>{String(value)} mahasiswa tidak hadir</span>
                                                     )}
                                                 />
                                             }
@@ -364,8 +272,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ template, weeks, activeWe
                                             dataKey="absent"
                                             stroke="var(--color-chart-2)"
                                             strokeWidth={2}
-                                            dot={{ r: 2.5 }}
-                                            activeDot={{ r: 4 }}
+                                            dot={{ r: 3, fill: 'var(--color-chart-2)' }}
+                                            activeDot={{ r: 5 }}
                                         />
                                     </LineChart>
                                 </ChartContainer>
@@ -377,171 +285,295 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ template, weeks, activeWe
                         <PanelHeader
                             icon={<PieChartIcon />}
                             title="Alasan ketidakhadiran"
-                            meta={`Minggu ${selectedWeek} — semua hari`}
+                            meta={`Minggu ${selectedWeek} · ${totalAbsentForPie} catatan`}
                         />
                         <PanelBody>
-                            {absenceReasons.length === 0 ? (
-                                <ChartEmpty label="Belum ada data ketidakhadiran" />
+                            {totalAbsentForPie === 0 ? (
+                                <ChartEmpty label={`Tidak ada absensi di Minggu ${selectedWeek}`} />
                             ) : (
-                                <div className="flex flex-col items-center">
-                                    <ChartContainer config={{}} className="h-[180px] w-full max-w-[260px]">
-                                        <PieChart>
-                                            <ChartTooltip
-                                                content={
-                                                    <ChartTooltipContent
-                                                        formatter={(value) => (
-                                                            <span>{String(value)} mahasiswa</span>
-                                                        )}
-                                                    />
-                                                }
-                                            />
-                                            <Pie
-                                                data={absenceReasons}
-                                                dataKey="value"
-                                                nameKey="name"
-                                                innerRadius={50}
-                                                outerRadius={75}
-                                                strokeWidth={2}
-                                                paddingAngle={2}
-                                            >
-                                                {absenceReasons.map((entry) => (
-                                                    <Cell
-                                                        key={entry.name}
-                                                        fill={REASON_COLORS[entry.name] || REASON_COLORS.Lainnya}
-                                                    />
-                                                ))}
-                                                <Label
-                                                    content={({ viewBox }) => {
-                                                        if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
-                                                            return (
-                                                                <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-                                                                    <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-2xl font-bold">
-                                                                        {totalAbsentForPie}
-                                                                    </tspan>
-                                                                    <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 18} className="fill-muted-foreground text-xs">
-                                                                        mahasiswa
-                                                                    </tspan>
-                                                                </text>
-                                                            );
-                                                        }
-                                                    }}
+                                <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-around">
+                                    <div className="h-[180px] w-[180px] shrink-0">
+                                        <ChartContainer config={{}} className="h-full w-full">
+                                            <PieChart>
+                                                <ChartTooltip
+                                                    content={
+                                                        <ChartTooltipContent
+                                                            formatter={(value, name) => (
+                                                                <span>
+                                                                    {name}: {String(value)} (
+                                                                    {Math.round(
+                                                                        (Number(value) / totalAbsentForPie) * 100
+                                                                    )}
+                                                                    %)
+                                                                </span>
+                                                            )}
+                                                        />
+                                                    }
                                                 />
-                                            </Pie>
-                                        </PieChart>
-                                    </ChartContainer>
-
-                                    <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5">
-                                        {absenceReasons.map(r => (
-                                            <div key={r.name} className="flex items-center gap-1.5 text-xs">
-                                                <span
-                                                    aria-hidden
-                                                    className="size-2.5 shrink-0 rounded-full"
-                                                    style={{ backgroundColor: REASON_COLORS[r.name] || REASON_COLORS.Lainnya }}
-                                                />
-                                                <span className="text-muted-foreground">{r.name}</span>
-                                                <span data-numeric className="font-semibold">{r.value}</span>
-                                            </div>
-                                        ))}
+                                                <Pie
+                                                    data={absenceReasons}
+                                                    dataKey="value"
+                                                    nameKey="name"
+                                                    innerRadius={50}
+                                                    outerRadius={75}
+                                                    paddingAngle={2}
+                                                    stroke="none"
+                                                >
+                                                    {absenceReasons.map(r => (
+                                                        <Cell
+                                                            key={r.name}
+                                                            fill={
+                                                                REASON_COLORS[r.name] ||
+                                                                'var(--reason-lainnya)'
+                                                            }
+                                                        />
+                                                    ))}
+                                                    <Label
+                                                        content={({ viewBox }) => {
+                                                            if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
+                                                                return (
+                                                                    <text
+                                                                        x={viewBox.cx}
+                                                                        y={viewBox.cy}
+                                                                        textAnchor="middle"
+                                                                        dominantBaseline="middle"
+                                                                    >
+                                                                        <tspan
+                                                                            x={viewBox.cx}
+                                                                            y={viewBox.cy}
+                                                                            className="fill-foreground text-2xl font-bold"
+                                                                        >
+                                                                            {totalAbsentForPie}
+                                                                        </tspan>
+                                                                        <tspan
+                                                                            x={viewBox.cx}
+                                                                            y={(viewBox.cy || 0) + 16}
+                                                                            className="fill-muted-foreground text-[10px]"
+                                                                        >
+                                                                            Total
+                                                                        </tspan>
+                                                                    </text>
+                                                                );
+                                                            }
+                                                        }}
+                                                    />
+                                                </Pie>
+                                            </PieChart>
+                                        </ChartContainer>
                                     </div>
+
+                                    {/* Categorical legend list */}
+                                    <ul className="flex flex-col gap-1.5 text-xs">
+                                        {absenceReasons.map(r => (
+                                            <li
+                                                key={r.name}
+                                                className="flex items-center justify-between gap-4"
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    <span
+                                                        className="inline-block size-2.5 rounded-full"
+                                                        style={{
+                                                            backgroundColor:
+                                                                REASON_COLORS[r.name] ||
+                                                                'var(--reason-lainnya)',
+                                                        }}
+                                                    />
+                                                    <span className="font-medium text-foreground">
+                                                        {r.name}
+                                                    </span>
+                                                </span>
+                                                <span className="font-mono text-muted-foreground">
+                                                    {r.value} ({Math.round((r.value / totalAbsentForPie) * 100)}%)
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
                             )}
                         </PanelBody>
                     </Panel>
                 </div>
 
-                {/* ── Tier 4 · the operational table ───────────────── */}
+                {/* ── Tier 3 · daily timetable ─────────────────────── */}
                 <Panel>
                     <PanelHeader
                         icon={<CalendarDays />}
-                        title={`Jadwal hari ${selectedDay}`}
-                        meta={`Minggu ${selectedWeek} — ${todayEntries.length} entri`}
+                        title="Jadwal & presensi hari ini"
+                        meta={`Minggu ${selectedWeek} · ${selectedDay}`}
+                        action={
+                            <div className="inline-flex rounded-control border border-rule bg-panel-2 p-0.5">
+                                {availableDays.map(day => (
+                                    <button
+                                        key={day}
+                                        type="button"
+                                        onClick={() => setSelectedDay(day)}
+                                        className={`rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
+                                            selectedDay === day
+                                                ? 'bg-foreground text-background shadow-xs'
+                                                : 'text-muted-foreground hover:text-foreground'
+                                        }`}
+                                    >
+                                        {day}
+                                    </button>
+                                ))}
+                            </div>
+                        }
                     />
 
-                    {/* Day chips only filter this table, so they stay with it. */}
-                    <div className="flex flex-wrap gap-1.5 border-b border-rule p-4">
-                        {availableDays.map(day => (
-                            <button
-                                key={day}
-                                type="button"
-                                aria-pressed={selectedDay === day}
-                                onClick={() => setSelectedDay(day)}
-                                className={`rounded-control border px-3 py-1.5 text-xs font-medium transition-colors duration-[180ms] ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring
-                                    ${selectedDay === day
-                                        ? 'border-foreground bg-foreground text-background'
-                                        : 'border-rule bg-panel text-muted-foreground hover:bg-panel-2 active:bg-tile'
-                                    }`}
-                            >
-                                {day}
-                            </button>
-                        ))}
-                    </div>
+                    {todayEntries.length === 0 ? (
+                        <PanelBody>
+                            <EmptyState
+                                icon={<CalendarDays />}
+                                title={`Tidak ada jadwal di hari ${selectedDay}`}
+                                description="Pilih hari lain atau tambahkan jadwal pada template."
+                                variant="bare"
+                            />
+                        </PanelBody>
+                    ) : (
+                        <>
+                            {/* ── Mobile Schedule Cards (md:hidden) ────────── */}
+                            <div className="md:hidden divide-y divide-rule">
+                                {todayEntries.map((item, index) => (
+                                    <div
+                                        key={item.id}
+                                        className="p-4 flex flex-col gap-3 bg-panel hover:bg-panel-2/50 transition-colors"
+                                    >
+                                        {/* Top Header: No, Time, Room & Attendance */}
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-mono font-bold text-muted-foreground bg-panel-2 px-1.5 py-0.5 rounded">
+                                                    #{index + 1}
+                                                </span>
+                                                <span className="text-xs font-mono font-semibold text-foreground">
+                                                    {item.jam}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground font-medium">
+                                                    • {item.tempat}
+                                                </span>
+                                            </div>
 
-                    <div className="hm-scroll-x overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-panel-2">
-                                <tr className="border-b border-rule text-left font-medium text-muted-foreground">
-                                    <th className="w-12 px-3 py-2.5 text-center">No</th>
-                                    <th className="px-3 py-2.5">Mata Kuliah</th>
-                                    <th className="px-3 py-2.5">Jam</th>
-                                    <th className="px-3 py-2.5">Pengajar</th>
-                                    <th className="px-3 py-2.5">Materi</th>
-                                    <th className="px-3 py-2.5">Tanggal</th>
-                                    <th className="w-24 px-3 py-2.5 text-center">Tdk Hadir</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {todayEntries.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                                            Tidak ada jadwal untuk hari {selectedDay}
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    todayEntries.map((entry) => (
-                                        <tr
-                                            key={entry.id}
-                                            className={`border-b border-rule transition-colors duration-[180ms] ease-out ${
-                                                entry.materi ? 'hover:bg-panel-2' : 'bg-warn-soft'
-                                            }`}
-                                        >
-                                            <td className="px-3 py-2.5 text-center text-muted-foreground">{entry.no}</td>
-                                            <td className="px-3 py-2.5">
-                                                <div className="font-medium">{entry.mataKuliah}</div>
-                                                <div className="text-[0.6875rem] text-muted-foreground">
-                                                    {entry.prodi} — Smt {entry.semester} Gol {entry.golongan}
-                                                </div>
-                                            </td>
-                                            <td className="whitespace-nowrap px-3 py-2.5 text-muted-foreground">{entry.jam}</td>
-                                            <td className="px-3 py-2.5">
-                                                {entry.pengajar || <span className="text-muted-foreground">—</span>}
-                                            </td>
-                                            <td className="px-3 py-2.5">
-                                                {entry.materi || (
-                                                    <span className="text-xs font-medium text-warn">Belum diisi</span>
-                                                )}
-                                            </td>
-                                            <td className="px-3 py-2.5 text-muted-foreground">{entry.tanggal || '—'}</td>
-                                            <td className="px-3 py-2.5 text-center">
-                                                {entry.studentCount > 0 ? (
-                                                    <span
-                                                        data-numeric
-                                                        className="inline-flex size-6 items-center justify-center rounded-full bg-destructive/10 text-xs font-semibold text-destructive"
-                                                    >
-                                                        {entry.studentCount}
-                                                    </span>
-                                                ) : (
-                                                    <Check aria-label="Hadir semua" className="mx-auto size-3.5 text-muted-foreground" />
-                                                )}
-                                            </td>
+                                            {item.studentCount > 0 ? (
+                                                <span className="inline-flex items-center gap-1 rounded-control bg-amber-500/10 border border-amber-200/80 dark:border-amber-800/50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                                                    {item.studentCount} Absen
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 rounded-control bg-emerald-500/10 border border-emerald-200/80 dark:border-emerald-800/50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                                                    <Check className="size-3" /> Lengkap
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Middle: Subject & Class */}
+                                        <div>
+                                            <h4 className="font-semibold text-foreground text-sm leading-snug">
+                                                {item.mataKuliah}
+                                            </h4>
+                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                {item.prodi} · Sem {item.semester} ({item.golongan})
+                                            </p>
+                                        </div>
+
+                                        {/* Material Note */}
+                                        <div className="p-2.5 rounded-control bg-panel-2/70 border border-rule/60 text-xs">
+                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                                                Materi Perkuliahan:
+                                            </span>
+                                            {item.materi ? (
+                                                <p className="text-foreground leading-relaxed">{item.materi}</p>
+                                            ) : (
+                                                <span className="italic text-muted-foreground">Belum diisi</span>
+                                            )}
+                                        </div>
+
+                                        {/* Bottom Footer: Lecturer & Technician */}
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-rule/40">
+                                            <div className="truncate">
+                                                <span className="font-medium text-foreground">Dosen: </span>
+                                                {item.pengajar || '-'}
+                                            </div>
+                                            <div className="shrink-0 text-[11px]">
+                                                Teknisi: {item.teknisi || '-'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* ── Desktop Schedule Table (hidden md:block) ── */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="border-b border-rule bg-panel-2/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                        <tr>
+                                            <th className="py-3 pl-6 pr-3 w-12 text-center">No</th>
+                                            <th className="py-3 px-4">Mata Kuliah & Kelas</th>
+                                            <th className="py-3 px-4">Waktu & Tempat</th>
+                                            <th className="py-3 px-4">Materi Perkuliahan</th>
+                                            <th className="py-3 px-4">Pengajar & Teknisi</th>
+                                            <th className="py-3 pl-3 pr-6 text-center w-28">Presensi</th>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    </thead>
+                                    <tbody className="divide-y divide-rule">
+                                        {todayEntries.map((item, index) => (
+                                            <tr key={item.id} className="transition-colors hover:bg-panel-2/50">
+                                                <td className="py-3.5 pl-6 pr-3 text-center text-xs font-mono text-muted-foreground">
+                                                    {index + 1}
+                                                </td>
+                                                <td className="py-3.5 px-4">
+                                                    <p className="font-medium text-foreground text-sm leading-tight">
+                                                        {item.mataKuliah}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                                        {item.prodi} · Sem {item.semester} ({item.golongan})
+                                                    </p>
+                                                </td>
+                                                <td className="py-3.5 px-4">
+                                                    <p className="text-xs font-mono text-foreground font-medium">
+                                                        {item.jam}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                                        {item.tempat}
+                                                    </p>
+                                                </td>
+                                                <td className="py-3.5 px-4">
+                                                    {item.materi ? (
+                                                        <p className="text-xs text-foreground line-clamp-2">
+                                                            {item.materi}
+                                                        </p>
+                                                    ) : (
+                                                        <span className="text-xs italic text-muted-foreground">
+                                                            Belum ada materi
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="py-3.5 px-4 text-xs">
+                                                    <p className="text-foreground font-medium">
+                                                        {item.pengajar || '-'}
+                                                    </p>
+                                                    <p className="text-muted-foreground mt-0.5">
+                                                        Teknisi: {item.teknisi || '-'}
+                                                    </p>
+                                                </td>
+                                                <td className="py-3.5 pl-3 pr-6 text-center">
+                                                    {item.studentCount > 0 ? (
+                                                        <span className="inline-flex items-center gap-1 rounded-control bg-amber-500/10 border border-amber-200/80 dark:border-amber-800/50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                                            {item.studentCount} Absen
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 rounded-control bg-emerald-500/10 border border-emerald-200/80 dark:border-emerald-800/50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                                                            <Check className="size-3" /> Lengkap
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
                 </Panel>
 
-                {/* ── Tier 5 · reference ───────────────────────────── */}
+                {/* ── Tier 4 · reference ───────────────────────────── */}
                 <CalendarWidget />
             </PageSections>
         </PageShell>

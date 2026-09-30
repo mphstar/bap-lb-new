@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Figtree, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { PwaRegister } from "@/components/PwaRegister";
 
 // Figtree IS a variable font (wght 300–900), so no weight array is needed —
 // every weight the UI asks for is a real cut, not a synthesised one.
@@ -17,9 +18,28 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#2563eb",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export const metadata: Metadata = {
   title: "BAP System - Berita Acara Perkuliahan",
-  description: "Sistem Informasi Berita Acara Perkuliahan (BAP)",
+  description: "Sistem Informasi Berita Acara Perkuliahan & Presensi Praktikum Laboratorium",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "BAP System",
+  },
+  icons: {
+    icon: "/newlogo.png",
+    shortcut: "/newlogo.png",
+    apple: "/newlogo.png",
+  },
 };
 
 export default function RootLayout({
@@ -30,14 +50,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      /* `figtree.className` sets font-family directly on <html>; `.variable`
-         only exposes a CSS custom property. Both are applied on purpose: the
-         variable feeds Tailwind's `font-sans`, and the className guarantees the
-         typeface lands even if the theme indirection is stale or misspelt —
-         which is exactly how the first attempt at this failed silently. */
       className={`${figtree.className} ${figtree.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <PwaRegister />
+        {children}
+      </body>
     </html>
   );
 }

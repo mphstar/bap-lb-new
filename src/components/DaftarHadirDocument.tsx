@@ -49,6 +49,7 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
             className={`bg-white text-black leading-snug mx-auto ${isF4 ? 'pt-[4mm] pb-[1mm]' : 'pt-[3mm] pb-[1mm]'} ${isLast ? '' : 'border-b-2 border-dashed border-gray-800'}`}
             style={{
                 width: '100%',
+                minWidth: '650px',
                 boxSizing: 'border-box',
                 fontSize: '10pt',
                 fontFamily: "'Times New Roman', Times, serif",

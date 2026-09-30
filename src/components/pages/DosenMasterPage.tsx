@@ -178,12 +178,46 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
   };
 
   // Save form
-  const handleSaveForm = () => {
+  const handleSaveForm = async () => {
     const trimmedName = formName.trim();
     if (!trimmedName) return;
 
     if (editingDosen) {
-      // Update existing
+      const isUUID = (str?: string) =>
+        Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str));
+
+      if (editingDosen.id && isUUID(editingDosen.id)) {
+        try {
+          const res = await fetch("/api/dosen-list", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: editingDosen.id,
+              name: trimmedName,
+              signature: formSignature || "",
+            }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Gagal menyimpan tanda tangan ke server");
+          }
+          const updatedDosen = await res.json();
+          const updated = dosenList.map((d) =>
+            d.id === editingDosen.id
+              ? { ...d, name: updatedDosen.name, signature: updatedDosen.signature || "" }
+              : d
+          );
+          onDosenListChange(updated);
+          setIsDialogOpen(false);
+          return;
+        } catch (err: any) {
+          console.error("PATCH dosen error:", err);
+          showAlert("Gagal Menyimpan", err.message || "Terjadi kesalahan saat menyimpan ke database.");
+          return;
+        }
+      }
+
+      // If no valid UUID yet, fallback to update in state
       const updated = dosenList.map((d) =>
         d.id === editingDosen.id || (!d.id && d.name === editingDosen.name)
           ? { ...d, name: trimmedName, signature: formSignature || "" }
@@ -225,7 +259,26 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
     );
     if (!isConfirmed) return;
 
-    onDosenListChange(dosenList.filter((d) => d.name !== dosen.name));
+    const isUUID = (str?: string) =>
+      Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str));
+
+    if (dosen.id && isUUID(dosen.id)) {
+      try {
+        const res = await fetch(`/api/dosen-list?id=${encodeURIComponent(dosen.id)}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          console.warn("DELETE API dosen-list failed:", err.error);
+        }
+      } catch (err) {
+        console.error("DELETE API error:", err);
+      }
+    }
+
+    onDosenListChange(
+      dosenList.filter((d) => (d.id && dosen.id ? d.id !== dosen.id : d.name !== dosen.name))
+    );
   };
 
   // Sync from weekly and template schedules
@@ -418,17 +471,17 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
         title="Master Data Dosen"
         meta={`${totalDosen} dosen terdaftar — tanda tangan digital otomatis terpasang pada BAP dan Daftar Hadir`}
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleOpenSim}>
-              <Download className="h-4 w-4" />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleOpenSim} className="text-xs">
+              <Download className="h-3.5 w-3.5" />
               <span>Ambil dari SIM</span>
             </Button>
-            <Button variant="outline" onClick={handleImportFromWeekly}>
-              <RefreshCw className="h-4 w-4" />
+            <Button variant="outline" size="sm" onClick={handleImportFromWeekly} className="text-xs">
+              <RefreshCw className="h-3.5 w-3.5" />
               <span>Ambil dari Jadwal</span>
             </Button>
-            <Button variant="default" onClick={handleOpenAdd}>
-              <Plus className="h-4 w-4" />
+            <Button variant="default" size="sm" onClick={handleOpenAdd} className="text-xs">
+              <Plus className="h-3.5 w-3.5" />
               <span>Tambah Dosen</span>
             </Button>
           </div>
@@ -471,10 +524,10 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
           meta="Daftar nama resmi beserta paraf digital pengesahan dokumen praktikum"
         />
 
-        {/* Search & Filter Toolbar */}
-        <div className="flex flex-col gap-3 border-b border-rule p-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Search & Filter Toolbar */}
+        <div className="flex flex-col gap-3 border-b border-rule p-3 sm:p-4 sm:flex-row sm:items-center sm:justify-between">
           {/* Search Input */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative w-full sm:max-w-xs md:max-w-md">
             <Search
               size={15}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -484,7 +537,7 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari nama dosen atau gelar..."
-              className="pl-9 pr-8"
+              className="pl-9 pr-8 w-full"
             />
             {searchQuery && (
               <button
@@ -499,13 +552,13 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
           </div>
 
           {/* Filter Pills & Sort */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Status Filter Pills */}
-            <div className="inline-flex rounded-control border border-rule bg-panel-2 p-0.5">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+            {/* Status Filter Pills (Horizontal Scroll on Mobile) */}
+            <div className="flex items-center overflow-x-auto no-scrollbar max-w-full rounded-control border border-rule bg-panel-2 p-0.5">
               <button
                 type="button"
                 onClick={() => setFilterStatus("all")}
-                className={`rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
+                className={`whitespace-nowrap shrink-0 rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
                   filterStatus === "all"
                     ? "bg-foreground text-background shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -516,7 +569,7 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
               <button
                 type="button"
                 onClick={() => setFilterStatus("has_signature")}
-                className={`rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
+                className={`whitespace-nowrap shrink-0 rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
                   filterStatus === "has_signature"
                     ? "bg-foreground text-background shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -527,7 +580,7 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
               <button
                 type="button"
                 onClick={() => setFilterStatus("no_signature")}
-                className={`rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
+                className={`whitespace-nowrap shrink-0 rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
                   filterStatus === "no_signature"
                     ? "bg-foreground text-background shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -541,7 +594,7 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="rounded-control border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+              className="w-full sm:w-auto rounded-control border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus-visible:outline-2 focus-visible:outline-ring"
             >
               <option value="name_asc">Nama (A → Z)</option>
               <option value="name_desc">Nama (Z → A)</option>
@@ -550,20 +603,12 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
           </div>
         </div>
 
-        {/* Lecturer Table */}
-        <div className="overflow-x-auto">
+        {/* Lecturer Content: Table on Desktop, Cards on Mobile */}
+        <div>
           {filteredAndSortedDosen.length > 0 ? (
-            <table className="w-full text-left text-sm">
-              <thead className="bg-panel-2/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-rule">
-                <tr>
-                  <th className="py-3 pl-6 pr-3 w-16 text-center">No</th>
-                  <th className="py-3 px-4">Dosen & Status Mengajar</th>
-                  <th className="py-3 px-4 text-center w-40">Status TTD</th>
-                  <th className="py-3 px-4 text-center w-44">Pratinjau Paraf</th>
-                  <th className="py-3 pl-3 pr-6 text-right w-28">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-rule">
+            <>
+              {/* ── Mobile Card View (md:hidden) ────────────────── */}
+              <div className="md:hidden divide-y divide-rule">
                 {filteredAndSortedDosen.map((d, index) => {
                   const hasSig = Boolean(d.signature && d.signature.trim());
                   const teachingSlots =
@@ -572,117 +617,229 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
                   const avatarColor = getAvatarColor(d.name);
 
                   return (
-                    <tr
-                      key={d.name}
-                      className="group transition-colors duration-150 hover:bg-panel-2/50"
+                    <div
+                      key={d.id || `${d.name}-${index}`}
+                      className="p-4 flex flex-col gap-3 bg-panel hover:bg-panel-2/50 transition-colors"
                     >
-                      {/* Number */}
-                      <td className="py-3.5 pl-6 pr-3 text-center text-xs font-mono text-muted-foreground">
-                        {index + 1}
-                      </td>
-
-                      {/* Lecturer Info */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          {/* Initials Avatar */}
-                          <div
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control border font-semibold text-xs transition-transform group-hover:scale-105 ${avatarColor}`}
-                          >
-                            {initials}
-                          </div>
-
-                          {/* Name & details */}
-                          <div className="min-w-0">
-                            <p className="font-medium text-foreground text-sm leading-tight">
-                              {d.name}
-                            </p>
-                            <div className="mt-1 flex items-center gap-2">
-                              {teachingSlots > 0 ? (
-                                <Badge
-                                  variant="secondary"
-                                  className="text-[10px] font-normal h-4.5 px-1.5 bg-primary/10 text-primary border-transparent"
-                                >
-                                  {teachingSlots} Jadwal Mengajar
-                                </Badge>
-                              ) : (
-                                <span className="text-[11px] text-muted-foreground">
-                                  Belum terdaftar di jadwal
-                                </span>
-                              )}
-                            </div>
+                      {/* Top Row: Avatar, Name, and Slots */}
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-control border font-semibold text-xs ${avatarColor}`}
+                        >
+                          {initials}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-foreground text-sm leading-snug">
+                            {d.name}
+                          </p>
+                          <div className="mt-1 flex items-center gap-2">
+                            {teachingSlots > 0 ? (
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] font-normal h-4.5 px-1.5 bg-primary/10 text-primary border-transparent"
+                              >
+                                {teachingSlots} Jadwal Mengajar
+                              </Badge>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground">
+                                Belum ada jadwal
+                              </span>
+                            )}
                           </div>
                         </div>
-                      </td>
+                      </div>
 
-                      {/* Status TTD */}
-                      <td className="py-3.5 px-4 text-center">
-                        {hasSig ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-control bg-emerald-500/10 border border-emerald-200/80 dark:border-emerald-800/50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                            <Check className="h-3.5 w-3.5 shrink-0" />
-                            Siap Digunakan
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEdit(d)}
-                            className="inline-flex items-center gap-1.5 rounded-control bg-amber-500/10 border border-amber-200/80 dark:border-amber-800/50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors"
-                          >
-                            <PenTool className="h-3 w-3 shrink-0" />
-                            + Tambah TTD
-                          </button>
-                        )}
-                      </td>
+                      {/* Middle Row: Signature Status & Thumbnail */}
+                      <div className="flex items-center justify-between gap-2 p-2.5 rounded-control bg-panel-2/80 border border-rule/70">
+                        <div className="flex items-center gap-1.5">
+                          {hasSig ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                              <Check className="size-3.5" /> TTD Siap
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                              <AlertCircle className="size-3.5" /> Belum Ada TTD
+                            </span>
+                          )}
+                        </div>
 
-                      {/* Signature Thumbnail */}
-                      <td className="py-3.5 px-4 text-center">
                         {hasSig ? (
                           <button
                             type="button"
                             onClick={() => setPreviewSigDosen(d)}
-                            title="Klik untuk memperbesar pratinjau tanda tangan"
-                            className="group/sig inline-flex items-center justify-center rounded-md border border-neutral-300 dark:border-neutral-700 bg-white p-1 shadow-2xs hover:border-primary transition-all hover:scale-105"
+                            title="Pratinjau TTD"
+                            className="bg-white p-1 rounded border border-rule shadow-2xs hover:border-primary transition-all"
                           >
                             <img
                               src={d.signature!}
                               alt={`Paraf ${d.name}`}
-                              className="h-8 max-w-[120px] object-contain"
+                              className="h-7 max-w-[100px] object-contain"
                             />
                           </button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">
-                            —
-                          </span>
-                        )}
-                      </td>
+                        ) : null}
+                      </div>
 
-                      {/* Actions */}
-                      <td className="py-3.5 pl-3 pr-6 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenEdit(d)}
-                            className="h-8 px-2 text-xs font-medium"
-                          >
-                            <Edit2 className="h-3.5 w-3.5 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => handleDelete(d)}
-                            aria-label={`Hapus ${d.name}`}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
+                      {/* Bottom Row: Actions */}
+                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-rule/40">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenEdit(d)}
+                          className="h-8 text-xs flex-1 sm:flex-initial"
+                        >
+                          <Edit2 className="size-3.5 mr-1 text-primary" />
+                          {hasSig ? "Edit / Ubah TTD" : "+ Tambah TTD"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(d)}
+                          aria-label={`Hapus ${d.name}`}
+                          className="h-8 px-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="size-3.5 mr-1" />
+                          Hapus
+                        </Button>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+
+              {/* ── Desktop Table View (hidden md:block) ───────── */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-panel-2/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-rule">
+                    <tr>
+                      <th className="py-3 pl-6 pr-3 w-16 text-center">No</th>
+                      <th className="py-3 px-4">Dosen & Status Mengajar</th>
+                      <th className="py-3 px-4 text-center w-40">Status TTD</th>
+                      <th className="py-3 px-4 text-center w-44">Pratinjau Paraf</th>
+                      <th className="py-3 pl-3 pr-6 text-right w-28">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-rule">
+                    {filteredAndSortedDosen.map((d, index) => {
+                      const hasSig = Boolean(d.signature && d.signature.trim());
+                      const teachingSlots =
+                        activeLecturerCounts.get(d.name.trim().toLowerCase()) || 0;
+                      const initials = getInitials(d.name);
+                      const avatarColor = getAvatarColor(d.name);
+
+                      return (
+                        <tr
+                          key={d.id || `${d.name}-${index}`}
+                          className="group transition-colors duration-150 hover:bg-panel-2/50"
+                        >
+                          {/* Number */}
+                          <td className="py-3.5 pl-6 pr-3 text-center text-xs font-mono text-muted-foreground">
+                            {index + 1}
+                          </td>
+
+                          {/* Lecturer Info */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              {/* Initials Avatar */}
+                              <div
+                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control border font-semibold text-xs transition-transform group-hover:scale-105 ${avatarColor}`}
+                              >
+                                {initials}
+                              </div>
+
+                              {/* Name & details */}
+                              <div className="min-w-0">
+                                <p className="font-medium text-foreground text-sm leading-tight">
+                                  {d.name}
+                                </p>
+                                <div className="mt-1 flex items-center gap-2">
+                                  {teachingSlots > 0 ? (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[10px] font-normal h-4.5 px-1.5 bg-primary/10 text-primary border-transparent"
+                                    >
+                                      {teachingSlots} Jadwal Mengajar
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-[11px] text-muted-foreground">
+                                      Belum terdaftar di jadwal
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Status TTD */}
+                          <td className="py-3.5 px-4 text-center">
+                            {hasSig ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-control bg-emerald-500/10 border border-emerald-200/80 dark:border-emerald-800/50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                                <Check className="h-3.5 w-3.5 shrink-0" />
+                                Siap Digunakan
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(d)}
+                                className="inline-flex items-center gap-1.5 rounded-control bg-amber-500/10 border border-amber-200/80 dark:border-amber-800/50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors"
+                              >
+                                <PenTool className="h-3 w-3 shrink-0" />
+                                + Tambah TTD
+                              </button>
+                            )}
+                          </td>
+
+                          {/* Signature Thumbnail */}
+                          <td className="py-3.5 px-4 text-center">
+                            {hasSig ? (
+                              <button
+                                type="button"
+                                onClick={() => setPreviewSigDosen(d)}
+                                title="Klik untuk memperbesar pratinjau tanda tangan"
+                                className="group/sig inline-flex items-center justify-center rounded-md border border-neutral-300 dark:border-neutral-700 bg-white p-1 shadow-2xs hover:border-primary transition-all hover:scale-105"
+                              >
+                                <img
+                                  src={d.signature!}
+                                  alt={`Paraf ${d.name}`}
+                                  className="h-8 max-w-[120px] object-contain"
+                                />
+                              </button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">
+                                —
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3.5 pl-3 pr-6 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenEdit(d)}
+                                className="h-8 px-2 text-xs font-medium"
+                              >
+                                <Edit2 className="h-3.5 w-3.5 mr-1" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => handleDelete(d)}
+                                aria-label={`Hapus ${d.name}`}
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
             <EmptyState
               icon={<Users className="h-8 w-8 text-muted-foreground" />}
@@ -766,8 +923,7 @@ const DosenMasterPage: React.FC<DosenMasterPageProps> = ({
                   label="Area Tanda Tangan"
                   value={formSignature}
                   onChange={setFormSignature}
-                  width={380}
-                  height={140}
+                  height={150}
                 />
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">

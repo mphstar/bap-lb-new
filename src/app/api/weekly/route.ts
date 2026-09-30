@@ -209,19 +209,72 @@ export async function POST(req: Request) {
         await tx.insert(scheduleTemplates).values(templateRows);
       }
 
-      // 3. Sync Dosen List
-      await tx.delete(dosenList).where(eq(dosenList.userId, user.id));
-      if (dosenData.length > 0) {
-        const dosenRows = dosenData.map((d: any) => {
-          const name = typeof d === 'string' ? d : String(d.name || "");
-          const signature = typeof d === 'string' ? "" : String(d.signature || "");
-          return {
-            userId: user.id,
-            name,
-            signature,
-          };
+      // 3. Sync Dosen List safely (upsert & merge, protect signatures from stale tab overwrite)
+      if (Array.isArray(dosenData) && dosenData.length > 0) {
+        const isUUID = (str: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+
+        const currentDosenInDb = await tx.query.dosenList.findMany({
+          where: eq(dosenList.userId, user.id),
         });
-        await tx.insert(dosenList).values(dosenRows);
+
+        const deletedDosenIds: string[] = Array.isArray((body as any).deletedDosenIds)
+          ? (body as any).deletedDosenIds.filter((id: any) => typeof id === "string" && isUUID(id))
+          : [];
+
+        if (deletedDosenIds.length > 0) {
+          await tx.delete(dosenList).where(
+            and(
+              eq(dosenList.userId, user.id),
+              inArray(dosenList.id, deletedDosenIds)
+            )
+          );
+        }
+
+        for (const d of dosenData) {
+          const id = d.id && isUUID(d.id) ? d.id : undefined;
+          const name = typeof d === 'string' ? d : String(d.name || "").trim();
+          const signature = typeof d === 'string' ? "" : (d.signature !== undefined ? String(d.signature || "") : undefined);
+
+          if (!name) continue;
+
+          if (id) {
+            const match = currentDosenInDb.find(e => e.id === id);
+            if (match) {
+              const updatePayload: { name: string; signature?: string } = { name };
+              // Protect signature: only overwrite if provided non-empty, or explicitly set
+              if (signature !== undefined && (signature !== "" || !match.signature)) {
+                updatePayload.signature = signature;
+              }
+              await tx
+                .update(dosenList)
+                .set(updatePayload)
+                .where(and(eq(dosenList.id, id), eq(dosenList.userId, user.id)));
+              continue;
+            }
+          }
+
+          const matchByName = currentDosenInDb.find(
+            e => e.name.trim().toLowerCase() === name.toLowerCase()
+          );
+
+          if (matchByName) {
+            const updatePayload: { name: string; signature?: string } = { name };
+            if (signature !== undefined && signature.trim() !== "") {
+              updatePayload.signature = signature;
+            }
+            await tx
+              .update(dosenList)
+              .set(updatePayload)
+              .where(and(eq(dosenList.id, matchByName.id), eq(dosenList.userId, user.id)));
+          } else {
+            await tx.insert(dosenList).values({
+              userId: user.id,
+              name,
+              signature: signature || "",
+            });
+          }
+        }
       }
 
       // 4. Sync Student Master

@@ -922,173 +922,282 @@ const StudentMasterPage: React.FC<StudentMasterPageProps> = ({
           )}
         </div>
 
-        {/* Student Table */}
-        <div className="overflow-x-auto">
+        {/* Student Content: Cards on Mobile, Table on Desktop */}
+        <div>
           {filteredMaster.length > 0 ? (
-            <table className="w-full text-left text-sm">
-              <thead className="bg-panel-2/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-rule">
-                <tr>
-                  <th className="py-3 pl-6 pr-3 w-16 text-center">No</th>
-                  <th className="py-3 px-4">Mahasiswa & NIM</th>
-                  <th className="py-3 px-4">Program Studi</th>
-                  <th className="py-3 px-4 text-center w-24">Semester</th>
-                  <th className="py-3 px-4 text-center w-24">Golongan</th>
-                  <th className="py-3 px-4">Rekap Tidak Hadir</th>
-                  <th className="py-3 pl-3 pr-6 text-right w-28">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-rule">
-                {filteredMaster.map((m, idx) => {
+            <>
+              {/* ── Mobile Card View (md:hidden) ────────────────── */}
+              <div className="md:hidden divide-y divide-rule">
+                {filteredMaster.map((m) => {
                   const initials = getInitials(m.name);
                   const avatarColor = getAvatarColor(m.name);
                   const recaps = recapByNim[m.nim.trim()] || [];
+                  const tally = tallyRecap(recaps);
 
                   return (
-                    <tr
+                    <div
                       key={m.nim}
-                      className="group transition-colors duration-150 hover:bg-panel-2/50"
+                      className="p-4 flex flex-col gap-3 bg-panel hover:bg-panel-2/50 transition-colors"
                     >
-                      {/* No */}
-                      <td className="py-3.5 pl-6 pr-3 text-center text-xs font-mono text-muted-foreground">
-                        {idx + 1}
-                      </td>
-
-                      {/* Mahasiswa Name & NIM */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          {/* Initials Avatar */}
-                          <div
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control border font-semibold text-xs transition-transform group-hover:scale-105 ${avatarColor}`}
-                          >
-                            {initials}
-                          </div>
-
-                          {/* Details */}
-                          <div className="min-w-0">
-                            <p className="font-medium text-foreground text-sm leading-tight">
-                              {m.name}
-                            </p>
-                            <span className="font-mono text-xs text-muted-foreground mt-0.5 inline-block">
-                              {m.nim}
-                            </span>
-                          </div>
+                      {/* Top: Avatar, Name, NIM */}
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-control border font-semibold text-xs ${avatarColor}`}
+                        >
+                          {initials}
                         </div>
-                      </td>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-foreground text-sm leading-snug">
+                            {m.name}
+                          </p>
+                          <span className="font-mono text-xs text-muted-foreground mt-0.5 inline-block">
+                            NIM: {m.nim}
+                          </span>
+                        </div>
+                      </div>
 
-                      {/* Program Studi */}
-                      <td className="py-3.5 px-4">
-                        {m.prodi ? (
-                          <span
-                            className="inline-flex items-center rounded-md bg-panel-2 border border-rule px-2.5 py-1 text-xs text-foreground font-medium max-w-[20rem] truncate"
-                            title={m.prodi}
-                          >
+                      {/* Info Chips: Prodi, Semester, Golongan */}
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        {m.prodi && (
+                          <span className="px-2 py-0.5 rounded bg-panel-2 border border-rule text-foreground font-medium text-[11px] truncate max-w-[15rem]">
                             {m.prodi}
                           </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">
-                            —
-                          </span>
                         )}
-                      </td>
-
-                      {/* Semester */}
-                      <td className="py-3.5 px-4 text-center">
-                        {m.semester ? (
-                          <Badge
-                            variant="secondary"
-                            className="text-xs font-normal bg-panel-2 text-foreground border-rule"
-                          >
+                        {m.semester && (
+                          <Badge variant="secondary" className="text-[10px] font-normal bg-panel-2 border-rule">
                             Smt {m.semester}
                           </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">—</span>
                         )}
-                      </td>
-
-                      {/* Golongan */}
-                      <td className="py-3.5 px-4 text-center">
-                        {m.golongan ? (
-                          <Badge
-                            variant="secondary"
-                            className="text-xs font-normal bg-primary/10 text-primary border-transparent"
-                          >
+                        {m.golongan && (
+                          <Badge variant="secondary" className="text-[10px] font-normal bg-primary/10 text-primary border-transparent">
                             Gol {m.golongan}
                           </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">—</span>
                         )}
-                      </td>
+                      </div>
 
-                      {/* Rekap Tidak Hadir */}
-                      <td className="py-3.5 px-4 align-top">
+                      {/* Rekap Absensi Pills */}
+                      <div className="p-2.5 rounded-control bg-panel-2/70 border border-rule/60 flex items-center justify-between text-xs">
+                        <span className="text-[11px] font-medium text-muted-foreground">
+                          Ketidakhadiran:
+                        </span>
                         {recaps.length === 0 ? (
-                          <span className="text-xs text-muted-foreground italic">
-                            Tidak ada
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                            100% Hadir
                           </span>
                         ) : (
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                            {(["ALPHA", "SAKIT", "IZIN", "MBKM"] as const).map(
-                              (k) => {
-                                const value = tallyRecap(recaps).counts[k.toLowerCase()] || 0;
-                                return (
-                                  <div key={k} className="flex items-center gap-1.5">
-                                    <span
-                                      className={`size-2 shrink-0 rounded-full ${
-                                        value > 0 ? remarkDotColor(k) : "bg-muted/40"
-                                      }`}
-                                    />
-                                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                                      {k}
-                                    </span>
-                                    <span data-numeric className="text-xs font-semibold text-foreground">
-                                      {value}
-                                    </span>
-                                  </div>
-                                );
-                              }
-                            )}
+                          <div className="flex items-center gap-2 text-[11px]">
+                            <span className="font-medium text-red-600 dark:text-red-400">A: {tally.counts.alpha || 0}</span>
+                            <span className="font-medium text-amber-600 dark:text-amber-400">S: {tally.counts.sakit || 0}</span>
+                            <span className="font-medium text-blue-600 dark:text-blue-400">I: {tally.counts.izin || 0}</span>
+                            <span className="font-medium text-purple-600 dark:text-purple-400">M: {tally.counts.mbkm || 0}</span>
                           </div>
                         )}
-                      </td>
+                      </div>
 
                       {/* Actions */}
-                      <td className="py-3.5 pl-3 pr-6 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setRecapStudent(m)}
-                            className="h-8 px-2 text-xs font-medium text-primary"
-                            title="Lihat detail rekapan ketidakhadiran"
-                          >
-                            <CalendarClock className="h-3.5 w-3.5 mr-1" />
-                            Rekap
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenEdit(m)}
-                            className="h-8 px-2 text-xs font-medium"
-                          >
-                            <Edit2 className="h-3.5 w-3.5 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => removeFromMaster(m)}
-                            aria-label={`Hapus ${m.name}`}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
+                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-rule/40">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setRecapStudent(m)}
+                          className="h-8 text-xs text-primary hover:text-primary flex-1 sm:flex-initial"
+                        >
+                          <CalendarClock className="size-3.5 mr-1" />
+                          Rekap Detail
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenEdit(m)}
+                          className="h-8 px-2.5 text-xs font-medium"
+                        >
+                          <Edit2 className="size-3.5 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFromMaster(m)}
+                          aria-label={`Hapus ${m.name}`}
+                          className="h-8 px-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="size-3.5 mr-1" />
+                          Hapus
+                        </Button>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+
+              {/* ── Desktop Table View (hidden md:block) ───────── */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-panel-2/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-rule">
+                    <tr>
+                      <th className="py-3 pl-6 pr-3 w-16 text-center">No</th>
+                      <th className="py-3 px-4">Mahasiswa & NIM</th>
+                      <th className="py-3 px-4">Program Studi</th>
+                      <th className="py-3 px-4 text-center w-24">Semester</th>
+                      <th className="py-3 px-4 text-center w-24">Golongan</th>
+                      <th className="py-3 px-4">Rekap Tidak Hadir</th>
+                      <th className="py-3 pl-3 pr-6 text-right w-28">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-rule">
+                    {filteredMaster.map((m, idx) => {
+                      const initials = getInitials(m.name);
+                      const avatarColor = getAvatarColor(m.name);
+                      const recaps = recapByNim[m.nim.trim()] || [];
+
+                      return (
+                        <tr
+                          key={m.nim}
+                          className="group transition-colors duration-150 hover:bg-panel-2/50"
+                        >
+                          {/* No */}
+                          <td className="py-3.5 pl-6 pr-3 text-center text-xs font-mono text-muted-foreground">
+                            {idx + 1}
+                          </td>
+
+                          {/* Mahasiswa Name & NIM */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              {/* Initials Avatar */}
+                              <div
+                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-control border font-semibold text-xs transition-transform group-hover:scale-105 ${avatarColor}`}
+                              >
+                                {initials}
+                              </div>
+
+                              {/* Details */}
+                              <div className="min-w-0">
+                                <p className="font-medium text-foreground text-sm leading-tight">
+                                  {m.name}
+                                </p>
+                                <span className="font-mono text-xs text-muted-foreground mt-0.5 inline-block">
+                                  {m.nim}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Program Studi */}
+                          <td className="py-3.5 px-4">
+                            {m.prodi ? (
+                              <span
+                                className="inline-flex items-center rounded-md bg-panel-2 border border-rule px-2.5 py-1 text-xs text-foreground font-medium max-w-[20rem] truncate"
+                                title={m.prodi}
+                              >
+                                {m.prodi}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">
+                                —
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Semester */}
+                          <td className="py-3.5 px-4 text-center">
+                            {m.semester ? (
+                              <Badge
+                                variant="secondary"
+                                className="text-xs font-normal bg-panel-2 text-foreground border-rule"
+                              >
+                                Smt {m.semester}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">—</span>
+                            )}
+                          </td>
+
+                          {/* Golongan */}
+                          <td className="py-3.5 px-4 text-center">
+                            {m.golongan ? (
+                              <Badge
+                                variant="secondary"
+                                className="text-xs font-normal bg-primary/10 text-primary border-transparent"
+                              >
+                                Gol {m.golongan}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">—</span>
+                            )}
+                          </td>
+
+                          {/* Rekap Tidak Hadir */}
+                          <td className="py-3.5 px-4 align-top">
+                            {recaps.length === 0 ? (
+                              <span className="text-xs text-muted-foreground italic">
+                                Tidak ada
+                              </span>
+                            ) : (
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                {(["ALPHA", "SAKIT", "IZIN", "MBKM"] as const).map(
+                                  (k) => {
+                                    const value = tallyRecap(recaps).counts[k.toLowerCase()] || 0;
+                                    return (
+                                      <div key={k} className="flex items-center gap-1.5">
+                                        <span
+                                          className={`size-2 shrink-0 rounded-full ${
+                                            value > 0 ? remarkDotColor(k) : "bg-muted/40"
+                                          }`}
+                                        />
+                                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                          {k}
+                                        </span>
+                                        <span data-numeric className="text-xs font-semibold text-foreground">
+                                          {value}
+                                        </span>
+                                      </div>
+                                    );
+                                  }
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3.5 pl-3 pr-6 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setRecapStudent(m)}
+                                className="h-8 px-2 text-xs font-medium text-primary"
+                                title="Lihat detail rekapan ketidakhadiran"
+                              >
+                                <CalendarClock className="h-3.5 w-3.5 mr-1" />
+                                Rekap
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenEdit(m)}
+                                className="h-8 px-2 text-xs font-medium"
+                              >
+                                <Edit2 className="h-3.5 w-3.5 mr-1" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => removeFromMaster(m)}
+                                aria-label={`Hapus ${m.name}`}
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
             <EmptyState
               variant="bare"

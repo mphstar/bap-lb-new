@@ -32,21 +32,19 @@ export function PageHeader({
         <header
             data-slot="page-header"
             className={cn(
-                "mb-7 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6",
-                "print:hidden",
+                "mb-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6",
+                "print:static print:m-0 print:p-0 print:border-none print:bg-transparent print:hidden",
                 className
             )}
             {...props}
         >
-            <div className="flex min-w-0 items-start gap-2.5">
-                <SidebarTrigger className="-ml-1 mt-0.5 shrink-0 md:hidden" />
-
-                <div className="min-w-0">
-                    <h1 className="text-2xl font-semibold leading-tight text-foreground sm:text-[1.875rem]">
+            <div className="flex min-w-0 items-center gap-3">
+                <div className="min-w-0 flex-1">
+                    <h1 className="text-xl font-semibold leading-tight text-foreground sm:text-2xl lg:text-[1.75rem]">
                         {title}
                     </h1>
                     {meta ? (
-                        <p className="mt-1 text-sm text-muted-foreground">{meta}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm truncate">{meta}</p>
                     ) : null}
                 </div>
             </div>

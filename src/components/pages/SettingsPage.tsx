@@ -319,20 +319,23 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
                         </Alert>
                     )}
 
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                        <Button size="lg" className="flex-1" onClick={handleExport}>
-                            <Download />
-                            Export data
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Button
+                            variant="default"
+                            onClick={handleExport}
+                            className="h-10 text-xs font-semibold gap-2 shadow-xs"
+                        >
+                            <Download className="size-4" />
+                            <span>Export Data (.JSON)</span>
                         </Button>
 
                         <Button
-                            size="lg"
                             variant="outline"
-                            className="flex-1"
                             onClick={handleImportClick}
+                            className="h-10 text-xs font-medium gap-2 border-rule bg-panel hover:bg-panel-2"
                         >
-                            <Upload />
-                            Import data
+                            <Upload className="size-4" />
+                            <span>Import Data (.JSON)</span>
                         </Button>
                         <input
                             ref={fileInputRef}
