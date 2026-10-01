@@ -27,7 +27,7 @@ const RecapTable: React.FC<RecapTableProps> = ({ groups }) => {
     };
 
     return (
-        <div className="w-full bg-white text-black text-[12px] leading-tight" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+        <div className="w-full bg-white text-black text-[12px] leading-tight print:text-[11px]" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
             <table className="w-full border-collapse border border-black table-auto">
                 <thead>
                     <tr className="bg-gray-100 text-center font-bold">
@@ -54,11 +54,6 @@ const RecapTable: React.FC<RecapTableProps> = ({ groups }) => {
                         group.items.forEach((item, itemIndex) => {
                             rows.push(
                                 <tr key={`group-${groupIndex}-${group.key}-${itemIndex}`}>
-                                    {/* 
-                      Actually, let's just render the item.no if it exists in excel, 
-                      otherwise we might need to re-index. 
-                      The parsing logic mapped 'No' from excel.
-                   */}
                                     <td className="border border-black p-1 min-w-[30px] text-center whitespace-nowrap">{item.no}</td>
                                     <td className="border border-black p-1 min-w-[100px] max-w-[180px] whitespace-normal break-words align-center" title={item.mataKuliah}>{item.mataKuliah}</td>
                                     <td className="border border-black p-1 min-w-[80px] max-w-[120px] whitespace-normal break-words align-center">{item.materi}</td>
@@ -76,10 +71,9 @@ const RecapTable: React.FC<RecapTableProps> = ({ groups }) => {
                         });
 
                         // Always show Absent List row
-                        // Header for absent list
                         rows.push(
                             <tr key={`group-${groupIndex}-${group.key}-absent-header`}>
-                                <td colSpan={12} className="border border-black border-b-0 p-1 font-bold text-left bg-gray-50 text-[12px] uppercase tracking-wider">
+                                <td colSpan={12} className="border border-black border-b-0 p-1 font-bold text-left bg-gray-50 text-[12px] print:text-[11px] uppercase tracking-wider">
                                     DAFTAR TIDAK HADIR (Nama, NIM, Keterangan)
                                 </td>
                             </tr>
@@ -92,12 +86,12 @@ const RecapTable: React.FC<RecapTableProps> = ({ groups }) => {
                                     <div className="grid grid-cols-3 gap-x-4 gap-y-1">
                                         {absentStudents.length > 0 ? (
                                             absentStudents.map((s, idx) => (
-                                                <span key={idx} className="whitespace-normal break-words text-green-900 font-medium text-[12px] pr-2">
+                                                <span key={idx} className="whitespace-normal break-words text-green-900 font-medium text-[12px] print:text-[11px] pr-2">
                                                     {idx + 1}. {s.name} ({s.nim}) - <span className="font-bold text-red-600 border-b border-red-600">{s.remarks}</span>
                                                 </span>
                                             ))
                                         ) : (
-                                            <span className="whitespace-nowrap text-green-900 font-medium text-[12px]">-</span>
+                                            <span className="whitespace-nowrap text-green-900 font-medium text-[12px] print:text-[11px]">-</span>
                                         )}
                                     </div>
                                 </td>

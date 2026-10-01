@@ -32,6 +32,14 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from '@/components/ui/dialog';
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -110,6 +118,9 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
     const [selectedDay, setSelectedDay] = useState<string>('all');
     const [showSignaturePanel, setShowSignaturePanel] = useState(false);
     const [isMobileOptionsOpen, setIsMobileOptionsOpen] = useState(false);
+    const [isPrintMingguGuideOpen, setIsPrintMingguGuideOpen] = useState(false);
+    const [isPrintGuideOpen, setIsPrintGuideOpen] = useState(false);
+    const [pendingWithSignature, setPendingWithSignature] = useState(true);
 
     const handlePaperSizeChange = (size: PaperSize) => {
         setPaperSize(size);
@@ -186,12 +197,24 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
     }
 
     const handlePrint = (withSignature: boolean) => {
-        setShowSignature(withSignature);
-        // Small delay so React can re-render the document before the print dialog opens
-        setTimeout(() => window.print(), 100);
+        setPendingWithSignature(withSignature);
+        setIsPrintGuideOpen(true);
     };
 
-    const handlePrintMinggu = () => window.print();
+    const confirmAndPrint = () => {
+        setIsPrintGuideOpen(false);
+        setShowSignature(pendingWithSignature);
+        setTimeout(() => window.print(), 200);
+    };
+
+    const handlePrintMinggu = () => {
+        setIsPrintMingguGuideOpen(true);
+    };
+
+    const confirmAndPrintMinggu = () => {
+        setIsPrintMingguGuideOpen(false);
+        setTimeout(() => window.print(), 200);
+    };
 
     const nextDoc = () => {
         if (safeIndex < filteredBapData.length - 1) setCurrentIndex(safeIndex + 1);
@@ -567,8 +590,7 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                 <Info className="mt-0.5 size-3.5 shrink-0 text-brand" />
                                 {printMode === 'minggu' ? (
                                     <span>
-                                        Saat dialog cetak muncul, biarkan <strong>Margin</strong> di <strong>Default</strong> (10&nbsp;mm)
-                                        agar margin tetap ada di setiap halaman.
+                                        Saat dialog cetak muncul, gunakan <strong>Margin: Default</strong> agar margin atas, bawah, kanan, dan kiri otomatis rapi di setiap halaman.
                                     </span>
                                 ) : (
                                     <span>
@@ -831,58 +853,57 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                             <div className="hidden print:block print-persesi-view bg-white">
                                 {Array.from({ length: Math.ceil(filteredBapData.length / 2) }).map((_, pageIdx) => {
                                     const itemsOnPage = filteredBapData.slice(pageIdx * 2, pageIdx * 2 + 2);
-                                    const pageHeight = paperSize === 'f4' ? '330mm' : '297mm';
                                     return (
                                         <div
                                             key={pageIdx}
+                                            className="print-sheet-page"
                                             style={{
                                                 position: 'relative',
                                                 width: '100%',
-                                                height: pageHeight,
-                                                maxHeight: pageHeight,
-                                                overflow: 'hidden',
-                                                pageBreakAfter: pageIdx < Math.ceil(filteredBapData.length / 2) - 1 ? 'always' : 'auto',
-                                                pageBreakInside: 'avoid',
-                                                breakAfter: pageIdx < Math.ceil(filteredBapData.length / 2) - 1 ? 'page' : 'auto',
                                                 boxSizing: 'border-box'
                                             }}
                                         >
                                             {itemsOnPage.map((item, itemIdx) => (
                                                 <div
                                                     key={itemIdx}
+                                                    className="print-half-slot"
                                                     style={{
-                                                        // Absolute halves: the sheet is exactly 50:50 no
-                                                        // matter the paper size. Top half starts at the paper
-                                                        // edge, bottom half starts at the cut line — both get
-                                                        // the identical top padding, so the kop offset matches.
-                                                        position: 'absolute',
-                                                        left: 0,
-                                                        right: 0,
-                                                        top: itemIdx === 0 ? 0 : '50%',
-                                                        height: '50%',
-                                                        // Clip at the cut line: a taller document must not
-                                                        // bleed into the other half.
+                                                        width: '100%',
                                                         overflow: 'hidden',
                                                         borderBottom: itemIdx === 0 && itemsOnPage.length > 1 ? '1.5px dashed #000' : 'none',
                                                         boxSizing: 'border-box',
                                                         display: 'flex',
                                                         flexDirection: 'column',
                                                         justifyContent: 'flex-start',
-                                                        padding: `${PERSESI_SECTION_PAD_TOP} 0 0 0`
+                                                        paddingTop: '8mm',
+                                                        paddingBottom: 0,
+                                                        paddingLeft: '12mm',
+                                                        paddingRight: '12mm'
                                                     }}
                                                 >
-                                                    <DaftarHadirDocument
-                                                        data={item}
-                                                        isLast={true}
-                                                        paperSize={paperSize}
-                                                        showSignature={showSignature}
-                                                        dosenSignature={showSignature ? (dosenList.find(d => d.name === item.pengajar)?.signature || null) : null}
-                                                        teknisiSignature={showSignature ? teknisiSignature : null}
-                                                        academicYear={academicYear}
-                                                        academicSemester={academicSemester}
-                                                    />
+                                                    <div style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                                                        <DaftarHadirDocument
+                                                            data={item}
+                                                            isLast={true}
+                                                            paperSize={paperSize}
+                                                            showSignature={showSignature}
+                                                            dosenSignature={showSignature ? (dosenList.find(d => d.name === item.pengajar)?.signature || null) : null}
+                                                            teknisiSignature={showSignature ? teknisiSignature : null}
+                                                            academicYear={academicYear}
+                                                            academicSemester={academicSemester}
+                                                        />
+                                                    </div>
                                                 </div>
                                             ))}
+                                            {itemsOnPage.length === 1 && (
+                                                <div
+                                                    className="print-half-slot"
+                                                    style={{
+                                                        width: '100%',
+                                                        boxSizing: 'border-box'
+                                                    }}
+                                                />
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -892,32 +913,223 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                 </div>
             </div>
 
+            {/* Modal Informasi Pengaturan Cetak Per Minggu */}
+            <Dialog open={isPrintMingguGuideOpen} onOpenChange={setIsPrintMingguGuideOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Petunjuk Cetak Rekap Mingguan</DialogTitle>
+                        <DialogDescription>
+                            Pastikan pengaturan pada jendela cetak browser sesuai agar rekap tercetak rapi dan tidak terpotong.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3 py-2 text-sm">
+                        <div className="flex items-start gap-3 rounded-control border border-rule bg-panel-2 p-3">
+                            <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                                1
+                            </div>
+                            <div>
+                                <p className="font-semibold text-foreground">Orientasi: Lanskap (Landscape)</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Pastikan tata letak kertas diatur ke <strong>Landscape</strong> (Lanskap / Mendatar).
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-start gap-3 rounded-control border border-rule bg-panel-2 p-3">
+                            <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                                2
+                            </div>
+                            <div>
+                                <p className="font-semibold text-foreground">Set Margin ke &quot;Default&quot;</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Pilih <strong>Margins: Default</strong> (bukan None) agar bagian atas dan bawah halaman memiliki batas margin yang pas dan tidak terpotong.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-start gap-3 rounded-control border border-rule bg-panel-2 p-3">
+                            <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                                3
+                            </div>
+                            <div>
+                                <p className="font-semibold text-foreground">Ukuran Kertas: {paperSize.toUpperCase()}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Pilih ukuran kertas <strong>{paperSize === 'f4' ? 'Folio / F4 / Legal' : 'A4'}</strong> dan nonaktifkan opsi <em>Headers and footers</em>.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setIsPrintMingguGuideOpen(false)}>
+                            Batal
+                        </Button>
+                        <Button onClick={confirmAndPrintMinggu}>
+                            Lanjutkan Cetak
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Informasi Pengaturan Cetak Per Sesi */}
+            <Dialog open={isPrintGuideOpen} onOpenChange={setIsPrintGuideOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Petunjuk Cetak Presisi (Per Sesi)</DialogTitle>
+                        <DialogDescription>
+                            Pastikan pengaturan pada jendela cetak browser sesuai agar garis potong tengah tepat 50:50.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3 py-2 text-sm">
+                        <div className="flex items-start gap-3 rounded-control border border-rule bg-panel-2 p-3">
+                            <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                                1
+                            </div>
+                            <div>
+                                <p className="font-semibold text-foreground">Set Margin ke &quot;Default&quot;</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Untuk mode Rekap Mingguan, biarkan <strong>Margins: Default</strong> (atau ubah ke <strong>None</strong> untuk mode Per Sesi).
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-start gap-3 rounded-control border border-rule bg-panel-2 p-3">
+                            <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                                2
+                            </div>
+                            <div>
+                                <p className="font-semibold text-foreground">Ukuran Kertas: {paperSize.toUpperCase()}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Pilih ukuran kertas yang sesuai ({paperSize === 'f4' ? 'Folio / F4 / Legal' : 'A4'}) dan nonaktifkan opsi <em>Headers and footers</em>.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setIsPrintGuideOpen(false)}>
+                            Batal
+                        </Button>
+                        <Button onClick={confirmAndPrint}>
+                            Lanjutkan Cetak
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Dynamic print styles based on mode */}
             {printMode === 'minggu' ? (
                 <style>{`
                     @media print {
-                        /* The recap flows across many pages, so the margin must come
-                           from @page — a container padding would only pad the first and
-                           last page. Keep the print dialog margin on "Default" for this
-                           mode; picking "None" removes it. */
-                        @page { margin: 10mm; }
-                        body { -webkit-print-color-adjust: exact; background-color: white !important; font-family: 'Times New Roman', Times, serif !important; }
-                        * { font-family: 'Times New Roman', Times, serif !important; }
+                        @page {
+                            size: landscape;
+                            margin: 15mm 12mm 15mm 12mm;
+                        }
+                        html, body {
+                            background-color: white !important;
+                            overflow: visible !important;
+                            scrollbar-width: none !important;
+                            -webkit-print-color-adjust: exact;
+                            font-family: 'Times New Roman', Times, serif !important;
+                        }
+                        ::-webkit-scrollbar {
+                            display: none !important;
+                        }
+                        * {
+                            font-family: 'Times New Roman', Times, serif !important;
+                            scrollbar-width: none !important;
+                        }
+                        .print-minggu-view {
+                            width: 100% !important;
+                            box-sizing: border-box !important;
+                            padding: 0 !important;
+                            margin: 0 !important;
+                        }
+                        .print-minggu-view table {
+                            width: 100% !important;
+                            border-collapse: collapse !important;
+                            page-break-inside: auto !important;
+                        }
+                        .print-minggu-view thead {
+                            display: table-header-group !important;
+                        }
+                        .print-minggu-view tbody {
+                            display: table-row-group !important;
+                        }
+                        .print-minggu-view tr {
+                            page-break-inside: avoid !important;
+                            break-inside: avoid !important;
+                            page-break-after: auto !important;
+                            break-after: auto !important;
+                        }
+                        .print-minggu-view td, .print-minggu-view th {
+                            page-break-inside: avoid !important;
+                            break-inside: avoid !important;
+                        }
                         .print-persesi-view { display: none !important; }
                     }
                 `}</style>
             ) : (
                 <style>{`
                     @media print {
-                        @page { margin: 0mm; size: ${paperSize === 'f4' ? '215mm 330mm' : '210mm 297mm'}; }
-                        html, body { margin: 0 !important; padding: 0 !important; }
-                        body { -webkit-print-color-adjust: exact; background-color: white !important; font-family: 'Times New Roman', Times, serif !important; }
-                        * { font-family: 'Times New Roman', Times, serif !important; }
+                        @page {
+                            size: portrait;
+                            margin: 0mm;
+                        }
+                        *, *:before, *:after {
+                            box-sizing: border-box !important;
+                        }
+                        html, body {
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            background-color: white !important;
+                            overflow: visible !important;
+                            scrollbar-width: none !important;
+                        }
+                        ::-webkit-scrollbar {
+                            display: none !important;
+                        }
+                        body { -webkit-print-color-adjust: exact; font-family: 'Times New Roman', Times, serif !important; }
+                        * {
+                            font-family: 'Times New Roman', Times, serif !important;
+                            scrollbar-width: none !important;
+                        }
                         .print-minggu-view { display: none !important; }
-                        /* No flow offset above the sheets, so each sheet starts exactly
-                           at the paper's top edge. */
-                        .print-persesi-view { margin: 0 !important; padding: 0 !important; }
-                        .print-persesi-view > div { margin: 0 !important; }
+                        /* Using absolute mm height per half slot ensures the cut line is exactly at 50% physical height */
+                        .print-persesi-view { margin: 0 !important; padding: 0 !important; overflow: visible !important; display: block !important; }
+                        .print-sheet-page {
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            width: 100% !important;
+                            height: ${paperSize === 'f4' ? '330mm' : '297mm'} !important;
+                            max-height: ${paperSize === 'f4' ? '330mm' : '297mm'} !important;
+                            page-break-inside: avoid !important;
+                            break-inside: avoid !important;
+                            box-sizing: border-box !important;
+                            display: flex !important;
+                            flex-direction: column !important;
+                        }
+                        .print-half-slot {
+                            flex: 1 1 50% !important;
+                            height: 50% !important;
+                            max-height: 50% !important;
+                            overflow: hidden !important;
+                            box-sizing: border-box !important;
+                            padding-top: 8mm !important;
+                            padding-bottom: 6mm !important;
+                            padding-left: 12mm !important;
+                            padding-right: 12mm !important;
+                        }
+                        .print-sheet-page:not(:last-child) {
+                            page-break-after: always !important;
+                            break-after: page !important;
+                        }
+                        .print-sheet-page:last-child {
+                            page-break-after: avoid !important;
+                            break-after: avoid !important;
+                        }
                     }
                 `}</style>
             )}

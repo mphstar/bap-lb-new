@@ -33,43 +33,49 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
         .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'id') || (a.nim || '').localeCompare(b.nim || '', undefined, { numeric: true }));
 
     const isF4 = paperSize === 'f4';
+    const count = absentStudents.length;
+    const is3Col = count > 20;
+    const is2Col = count > (isF4 ? 9 : 7) && !is3Col;
+
     const minSingleRows = isF4 ? 9 : 7;
     const minGridSlots = isF4 ? 18 : 14;
 
-    // Calculate how many rows we need for the 2-column grid.
-    // Minimum rows: 9 rows (18 slots) for F4, 7 rows (14 slots) for A4.
-    const totalSlots = Math.max(minGridSlots, Math.ceil(absentStudents.length / 2) * 2);
-    const numRows = totalSlots / 2;
+    // Calculate how many rows we need for 2-column or 3-column grid.
+    const totalSlots2Col = Math.max(minGridSlots, Math.ceil(count / 2) * 2);
+    const numRows2Col = totalSlots2Col / 2;
+
+    const totalSlots3Col = Math.ceil(count / 3) * 3;
+    const numRows3Col = Math.max(7, totalSlots3Col / 3);
 
     const semesterDisplay = (academicSemester || 'Genap').trim().toUpperCase();
     const yearDisplay = (academicYear || '2025/2026').trim();
 
     return (
         <div
-            className={`bg-white text-black leading-snug mx-auto ${isF4 ? 'pt-[4mm] pb-[1mm]' : 'pt-[3mm] pb-[1mm]'} ${isLast ? '' : 'border-b-2 border-dashed border-gray-800'}`}
+            className={`bg-white text-black leading-snug mx-auto px-4 py-2 sm:px-8 sm:py-3 print:p-0 w-full ${isLast ? '' : 'border-b-2 border-dashed border-gray-800'}`}
             style={{
                 width: '100%',
-                minWidth: '650px',
+                maxWidth: '100%',
                 boxSizing: 'border-box',
                 fontSize: '10pt',
                 fontFamily: "'Times New Roman', Times, serif",
             }}
         >
             {/* Institutional Header - Smaller */}
-            <div className={`${isF4 ? 'mb-2.5' : 'mb-1.5'} text-center`} style={{ fontSize: '9pt' }}>
+            <div className={`${isF4 ? 'mb-2.5' : 'mb-1.5'} text-center`} style={{ width: '100%', fontSize: '9pt' }}>
                 <p className="font-bold">KEMENTERIAN PENDIDIKAN TINGGI, SAINS, DAN TEKNOLOGI</p>
                 <p className="font-bold">POLITEKNIK NEGERI JEMBER</p>
-                <div className="border-b-[1.5px] border-black mt-1 mb-1 w-[90%] mx-auto"></div>
+                <div className="border-b-[1.5px] border-black mt-1 mb-1 w-full"></div>
             </div>
 
             {/* Title - Smaller */}
-            <div className={`${isF4 ? 'mb-2.5' : 'mb-1.5'} text-center`} style={{ fontSize: '9pt' }}>
+            <div className={`${isF4 ? 'mb-2.5' : 'mb-1.5'} text-center`} style={{ width: '100%', fontSize: '9pt' }}>
                 <p className="font-bold">DAFTAR HADIR PEMBIMBING PRAKTIKUM LABORATORIUM DAN LAPANG</p>
                 <p className="font-bold">SEMESTER {semesterDisplay} TAHUN AKADEMIK {yearDisplay}</p>
             </div>
 
             {/* Session Details - Compact 2-column Grid */}
-            <div className={`grid grid-cols-2 gap-x-8 ${isF4 ? 'mb-3' : 'mb-2'} ml-0 px-16 print:px-10`} style={{ width: '100%', fontSize: '9.5pt', lineHeight: '1.2' }}>
+            <div className={`grid grid-cols-2 gap-x-8 ${isF4 ? 'mb-3' : 'mb-2'} w-full px-0`} style={{ fontSize: '9.5pt', lineHeight: '1.2' }}>
                 {/* Left Column */}
                 <div>
                     <table style={{ width: '100%', tableLayout: 'fixed' }}>
@@ -123,7 +129,7 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
             </div>
 
             {/* Pembimbing Table - Compact */}
-            <table className={`w-[90%] mx-auto border-collapse border border-black ${isF4 ? 'mb-3' : 'mb-2'}`}>
+            <table className={`w-full mx-auto border-collapse border border-black ${isF4 ? 'mb-3' : 'mb-2'}`}>
                 <thead>
                     <tr>
                         <th className="border border-black px-2 py-0.5 text-center font-normal" style={{ width: '40px', fontSize: '9pt' }}>NO</th>
@@ -192,9 +198,65 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
                 DAFTAR MAHASISWA YANG TIDAK MENGIKUTI PRAKTEK
             </div>
 
-            {/* Absent Students Table - Conditional Grid */}
-            {absentStudents.length > (isF4 ? 9 : 7) ? (
-                <table className="w-[90%] mx-auto border-collapse border border-black mb-2">
+            {/* Absent Students Table - Conditional Grid (1 Col, 2 Col, or 3 Col) */}
+            {is3Col ? (
+                <table className="w-full mx-auto border-collapse border border-black mb-1.5">
+                    <thead>
+                        <tr>
+                            {/* Column 1 */}
+                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ width: '22px', fontSize: '7.5pt' }}>NO</th>
+                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ fontSize: '7.5pt' }}>NAMA MAHASISWA</th>
+                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ width: '65px', fontSize: '7.5pt' }}>NIM</th>
+                            <th className="border border-black px-1 py-0.5 text-center font-normal border-r-2" style={{ width: '45px', fontSize: '7.5pt' }}>KET</th>
+
+                            {/* Column 2 */}
+                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ width: '22px', fontSize: '7.5pt' }}>NO</th>
+                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ fontSize: '7.5pt' }}>NAMA MAHASISWA</th>
+                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ width: '65px', fontSize: '7.5pt' }}>NIM</th>
+                            <th className="border border-black px-1 py-0.5 text-center font-normal border-r-2" style={{ width: '45px', fontSize: '7.5pt' }}>KET</th>
+
+                            {/* Column 3 */}
+                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ width: '22px', fontSize: '7.5pt' }}>NO</th>
+                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ fontSize: '7.5pt' }}>NAMA MAHASISWA</th>
+                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ width: '65px', fontSize: '7.5pt' }}>NIM</th>
+                            <th className="border border-black px-1 py-0.5 text-center font-normal" style={{ width: '45px', fontSize: '7.5pt' }}>KET</th>
+                        </tr>
+                    </thead>
+                    <tbody style={{ fontSize: '8pt', lineHeight: '1.1' }}>
+                        {Array.from({ length: numRows3Col }).map((_, rowIdx) => {
+                            const idx1 = rowIdx;
+                            const idx2 = rowIdx + numRows3Col;
+                            const idx3 = rowIdx + numRows3Col * 2;
+                            const s1 = absentStudents[idx1];
+                            const s2 = absentStudents[idx2];
+                            const s3 = absentStudents[idx3];
+
+                            return (
+                                <tr key={rowIdx}>
+                                    {/* Left Column */}
+                                    <td className="border border-black px-1 py-px text-center">{idx1 + 1}.</td>
+                                    <td className="border border-black px-1 py-px truncate max-w-[90px]">{s1?.name || '\u00A0'}</td>
+                                    <td className="border border-black px-1 py-px text-center">{s1?.nim || '\u00A0'}</td>
+                                    <td className="border border-black px-1 py-px text-center truncate max-w-[45px] border-r-2">{s1?.remarks || '\u00A0'}</td>
+
+                                    {/* Middle Column */}
+                                    <td className={`border border-black px-1 py-px text-center ${!s2 && idx2 >= count ? 'text-transparent' : ''}`}>{idx2 + 1}.</td>
+                                    <td className="border border-black px-1 py-px truncate max-w-[90px]">{s2?.name || '\u00A0'}</td>
+                                    <td className="border border-black px-1 py-px text-center">{s2?.nim || '\u00A0'}</td>
+                                    <td className="border border-black px-1 py-px text-center truncate max-w-[45px] border-r-2">{s2?.remarks || '\u00A0'}</td>
+
+                                    {/* Right Column */}
+                                    <td className={`border border-black px-1 py-px text-center ${!s3 && idx3 >= count ? 'text-transparent' : ''}`}>{idx3 + 1}.</td>
+                                    <td className="border border-black px-1 py-px truncate max-w-[90px]">{s3?.name || '\u00A0'}</td>
+                                    <td className="border border-black px-1 py-px text-center">{s3?.nim || '\u00A0'}</td>
+                                    <td className="border border-black px-1 py-px text-center truncate max-w-[45px]">{s3?.remarks || '\u00A0'}</td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            ) : is2Col ? (
+                <table className="w-full mx-auto border-collapse border border-black mb-2">
                     <thead>
                         <tr>
                             {/* Column 1 */}
@@ -211,9 +273,9 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
                         </tr>
                     </thead>
                     <tbody style={{ fontSize: '9pt' }}>
-                        {Array.from({ length: numRows }).map((_, rowIdx) => {
+                        {Array.from({ length: numRows2Col }).map((_, rowIdx) => {
                             const idx1 = rowIdx;
-                            const idx2 = rowIdx + numRows;
+                            const idx2 = rowIdx + numRows2Col;
                             const s1 = absentStudents[idx1];
                             const s2 = absentStudents[idx2];
 
@@ -226,7 +288,7 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
                                     <td className="border border-black px-1.5 py-px text-center truncate max-w-[60px] border-r-2">{s1?.remarks || '\u00A0'}</td>
 
                                     {/* Right Column */}
-                                    <td className={`border border-black px-1.5 py-px text-center ${!s2 && idx2 >= absentStudents.length ? 'text-transparent' : ''}`}>{idx2 + 1}.</td>
+                                    <td className={`border border-black px-1.5 py-px text-center ${!s2 && idx2 >= count ? 'text-transparent' : ''}`}>{idx2 + 1}.</td>
                                     <td className="border border-black px-1.5 py-px truncate max-w-[140px]">{s2?.name || '\u00A0'}</td>
                                     <td className="border border-black px-1.5 py-px text-center">{s2?.nim || '\u00A0'}</td>
                                     <td className="border border-black px-1.5 py-px text-center truncate max-w-[60px]">{s2?.remarks || '\u00A0'}</td>
@@ -236,7 +298,7 @@ const DaftarHadirDocument: React.FC<DaftarHadirDocumentProps> = ({
                     </tbody>
                 </table>
             ) : (
-                <table className="w-[90%] mx-auto border-collapse border border-black mb-2">
+                <table className="w-full mx-auto border-collapse border border-black mb-2">
                     <thead>
                         <tr>
                             <th className="border border-black px-2 py-0.5 text-center font-normal" style={{ width: '40px', fontSize: '9pt' }}>NO</th>
