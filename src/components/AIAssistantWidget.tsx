@@ -168,7 +168,7 @@ export const AIAssistantWidget: React.FC = () => {
           type="button"
           onClick={() => setIsOpen(true)}
           aria-label="Buka AI Assistant"
-          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-xl transition-all duration-200 hover:scale-105 hover:shadow-2xl active:scale-95 print:hidden group"
+          className="fixed bottom-20 md:bottom-5 right-4 md:right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-3.5 py-2.5 md:px-4 md:py-3 text-xs md:text-sm font-semibold text-primary-foreground shadow-xl transition-all duration-200 hover:scale-105 hover:shadow-2xl active:scale-95 print:hidden group"
         >
           <Sparkles className="size-4 text-amber-300 animate-pulse group-hover:rotate-12 transition-transform" />
           <span>AI Assistant</span>
@@ -179,10 +179,10 @@ export const AIAssistantWidget: React.FC = () => {
       {isOpen && (
         <div
           className={cn(
-            "fixed bottom-5 right-5 z-50 flex flex-col rounded-panel border border-rule bg-panel shadow-2xl transition-all duration-200 print:hidden overflow-hidden",
+            "fixed inset-x-3 bottom-20 md:inset-x-auto md:bottom-5 md:right-5 z-50 flex flex-col rounded-panel border border-rule bg-panel shadow-2xl transition-all duration-200 print:hidden overflow-hidden",
             isExpanded
-              ? "w-[calc(100vw-2.5rem)] sm:w-[680px] h-[85vh] max-h-[750px]"
-              : "w-[calc(100vw-2.5rem)] sm:w-[420px] h-[560px]"
+              ? "h-[75vh] md:w-[680px] md:h-[85vh] md:max-h-[750px]"
+              : "h-[65vh] max-h-[520px] md:w-[420px] md:h-[560px]"
           )}
         >
           {/* Header */}

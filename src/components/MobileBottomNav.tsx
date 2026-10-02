@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/navigation";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -20,6 +20,7 @@ import {
   LogOut,
   Sun,
   Moon,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
@@ -29,6 +30,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useCustomSidebar } from "@/hooks/useCustomSidebar";
+import { renderCustomIcon } from "@/components/CustomIconRenderer";
+import { CustomSidebarManagerModal } from "@/components/CustomSidebarManagerModal";
 
 interface MobileNavItem {
   path: string;
@@ -57,7 +61,9 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const { data: session } = authClient.useSession();
+  const { items: customItems } = useCustomSidebar();
 
   const handleSignOut = async () => {
     await authClient.signOut({
@@ -67,7 +73,7 @@ export function MobileBottomNav() {
     });
   };
 
-  const isMoreActive = MORE_NAV.some((item) => pathname === item.path);
+  const isMoreActive = MORE_NAV.some((item) => pathname === item.path) || customItems.some((item) => pathname === item.href);
 
   return (
     <>
@@ -82,25 +88,24 @@ export function MobileBottomNav() {
             const isActive = pathname === item.path;
 
             return (
-              <button
+              <Link
                 key={item.path}
-                type="button"
-                onClick={() => router.push(item.path)}
+                href={item.path}
                 className={cn(
-                  "relative flex flex-col items-center justify-center gap-1 h-full py-1 text-center transition-colors",
+                  "relative flex flex-col items-center justify-center gap-1 h-full py-1 text-center transition-colors select-none",
                   isActive
                     ? "text-primary font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground active:scale-95"
                 )}
               >
                 {isActive && (
                   <span className="absolute top-0 inset-x-3 h-0.5 bg-primary rounded-full" />
                 )}
-                <Icon className={cn("size-5 transition-transform active:scale-90", isActive && "stroke-[2.25]")} />
+                <Icon className={cn("size-5 transition-transform", isActive && "stroke-[2.25]")} />
                 <span className="text-[10px] leading-tight truncate w-full px-0.5">
                   {item.label}
                 </span>
-              </button>
+              </Link>
             );
           })}
 
@@ -159,15 +164,12 @@ export function MobileBottomNav() {
               const isActive = pathname === item.path;
 
               return (
-                <button
+                <Link
                   key={item.path}
-                  type="button"
-                  onClick={() => {
-                    setIsMoreOpen(false);
-                    router.push(item.path);
-                  }}
+                  href={item.path}
+                  onClick={() => setIsMoreOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-panel border text-left transition-colors",
+                    "flex items-center gap-3 p-3 rounded-panel border text-left transition-colors active:scale-95",
                     isActive
                       ? "bg-primary/10 border-primary text-primary font-medium"
                       : "bg-panel border-rule text-foreground hover:bg-panel-2"
@@ -175,9 +177,90 @@ export function MobileBottomNav() {
                 >
                   <Icon className="size-4 shrink-0 text-primary" />
                   <span className="text-xs font-medium truncate">{item.label}</span>
-                </button>
+                </Link>
               );
             })}
+          </div>
+
+          {/* Custom Menu Items on Mobile */}
+          <div className="mt-4 pt-3 border-t border-rule">
+            <div className="flex items-center justify-between px-1 mb-2">
+              <span className="text-xs font-semibold text-muted-foreground">Menu Kustom</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoreOpen(false);
+                  setIsCustomModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1 text-[11px] text-primary font-medium hover:underline p-1"
+              >
+                <Plus className="size-3" />
+                <span>Kelola</span>
+              </button>
+            </div>
+            {customItems.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2">
+                {customItems.map((item) => {
+                  const isActive = pathname === item.href;
+                  const isExternal = item.href.startsWith("http://") || item.href.startsWith("https://");
+
+                  if (isExternal) {
+                    return (
+                      <a
+                        key={item.id}
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setIsMoreOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-panel border text-left transition-colors active:scale-95",
+                          "bg-panel border-rule text-foreground hover:bg-panel-2"
+                        )}
+                      >
+                        <span className="shrink-0 text-primary">
+                          {renderCustomIcon(item.icon)}
+                        </span>
+                        <span className="text-xs font-medium truncate">{item.title}</span>
+                      </a>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      onClick={() => setIsMoreOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-panel border text-left transition-colors active:scale-95",
+                        isActive
+                          ? "bg-primary/10 border-primary text-primary font-medium"
+                          : "bg-panel border-rule text-foreground hover:bg-panel-2"
+                      )}
+                    >
+                      <span className="shrink-0 text-primary">
+                        {renderCustomIcon(item.icon)}
+                      </span>
+                      <span className="text-xs font-medium truncate">{item.title}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-3 text-center border border-dashed border-rule rounded-panel bg-panel/50">
+                <p className="text-xs text-muted-foreground mb-1.5">Belum ada menu kustom</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMoreOpen(false);
+                    setIsCustomModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Tambah Menu Kustom</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Logout Action */}
@@ -193,6 +276,11 @@ export function MobileBottomNav() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <CustomSidebarManagerModal
+        isOpen={isCustomModalOpen}
+        onClose={() => setIsCustomModalOpen(false)}
+      />
     </>
   );
 }

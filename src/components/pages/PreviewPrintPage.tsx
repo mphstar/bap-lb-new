@@ -1024,8 +1024,8 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                 <style>{`
                     @media print {
                         @page {
-                            size: landscape;
-                            margin: 15mm 12mm 15mm 12mm;
+                            size: ${paperSize === 'f4' ? '330mm 215mm' : 'A4 landscape'};
+                            margin: 10mm 10mm 10mm 10mm;
                         }
                         html, body {
                             background-color: white !important;

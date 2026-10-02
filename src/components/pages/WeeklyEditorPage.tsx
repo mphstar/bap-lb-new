@@ -58,6 +58,7 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
     const [addFromMasterTarget, setAddFromMasterTarget] = useState<string | null>(null);
     const [selectedDayFilter, setSelectedDayFilter] = useState<string>('all');
     const [isDayFilterSheetOpen, setIsDayFilterSheetOpen] = useState(false);
+    const [isWeekSelectSheetOpen, setIsWeekSelectSheetOpen] = useState(false);
 
     useEffect(() => {
         setSelectedWeek(defaultWeek);
@@ -323,32 +324,60 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                 }
             />
 
-            {/* Week Tabs */}
-            <div className="flex flex-wrap gap-2 mb-6">
-                {weeks.map(w => {
-                    const filled = getFilledCount(w);
-                    const total = w.entries.length;
-                    const isActive = w.weekNumber === selectedWeek;
-                    const isComplete = filled === total && total > 0;
+            {/* Week Tabs: Mobile trigger button / Bottom Sheet & Desktop tabs */}
+            <div className="mb-6">
+                {/* Mobile Week Selector Button */}
+                <div className="sm:hidden">
+                    <button
+                        type="button"
+                        onClick={() => setIsWeekSelectSheetOpen(true)}
+                        className="w-full flex items-center justify-between p-3 rounded-panel border border-primary/40 bg-panel shadow-sm active:scale-[0.99] transition-transform"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                                {selectedWeek}
+                            </div>
+                            <div className="text-left">
+                                <p className="text-sm font-bold text-foreground">Minggu {selectedWeek}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {weekData ? `${getFilledCount(weekData)}/${weekData.entries.length} sesi terisi` : 'Pilih minggu'}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-control">
+                            <span>Ganti</span>
+                            <ChevronDown className="size-3.5" />
+                        </div>
+                    </button>
+                </div>
 
-                    return (
-                        <button
-                            key={w.weekNumber}
-                            onClick={() => { setSelectedWeek(w.weekNumber); setShowCopyMenu(false); setExpandedEntry(null); }}
-                            className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-colors border-2
-                                ${isActive
-                                    ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                                    : isComplete
-                                        ? 'bg-green-50 text-green-700 border-green-300 hover:border-green-400 dark:bg-green-950 dark:text-green-300 dark:border-green-700'
-                                        : filled > 0
-                                            ? 'bg-amber-50 text-amber-700 border-amber-300 hover:border-amber-400 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700'
-                                            : 'bg-card text-muted-foreground border-border hover:border-primary/30'
-                                }`}
-                        >
-                            Minggu {w.weekNumber}
-                        </button>
-                    );
-                })}
+                {/* Desktop Week Tabs */}
+                <div className="hidden sm:flex sm:flex-wrap gap-2">
+                    {weeks.map(w => {
+                        const filled = getFilledCount(w);
+                        const total = w.entries.length;
+                        const isActive = w.weekNumber === selectedWeek;
+                        const isComplete = filled === total && total > 0;
+
+                        return (
+                            <button
+                                key={w.weekNumber}
+                                onClick={() => { setSelectedWeek(w.weekNumber); setShowCopyMenu(false); setExpandedEntry(null); }}
+                                className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-colors border-2
+                                    ${isActive
+                                        ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                                        : isComplete
+                                            ? 'bg-green-50 text-green-700 border-green-300 hover:border-green-400 dark:bg-green-950 dark:text-green-300 dark:border-green-700'
+                                            : filled > 0
+                                                ? 'bg-amber-50 text-amber-700 border-amber-300 hover:border-amber-400 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700'
+                                                : 'bg-card text-muted-foreground border-border hover:border-primary/30'
+                                    }`}
+                            >
+                                Minggu {w.weekNumber}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
 
             {/* Auto-fill Tanggal & Day Filter */}
@@ -475,6 +504,58 @@ const WeeklyEditorPage: React.FC<WeeklyEditorPageProps> = ({ template, weeks, on
                                         </Badge>
                                     </span>
                                     {isSelected && <Check className="size-4 text-primary" />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </SheetContent>
+            </Sheet>
+
+            {/* Mobile Week Select Sheet */}
+            <Sheet open={isWeekSelectSheetOpen} onOpenChange={setIsWeekSelectSheetOpen}>
+                <SheetContent side="bottom" className="rounded-t-2xl px-4 pb-8 pt-4 max-h-[85vh] overflow-y-auto">
+                    <SheetHeader className="pb-3 border-b border-rule">
+                        <SheetTitle className="text-base font-semibold flex items-center justify-between">
+                            <span>Pilih Minggu Perkuliahan</span>
+                        </SheetTitle>
+                    </SheetHeader>
+
+                    <div className="grid grid-cols-2 gap-2 mt-4">
+                        {weeks.map(w => {
+                            const filled = getFilledCount(w);
+                            const total = w.entries.length;
+                            const isSelected = w.weekNumber === selectedWeek;
+                            const isComplete = filled === total && total > 0;
+
+                            return (
+                                <button
+                                    key={w.weekNumber}
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedWeek(w.weekNumber);
+                                        setIsWeekSelectSheetOpen(false);
+                                        setShowCopyMenu(false);
+                                        setExpandedEntry(null);
+                                    }}
+                                    className={`flex items-center justify-between p-3 rounded-panel border text-left transition-colors active:scale-95 ${
+                                        isSelected
+                                            ? 'bg-primary/10 border-primary text-primary font-semibold'
+                                            : 'bg-panel border-rule text-foreground hover:bg-panel-2'
+                                    }`}
+                                >
+                                    <div>
+                                        <p className="text-xs font-bold">Minggu {w.weekNumber}</p>
+                                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                                            {isComplete ? (
+                                                <span className="text-green-600 font-medium">Lengkap ({filled}/{total})</span>
+                                            ) : filled > 0 ? (
+                                                <span className="text-amber-600 font-medium">Sebagian ({filled}/{total})</span>
+                                            ) : (
+                                                <span>Kosong (0/{total})</span>
+                                            )}
+                                        </p>
+                                    </div>
+                                    {isSelected && <Check className="size-4 text-primary shrink-0" />}
                                 </button>
                             );
                         })}

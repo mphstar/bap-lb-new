@@ -64,11 +64,14 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [session, sessionPending, router]);
 
-  // Loading spinner while checking authentication
-  if (sessionPending) {
+  // Loading spinner while checking authentication or initial data loading
+  if (sessionPending || dataLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-3">
+        <div className="relative flex items-center justify-center">
+          <div className="size-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+        </div>
+        <p className="text-xs text-muted-foreground font-medium animate-pulse">Memuat data BAP...</p>
       </div>
     );
   }

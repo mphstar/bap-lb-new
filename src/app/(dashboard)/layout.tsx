@@ -10,7 +10,7 @@
  * to sit in.
  */
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { SidebarProvider, SidebarInset, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppDataProvider, useAppDataContext } from "@/context/AppDataContext";
@@ -79,6 +79,7 @@ function MobileFloatingScrollTop() {
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     const router = useRouter();
+    const pathname = usePathname();
     const { showAlert, showConfirm } = useDialog();
 
     const { appData, saving, error, clearAll, assessmentSaving } =
@@ -131,7 +132,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                             </Alert>
                         </div>
                     )}
-                    {children}
+                    <div key={pathname} className="hm-page-transition w-full">
+                        {children}
+                    </div>
                 </main>
             </SidebarInset>
 

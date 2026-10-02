@@ -45,14 +45,13 @@ const RecapTable: React.FC<RecapTableProps> = ({ groups }) => {
                         <th className="border border-black p-1 w-48">Teknisi</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {groups.flatMap((group, groupIndex) => {
-                        const absentStudents = getAbsentStudents(group.allStudents);
-                        const rows: React.ReactNode[] = [];
+                {groups.map((group, groupIndex) => {
+                    const absentStudents = getAbsentStudents(group.allStudents);
 
-                        // Add session rows
-                        group.items.forEach((item, itemIndex) => {
-                            rows.push(
+                    return (
+                        <tbody key={`group-${groupIndex}-${group.key}`}>
+                            {/* Add session rows */}
+                            {group.items.map((item, itemIndex) => (
                                 <tr key={`group-${groupIndex}-${group.key}-${itemIndex}`}>
                                     <td className="border border-black p-1 min-w-[30px] text-center whitespace-nowrap">{item.no}</td>
                                     <td className="border border-black p-1 min-w-[100px] max-w-[180px] whitespace-normal break-words align-center" title={item.mataKuliah}>{item.mataKuliah}</td>
@@ -67,21 +66,15 @@ const RecapTable: React.FC<RecapTableProps> = ({ groups }) => {
                                     <td className="border border-black p-1 min-w-[80px] max-w-[120px] whitespace-normal break-words align-center" title={item.pengajar}>{item.pengajar}</td>
                                     <td className="border border-black p-1 min-w-[80px] max-w-[120px] whitespace-normal break-words align-center" title={item.teknisi}>{item.teknisi}</td>
                                 </tr>
-                            );
-                        });
+                            ))}
 
-                        // Always show Absent List row
-                        rows.push(
-                            <tr key={`group-${groupIndex}-${group.key}-absent-header`}>
+                            {/* Absent List row */}
+                            <tr key={`group-${groupIndex}-${group.key}-absent-header`} className="print:break-inside-avoid print:break-after-avoid">
                                 <td colSpan={12} className="border border-black border-b-0 p-1 font-bold text-left bg-gray-50 text-[12px] print:text-[11px] uppercase tracking-wider">
                                     DAFTAR TIDAK HADIR (Nama, NIM, Keterangan)
                                 </td>
                             </tr>
-                        );
-
-                        // Combined absent row
-                        rows.push(
-                            <tr key={`group-${groupIndex}-${group.key}-absent-body`}>
+                            <tr key={`group-${groupIndex}-${group.key}-absent-body`} className="print:break-inside-avoid">
                                 <td colSpan={12} className="border border-black border-t-0 p-1 text-left bg-green-100">
                                     <div className="grid grid-cols-3 gap-x-4 gap-y-1">
                                         {absentStudents.length > 0 ? (
@@ -96,11 +89,9 @@ const RecapTable: React.FC<RecapTableProps> = ({ groups }) => {
                                     </div>
                                 </td>
                             </tr>
-                        );
-
-                        return rows;
-                    })}
-                </tbody>
+                        </tbody>
+                    );
+                })}
             </table>
         </div>
     );
