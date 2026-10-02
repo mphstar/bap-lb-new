@@ -87,6 +87,7 @@ export const useAppData = (
                     if (!loadedData.academicSemester) loadedData.academicSemester = 'Genap';
                     if (!loadedData.dosenList) loadedData.dosenList = [];
                     if (!loadedData.studentMaster) loadedData.studentMaster = [];
+                    if (loadedData.teknisiSignature === undefined) loadedData.teknisiSignature = null;
 
                     setData(loadedData);
                 } else {
@@ -209,6 +210,10 @@ export const useAppData = (
         withCurrentData(current => ({ ...current, academicYear, academicSemester }));
     }, [withCurrentData]);
 
+    const updateTeknisiSignature = useCallback((teknisiSignature: string | null) => {
+        withCurrentData(current => ({ ...current, teknisiSignature }));
+    }, [withCurrentData]);
+
     const clearAll = useCallback(async () => {
         if (timerRef.current) {
             clearTimeout(timerRef.current);
@@ -245,6 +250,7 @@ export const useAppData = (
         updateAcademicSettings,
         updateStudentMaster,
         updateDosenList,
+        updateTeknisiSignature,
         clearAll,
         reload,
     };

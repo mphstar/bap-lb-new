@@ -72,6 +72,8 @@ interface PreviewPrintPageProps {
     dosenList?: MasterDosen[];
     academicYear?: string;
     academicSemester?: string;
+    teknisiSignature?: string | null;
+    onTeknisiSignatureChange?: (sig: string | null) => void;
 }
 
 /** Chip used by the week grid and the prodi filter — one control voice for both. */
@@ -100,7 +102,9 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
     activeWeek: defaultWeek,
     dosenList = [],
     academicYear = "2025/2026",
-    academicSemester = "Genap"
+    academicSemester = "Genap",
+    teknisiSignature: initialTeknisiSig = null,
+    onTeknisiSignatureChange
 }) => {
     const [selectedWeek, setSelectedWeek] = useState(defaultWeek);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -129,14 +133,24 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
         } catch {}
     };
 
-    // Signature state — persisted in localStorage
+    // Signature state — synced with DB & fallback to localStorage
     const [teknisiSignature, setTeknisiSignature] = useState<string | null>(() => {
+        if (initialTeknisiSig) return initialTeknisiSig;
         if (typeof window !== 'undefined') return localStorage.getItem('bap_signature_teknisi');
         return null;
     });
 
+    useEffect(() => {
+        if (initialTeknisiSig !== undefined) {
+            setTeknisiSignature(initialTeknisiSig);
+        }
+    }, [initialTeknisiSig]);
+
     const handleTeknisiSigChange = (sig: string | null) => {
         setTeknisiSignature(sig);
+        if (onTeknisiSignatureChange) {
+            onTeknisiSignatureChange(sig);
+        }
         try {
             if (sig) localStorage.setItem('bap_signature_teknisi', sig);
             else localStorage.removeItem('bap_signature_teknisi');

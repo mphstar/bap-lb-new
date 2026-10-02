@@ -140,6 +140,7 @@ export async function GET() {
       activeWeek,
       academicYear,
       academicSemester,
+      teknisiSignature: userPref.teknisiSignature || null,
       dosenList: dosenListRecords,
       studentMaster: studentMasterRecords,
     });
@@ -164,12 +165,21 @@ export async function POST(req: Request) {
       activeWeek = 1,
       academicYear = "2025/2026",
       academicSemester = "Genap",
+      teknisiSignature,
       dosenList: dosenData = [],
       studentMaster: studentsMasterData = []
     } = body;
 
     await db.transaction(async (tx) => {
-      // 1. Sync User Preferences (active week, academicYear, academicSemester)
+      // 1. Sync User Preferences (active week, academicYear, academicSemester, teknisiSignature)
+      const existingPref = await tx.query.userData.findFirst({
+        where: eq(userData.userId, user.id),
+      });
+
+      const finalTeknisiSig = teknisiSignature !== undefined
+        ? (teknisiSignature || null)
+        : (existingPref?.teknisiSignature || null);
+
       await tx
         .insert(userData)
         .values({
@@ -177,6 +187,7 @@ export async function POST(req: Request) {
           activeWeek,
           academicYear: academicYear || "2025/2026",
           academicSemester: academicSemester || "Genap",
+          teknisiSignature: finalTeknisiSig,
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
@@ -185,6 +196,7 @@ export async function POST(req: Request) {
             activeWeek,
             academicYear: academicYear || "2025/2026",
             academicSemester: academicSemester || "Genap",
+            teknisiSignature: finalTeknisiSig,
             updatedAt: new Date()
           },
         });

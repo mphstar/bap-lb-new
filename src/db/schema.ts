@@ -61,6 +61,7 @@ export const userData = pgTable("user_data", {
   activeWeek: integer("active_week").notNull().default(1),
   academicYear: text("academic_year").notNull().default("2025/2026"),
   academicSemester: text("academic_semester").notNull().default("Genap"),
+  teknisiSignature: text("teknisi_signature"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 

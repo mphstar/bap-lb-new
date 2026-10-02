@@ -61,6 +61,7 @@ export interface AppData {
     studentMaster: MasterStudent[]; // auto-built master list of students
     academicYear?: string; // e.g. "2025/2026"
     academicSemester?: string; // e.g. "Genap" or "Ganjil"
+    teknisiSignature?: string | null; // Account-specific technician signature
 }
 
 // Legacy type for BapDocument/RecapTable rendering

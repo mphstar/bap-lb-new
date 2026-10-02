@@ -4,7 +4,7 @@ import PreviewPrintPage from "@/components/pages/PreviewPrintPage";
 import { useAppDataContext } from "@/context/AppDataContext";
 
 export default function Page() {
-  const { appData } = useAppDataContext();
+  const { appData, updateTeknisiSignature } = useAppDataContext();
   return (
     <PreviewPrintPage
       template={appData.scheduleTemplate}
@@ -13,6 +13,8 @@ export default function Page() {
       dosenList={appData.dosenList}
       academicYear={appData.academicYear}
       academicSemester={appData.academicSemester}
+      teknisiSignature={appData.teknisiSignature ?? null}
+      onTeknisiSignatureChange={updateTeknisiSignature}
     />
   );
 }
