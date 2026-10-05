@@ -14,6 +14,14 @@ import {
     SheetTitle,
     SheetDescription,
 } from '@/components/ui/sheet';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from '@/components/ui/dialog';
 
 interface WeeklyEditorPageProps {
     template: ScheduleEntry[];
@@ -1260,21 +1268,18 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
-            <div className="bg-background rounded-t-2xl sm:rounded-xl border border-rule shadow-2xl w-full sm:max-w-4xl h-[92vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden">
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="sm:max-w-4xl max-h-[92vh] sm:max-h-[90vh] p-0 flex flex-col overflow-hidden">
                 {/* Header */}
-                <div className="px-4 py-3.5 border-b border-rule flex justify-between items-center bg-panel-2/60">
-                    <div className="min-w-0 flex-1 pr-2">
-                        <h3 className="text-sm sm:text-base font-semibold text-foreground truncate">Input Ketidakhadiran Massal</h3>
-                        <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 truncate">
-                            {selectedIds.length} jadwal & {selectedNims.size} mahasiswa dipilih
-                        </p>
-                    </div>
-                    <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Tutup"><X className="size-4" /></Button>
-                </div>
+                <DialogHeader className="px-5 py-4">
+                    <DialogTitle className="text-base font-semibold text-foreground">Input Ketidakhadiran Massal</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                        {selectedIds.length} jadwal & {selectedNims.size} mahasiswa dipilih
+                    </DialogDescription>
+                </DialogHeader>
 
                 {/* Mobile View Switcher Tabs (2-Step Flow) */}
-                <div className="flex md:hidden border-b border-rule bg-panel-2/80 p-1">
+                <div className="flex md:hidden border-b border-rule bg-panel-2/80 p-1 shrink-0">
                     <button
                         type="button"
                         onClick={() => setMobileTab("schedules")}
@@ -1306,9 +1311,9 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                 </div>
 
                 {/* Content Container */}
-                <div className="flex-1 overflow-y-auto flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-rule">
+                <div className="flex-1 min-h-0 overflow-y-auto flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-rule">
                     {/* Left: Schedule Selection */}
-                    <div className={`w-full md:w-5/12 flex flex-col bg-panel/30 ${mobileTab === "schedules" ? "flex" : "hidden md:flex"}`}>
+                    <div className={`w-full md:w-5/12 flex flex-col bg-panel/30 min-h-0 ${mobileTab === "schedules" ? "flex" : "hidden md:flex"}`}>
                         {/* Day Tabs */}
                         <div className="flex overflow-x-auto p-2 border-b border-rule bg-panel-2/30 gap-1.5 no-scrollbar shrink-0">
                             {availableDays.map(day => (
@@ -1327,7 +1332,7 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                             ))}
                         </div>
 
-                        <div className="p-3 flex-1 overflow-y-auto">
+                        <div className="p-3 flex-1 overflow-y-auto min-h-0">
                             <div className="flex justify-between items-center mb-2 px-0.5">
                                 <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Jadwal {selectedDay}</h4>
                                 <button type="button" onClick={toggleSelectAll} className="text-xs text-primary hover:underline font-medium">
@@ -1368,7 +1373,7 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                         </div>
 
                         {/* Mobile Next Step Button */}
-                        <div className="p-3 border-t border-rule md:hidden bg-panel-2/40">
+                        <div className="p-3 border-t border-rule md:hidden bg-panel-2/40 shrink-0">
                             <Button
                                 type="button"
                                 onClick={() => setMobileTab("students")}
@@ -1381,8 +1386,8 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                     </div>
 
                     {/* Right: Student Input */}
-                    <div className={`w-full md:w-7/12 p-3 sm:p-4 flex flex-col gap-3 overflow-y-auto ${mobileTab === "students" ? "flex" : "hidden md:flex"}`}>
-                        <div className="flex flex-wrap justify-between items-center gap-2">
+                    <div className={`w-full md:w-7/12 p-3 sm:p-4 flex flex-col gap-3 min-h-0 overflow-y-auto ${mobileTab === "students" ? "flex" : "hidden md:flex"}`}>
+                        <div className="flex flex-wrap justify-between items-center gap-2 shrink-0">
                             <div>
                                 <h4 className="font-semibold text-xs sm:text-sm text-foreground">Daftar Mahasiswa</h4>
                                 <p className="text-[11px] text-muted-foreground">Centang mahasiswa & set alasan tidak hadir.</p>
@@ -1407,7 +1412,7 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                             </div>
                         </div>
 
-                        <div>
+                        <div className="shrink-0">
                             <div className="relative">
                                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                                 <input
@@ -1421,8 +1426,8 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                         </div>
 
                         {filteredMaster.length > 0 ? (
-                            <div className="flex-1 overflow-y-auto space-y-1 max-h-[48vh] sm:max-h-[42vh] border border-rule rounded-panel p-2 bg-panel-2/30">
-                                <div className="flex justify-between items-center text-[11px] text-muted-foreground pb-2 border-b border-rule mb-1.5 px-1">
+                            <div className="flex-1 overflow-y-auto space-y-1 min-h-0 max-h-[48vh] sm:max-h-[42vh] border border-rule rounded-panel p-2 bg-panel-2/30">
+                                <div className="flex justify-between items-center text-[11px] text-muted-foreground pb-2 border-b border-rule mb-1.5 px-1 sticky top-0 bg-panel-2/95 backdrop-blur-xs z-10">
                                     <span>{filteredMaster.length} mahasiswa</span>
                                     <button type="button" onClick={toggleAllStudentsSelect} className="text-primary hover:underline font-medium">
                                         {selectedNims.size === filteredMaster.length ? 'Batal Semua' : 'Pilih Semua'}
@@ -1472,14 +1477,14 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                                     : "Tidak ada mahasiswa ditemukan."}
                             </div>
                         )}
-                        <div className="text-[11px] text-muted-foreground">
+                        <div className="text-[11px] text-muted-foreground shrink-0">
                             * Mahasiswa terpilih (<strong>{selectedNims.size}</strong>) akan dimasukkan ke <strong>{selectedIds.length}</strong> jadwal.
                         </div>
                     </div>
                 </div>
 
                 {/* Footer Modal Actions */}
-                <div className="p-3 sm:p-4 border-t border-rule flex items-center justify-between gap-2 bg-panel-2/60 shrink-0">
+                <DialogFooter className="px-5 py-3.5 bg-panel-2/60 shrink-0 border-t border-rule justify-between sm:justify-between">
                     <Button type="button" variant="outline" size="sm" onClick={onClose} className="h-8.5 text-xs">Batal</Button>
                     <Button
                         type="button"
@@ -1490,9 +1495,9 @@ const BatchAddStudentModal = ({ isOpen, onClose, onSave, template, studentMaster
                     >
                         Simpan ({selectedNims.size} Mhs ke {selectedIds.length} Jadwal)
                     </Button>
-                </div>
-            </div>
-        </div>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 };
 
@@ -1556,32 +1561,34 @@ const AddStudentFromMasterModal = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-background rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
-                <div className="p-4 border-b flex justify-between items-center">
-                    <h3 className="text-base font-bold">Pilih Mahasiswa dari Master Data</h3>
-                    <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Tutup"><X /></Button>
-                </div>
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="sm:max-w-lg max-h-[85vh] p-0 flex flex-col overflow-hidden">
+                <DialogHeader className="px-5 py-4">
+                    <DialogTitle className="text-base font-semibold text-foreground">Pilih Mahasiswa dari Master Data</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                        Centang mahasiswa untuk ditambahkan ke jadwal.
+                    </DialogDescription>
+                </DialogHeader>
 
-                <div className="p-3 border-b">
+                <div className="p-3.5 border-b border-rule shrink-0">
                     <div className="relative">
-                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <input
                             type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Cari NIM atau Nama..."
-                            className="w-full border rounded pl-8 pr-3 py-1.5 text-sm bg-background"
+                            className="w-full border border-rule rounded-control pl-9 pr-3 py-1.5 text-xs bg-background text-foreground"
                         />
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0">
                     {filtered.length > 0 ? (
                         <>
-                            <div className="flex justify-between items-center text-xs text-muted-foreground pb-2 border-b">
+                            <div className="flex justify-between items-center text-xs text-muted-foreground pb-2 border-b border-rule">
                                 <span>{filtered.length} mahasiswa tersedia</span>
-                                <button onClick={handleSelectAll} className="text-link hover:underline font-medium">
+                                <button onClick={handleSelectAll} className="text-primary hover:underline font-medium">
                                     {selectedNims.size === filtered.length ? "Batal Semua" : "Pilih Semua"}
                                 </button>
                             </div>
@@ -1589,23 +1596,24 @@ const AddStudentFromMasterModal = ({
                                 {filtered.map((s) => (
                                     <label
                                         key={s.nim}
-                                        className="flex items-center gap-3 px-2 py-2 text-sm rounded hover:bg-muted cursor-pointer transition-colors"
+                                        className="flex items-center gap-3 px-2.5 py-2 text-xs rounded-control hover:bg-panel-2 bg-panel border border-rule/50 cursor-pointer transition-colors"
                                     >
                                         <input
                                             type="checkbox"
                                             checked={selectedNims.has(s.nim)}
                                             onChange={() => handleToggleSelect(s.nim)}
+                                            className="rounded text-primary"
                                         />
-                                        <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">
+                                        <span className="font-mono text-[11px] text-muted-foreground w-20 shrink-0">
                                             {s.nim}
                                         </span>
-                                        <span className="flex-1 truncate">{s.name}</span>
+                                        <span className="flex-1 truncate font-medium text-foreground">{s.name}</span>
                                     </label>
                                 ))}
                             </div>
                         </>
                     ) : (
-                        <div className="text-center py-8 text-muted-foreground text-sm">
+                        <div className="text-center py-8 text-muted-foreground text-xs">
                             {availableStudents.length === 0
                                 ? "Semua mahasiswa dari master data sudah dimasukkan ke jadwal ini."
                                 : "Tidak ada mahasiswa ditemukan."}
@@ -1613,20 +1621,22 @@ const AddStudentFromMasterModal = ({
                     )}
                 </div>
 
-                <div className="p-4 border-t flex justify-end gap-2 bg-muted/10">
-                    <button onClick={onClose} className="px-4 py-2 text-sm border rounded hover:bg-muted">
+                <DialogFooter className="px-5 py-3.5 bg-panel-2/60 shrink-0 border-t border-rule justify-between sm:justify-between">
+                    <Button type="button" variant="outline" size="sm" onClick={onClose} className="h-8.5 text-xs">
                         Batal
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
                         onClick={handleSave}
                         disabled={selectedNims.size === 0}
-                        className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
+                        className="h-8.5 text-xs font-semibold"
                     >
                         Tambahkan ({selectedNims.size})
-                    </button>
-                </div>
-            </div>
-        </div>
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 };
 
