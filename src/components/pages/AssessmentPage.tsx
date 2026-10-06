@@ -919,6 +919,7 @@ interface GradingTabProps {
 }
 
 const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
+    const { showConfirm } = useDialog();
     const [activeSubjectId, setActiveSubjectId] = useState(form.subjects[0]?.id ?? '');
     const [scale, setScale] = useState(0.8);
     const [nameColumnWidth, setNameColumnWidth] = useState(250);
@@ -1110,10 +1111,18 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
                                                     />
                                                     <button
                                                         type="button"
-                                                        onClick={() => {
+                                                        onClick={async () => {
                                                             if (isChecked) {
                                                                 setGrade(activeSubject.id, student.nim, col.id, '');
                                                             } else {
+                                                                // Jika sudah ada nilai lain selain kosong atau tanda centang
+                                                                if (currentGrade.trim() !== '' && currentGrade.trim() !== '-') {
+                                                                    const isConfirmed = await showConfirm(
+                                                                        'Ganti Nilai?',
+                                                                        `Kolom ini sudah terisi nilai "${currentGrade}". Apakah Anda yakin ingin menggantinya menjadi centang (✓)?`
+                                                                    );
+                                                                    if (!isConfirmed) return;
+                                                                }
                                                                 setGrade(activeSubject.id, student.nim, col.id, '✓');
                                                             }
                                                         }}
