@@ -925,6 +925,8 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
     const [padding, setPadding] = useState(20);
     const [searchQuery, setSearchQuery] = useState('');
     const [printMode, setPrintMode] = useState<'filled' | 'blank'>('filled');
+    const [quickValue, setQuickValue] = useState('100');
+    const [quickCheckEnabled, setQuickCheckEnabled] = useState(false);
 
     const hasNim = studentsHaveNim(form.students);
 
@@ -1011,6 +1013,31 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
 
                 {/* Scale + Print controls */}
                 <div className="flex flex-wrap items-center gap-4 bg-panel p-3 rounded-panel border border-rule">
+                    {/* Quick Checkbox Toggle / Value */}
+                    <div className="flex items-center gap-2.5 border-r pr-4">
+                        <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={quickCheckEnabled}
+                                onChange={(e) => setQuickCheckEnabled(e.target.checked)}
+                                className="size-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer"
+                            />
+                            <span>Mode Centang</span>
+                        </label>
+                        {quickCheckEnabled && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <span>Nilai:</span>
+                                <input
+                                    type="text"
+                                    value={quickValue}
+                                    onChange={(e) => setQuickValue(e.target.value)}
+                                    className="w-12 px-1.5 py-0.5 border border-input rounded text-xs text-center font-medium bg-background"
+                                    title="Nilai yang otomatis terisi saat checkbox dicentang"
+                                />
+                            </div>
+                        )}
+                    </div>
+
                     {/* Scale Control */}
                     <div className="flex items-center gap-3 border-r pr-4">
                         <div className="flex flex-col">
@@ -1095,17 +1122,37 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
                                         <td className="px-3 py-2 text-center text-muted-foreground">{student.no}</td>
                                         {hasNim && <td className="px-3 py-2 font-mono text-xs">{student.nim}</td>}
                                         <td className="px-3 py-2 font-medium">{student.nama}</td>
-                                        {activeSubject.columns.map(col => (
+                                        {activeSubject.columns.map(col => {
+                                            const currentGrade = getGrade(activeSubject.id, student.nim, col.id);
+                                            const isChecked = currentGrade.trim() !== '' && currentGrade.trim() !== '-';
+                                            return (
                                             <td key={col.id} className="px-2 py-1 bg-primary/[0.02]">
-                                                <input
-                                                    type="text"
-                                                    value={getGrade(activeSubject.id, student.nim, col.id)}
-                                                    onChange={e => setGrade(activeSubject.id, student.nim, col.id, e.target.value)}
-                                                    className="w-full border border-input rounded-md px-2 py-1 text-sm text-center bg-background"
-                                                    placeholder="—"
-                                                />
+                                                {quickCheckEnabled ? (
+                                                    <div className="flex items-center justify-center py-1">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isChecked}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setGrade(activeSubject.id, student.nim, col.id, quickValue.trim() || '100');
+                                                                } else {
+                                                                    setGrade(activeSubject.id, student.nim, col.id, '');
+                                                                }
+                                                            }}
+                                                            className="size-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <input
+                                                        type="text"
+                                                        value={currentGrade}
+                                                        onChange={e => setGrade(activeSubject.id, student.nim, col.id, e.target.value)}
+                                                        className="w-full border border-input rounded-md px-2 py-1 text-sm text-center bg-background"
+                                                        placeholder="—"
+                                                    />
+                                                )}
                                             </td>
-                                        ))}
+                                        );})}
                                     </tr>
                                 ))}
                             </tbody>
