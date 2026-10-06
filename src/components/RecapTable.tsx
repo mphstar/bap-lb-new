@@ -49,10 +49,10 @@ const RecapTable: React.FC<RecapTableProps> = ({ groups }) => {
                     const absentStudents = getAbsentStudents(group.allStudents);
 
                     return (
-                        <tbody key={`group-${groupIndex}-${group.key}`}>
+                        <tbody key={`group-${groupIndex}-${group.key}`} className="print:break-inside-avoid">
                             {/* Add session rows */}
                             {group.items.map((item, itemIndex) => (
-                                <tr key={`group-${groupIndex}-${group.key}-${itemIndex}`}>
+                                <tr key={`group-${groupIndex}-${group.key}-${itemIndex}`} className="print:break-inside-avoid">
                                     <td className="border border-black p-1 min-w-[30px] text-center whitespace-nowrap">{item.no}</td>
                                     <td className="border border-black p-1 min-w-[100px] max-w-[180px] whitespace-normal break-words align-center" title={item.mataKuliah}>{item.mataKuliah}</td>
                                     <td className="border border-black p-1 min-w-[80px] max-w-[120px] whitespace-normal break-words align-center">{item.materi}</td>

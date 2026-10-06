@@ -259,6 +259,10 @@ const SetupTab: React.FC<SetupTabProps> = ({ form, updateForm, studentMaster }) 
     const [pickerSearchQuery, setPickerSearchQuery] = useState('');
     const [selectedNims, setSelectedNims] = useState<Set<string>>(new Set());
 
+    // States for Form Students Management (Filter / Search / Selection)
+    const [formStudentSearch, setFormStudentSearch] = useState('');
+    const [selectedFormStudentKeys, setSelectedFormStudentKeys] = useState<Set<string>>(new Set());
+
     // Derive filter options dynamically from studentMaster
     const prodiOptions = useMemo(() => Array.from(new Set(studentMaster.map(s => s.prodi).filter(Boolean))).sort(), [studentMaster]);
     const semesterOptions = useMemo(() => Array.from(new Set(studentMaster.map(s => s.semester).filter(Boolean))).sort(), [studentMaster]);
@@ -310,12 +314,52 @@ const SetupTab: React.FC<SetupTabProps> = ({ form, updateForm, studentMaster }) 
             id: uid(),
             mataKuliah: name,
             columns: [
-                { id: uid(), name: 'Kolom 1' },
-                { id: uid(), name: 'Kolom 2' },
+                { id: uid(), name: 'Nilai' },
             ],
         };
         updateForm(form.id, f => ({ ...f, subjects: [...f.subjects, subject] }));
         setNewSubjectName('');
+    };
+
+    const removeSingleStudent = async (indexOrNim: number | string) => {
+        const isConfirmed = await showConfirm(
+            'Hapus Mahasiswa',
+            'Apakah Anda yakin ingin menghapus mahasiswa ini dari form penilaian?'
+        );
+        if (!isConfirmed) return;
+
+        updateForm(form.id, f => {
+            const updated = f.students
+                .filter((s, idx) => (typeof indexOrNim === 'number' ? idx !== indexOrNim : s.nim !== indexOrNim))
+                .map((s, idx) => ({ ...s, no: idx + 1 }));
+            return { ...f, students: updated };
+        });
+    };
+
+    const removeSelectedStudents = async (nimsToRemove: Set<string>) => {
+        if (nimsToRemove.size === 0) return;
+        const isConfirmed = await showConfirm(
+            'Hapus Mahasiswa Terpilih',
+            `Apakah Anda yakin ingin menghapus ${nimsToRemove.size} mahasiswa terpilih dari form penilaian?`
+        );
+        if (!isConfirmed) return;
+
+        updateForm(form.id, f => {
+            const updated = f.students
+                .filter(s => !nimsToRemove.has(s.nim || `idx-${s.no}`))
+                .map((s, idx) => ({ ...s, no: idx + 1 }));
+            return { ...f, students: updated };
+        });
+    };
+
+    const clearAllStudents = async () => {
+        const isConfirmed = await showConfirm(
+            'Hapus Semua Mahasiswa',
+            'Apakah Anda yakin ingin menghapus SEMUA mahasiswa dari form ini?'
+        );
+        if (!isConfirmed) return;
+
+        updateForm(form.id, f => ({ ...f, students: [] }));
     };
 
     const removeSubject = async (subjectId: string) => {
@@ -342,7 +386,7 @@ const SetupTab: React.FC<SetupTabProps> = ({ form, updateForm, studentMaster }) 
         updateForm(form.id, f => ({
             ...f,
             subjects: f.subjects.map(s => {
-                if (s.id !== subjectId || s.columns.length <= 2) return s;
+                if (s.id !== subjectId || s.columns.length <= 1) return s;
                 return { ...s, columns: s.columns.filter(c => c.id !== columnId) };
             })
         }));
@@ -507,16 +551,38 @@ const SetupTab: React.FC<SetupTabProps> = ({ form, updateForm, studentMaster }) 
                                 <span>Terpilih: <strong>{selectedNims.size}</strong> mahasiswa</span>
                             </div>
                             <button
-                                onClick={() => {
+                                onClick={async () => {
+                                    const isAppend = form.students.length > 0 && await showConfirm(
+                                        "Tambah atau Ganti?",
+                                        "Apakah Anda ingin MENAMBAHKAN mahasiswa ini ke daftar yang sudah ada? (Pilih 'Batal' jika ingin Mengganti semua)"
+                                    );
+                                    
                                     const selectedList = studentMaster.filter(s => selectedNims.has(s.nim));
-                                    const students: AssessmentStudent[] = selectedList.map((s, idx) => ({
-                                        no: idx + 1,
-                                        nim: s.nim,
-                                        nama: s.name,
-                                    }));
-                                    updateForm(form.id, f => ({ ...f, students }));
-                                    setSelectedNims(new Set());
-                                    showAlert("Import Berhasil", `Berhasil meng-import ${students.length} mahasiswa ke form.`);
+                                    if (isAppend) {
+                                        // Filter out duplicates by NIM if present
+                                        const existingNims = new Set(form.students.map(s => s.nim).filter(Boolean));
+                                        const toAdd = selectedList.filter(s => !s.nim || !existingNims.has(s.nim));
+                                        const newStudents: AssessmentStudent[] = [
+                                            ...form.students,
+                                            ...toAdd.map((s, idx) => ({
+                                                no: form.students.length + idx + 1,
+                                                nim: s.nim,
+                                                nama: s.name,
+                                            }))
+                                        ];
+                                        updateForm(form.id, f => ({ ...f, students: newStudents }));
+                                        setSelectedNims(new Set());
+                                        showAlert("Berhasil Ditambahkan", `Berhasil menambahkan ${toAdd.length} mahasiswa baru.`);
+                                    } else {
+                                        const students: AssessmentStudent[] = selectedList.map((s, idx) => ({
+                                            no: idx + 1,
+                                            nim: s.nim,
+                                            nama: s.name,
+                                        }));
+                                        updateForm(form.id, f => ({ ...f, students }));
+                                        setSelectedNims(new Set());
+                                        showAlert("Import Berhasil", `Berhasil meng-import ${students.length} mahasiswa ke form.`);
+                                    }
                                 }}
                                 disabled={selectedNims.size === 0}
                                 className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
@@ -532,13 +598,13 @@ const SetupTab: React.FC<SetupTabProps> = ({ form, updateForm, studentMaster }) 
             <div className="bg-panel rounded-panel border border-rule p-4">
                 <h3 className="font-semibold text-sm mb-1">Import Data Mahasiswa (JSON)</h3>
                 <p className="text-xs text-muted-foreground mb-3">
-                    Saat ini: <strong>{form.students.length}</strong> mahasiswa. Paste JSON array berisi objek dengan field <code className="bg-muted px-1 rounded">no</code>, <code className="bg-muted px-1 rounded">nama</code>, dan opsional <code className="bg-muted px-1 rounded">nim</code>.
+                    Paste JSON array berisi objek dengan field <code className="bg-muted px-1 rounded">no</code>, <code className="bg-muted px-1 rounded">nama</code>, dan opsional <code className="bg-muted px-1 rounded">nim</code>.
                 </p>
                 <textarea
                     value={jsonInput}
                     onChange={e => setJsonInput(e.target.value)}
                     placeholder={SAMPLE_JSON}
-                    rows={6}
+                    rows={5}
                     className="w-full border border-input rounded-md px-3 py-2 text-xs font-mono bg-background resize-none"
                 />
                 {jsonError && <p className="text-xs text-destructive mt-1">{jsonError}</p>}
@@ -562,43 +628,171 @@ const SetupTab: React.FC<SetupTabProps> = ({ form, updateForm, studentMaster }) 
                         disabled={!jsonInput.trim()}
                         className="ml-auto flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
                     >
-                        <Upload size={12} /> Import
+                        <Upload size={12} /> Import JSON
                     </button>
                 </div>
+            </div>
 
-                {/* Student preview */}
-                {form.students.length > 0 && (() => {
-                    const hasNim = studentsHaveNim(form.students);
-                    return (
-                    <div className="mt-4 border rounded-md overflow-hidden">
-                        <table className="w-full text-xs">
-                            <thead>
-                                <tr className="bg-muted/50 text-muted-foreground font-semibold">
-                                    <th className="px-3 py-2 text-left w-12">No</th>
-                                    {hasNim && <th className="px-3 py-2 text-left w-32">NIM</th>}
-                                    <th className="px-3 py-2 text-left">Nama</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {form.students.slice(0, 10).map((s, i) => (
-                                    <tr key={s.nim || `student-${i}`} className="border-t">
-                                        <td className="px-3 py-1.5">{s.no}</td>
-                                        {hasNim && <td className="px-3 py-1.5 font-mono">{s.nim}</td>}
-                                        <td className="px-3 py-1.5">{s.nama}</td>
-                                    </tr>
-                                ))}
-                                {form.students.length > 10 && (
-                                    <tr className="border-t">
-                                        <td colSpan={hasNim ? 3 : 2} className="px-3 py-1.5 text-center text-muted-foreground italic">
-                                            ...dan {form.students.length - 10} lainnya
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+            {/* List Mahasiswa di Form Saat Ini & Manajemen Hapus/Pilih */}
+            <div className="bg-panel rounded-panel border border-rule p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div>
+                        <h3 className="font-semibold text-sm">Daftar Mahasiswa di Form</h3>
+                        <p className="text-xs text-muted-foreground">
+                            Total: <strong>{form.students.length}</strong> mahasiswa terdaftar pada form ini.
+                        </p>
                     </div>
-                    );
-                })()}
+
+                    {form.students.length > 0 && (
+                        <div className="flex items-center gap-2">
+                            {selectedFormStudentKeys.size > 0 && (
+                                <button
+                                    onClick={() => {
+                                        removeSelectedStudents(selectedFormStudentKeys);
+                                        setSelectedFormStudentKeys(new Set());
+                                    }}
+                                    className="flex items-center gap-1 bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+                                >
+                                    <Trash2 size={12} /> Hapus Terpilih ({selectedFormStudentKeys.size})
+                                </button>
+                            )}
+                            <button
+                                onClick={clearAllStudents}
+                                className="text-xs text-muted-foreground hover:text-destructive hover:underline px-2 py-1.5 transition-colors"
+                            >
+                                Kosongkan Semua
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {form.students.length === 0 ? (
+                    <div className="bg-muted/30 border border-dashed rounded-lg p-6 text-center text-xs text-muted-foreground">
+                        Belum ada mahasiswa dalam form ini. Silakan pilih dari Master Mahasiswa di atas atau import via JSON.
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {/* Search in form students */}
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={12} />
+                            <input
+                                type="text"
+                                placeholder="Cari dalam daftar form ini..."
+                                value={formStudentSearch}
+                                onChange={e => setFormStudentSearch(e.target.value)}
+                                className="w-full pl-8 pr-3 py-1.5 border border-input rounded-md text-xs bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                            {formStudentSearch && (
+                                <button
+                                    onClick={() => setFormStudentSearch('')}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                >
+                                    <X size={12} />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Students Table with Delete per row and Selection */}
+                        {(() => {
+                            const hasNim = studentsHaveNim(form.students);
+                            const q = formStudentSearch.toLowerCase().trim();
+                            const displayList = form.students
+                                .map((s, originalIdx) => ({ ...s, originalIdx, key: s.nim || `idx-${s.no}` }))
+                                .filter(s => !q || s.nama.toLowerCase().includes(q) || (s.nim && s.nim.toLowerCase().includes(q)));
+
+                            const allDisplaySelected = displayList.length > 0 && displayList.every(s => selectedFormStudentKeys.has(s.key));
+
+                            return (
+                                <div className="border rounded-md overflow-hidden bg-background">
+                                    <div className="max-h-80 overflow-y-auto hm-scrollbar">
+                                        <table className="w-full text-xs">
+                                            <thead className="sticky top-0 bg-muted/90 backdrop-blur-sm z-10">
+                                                <tr className="border-b text-muted-foreground font-semibold">
+                                                    <th className="px-3 py-2 text-center w-10">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={allDisplaySelected}
+                                                            onChange={() => {
+                                                                setSelectedFormStudentKeys(prev => {
+                                                                    const next = new Set(prev);
+                                                                    if (allDisplaySelected) {
+                                                                        displayList.forEach(s => next.delete(s.key));
+                                                                    } else {
+                                                                        displayList.forEach(s => next.add(s.key));
+                                                                    }
+                                                                    return next;
+                                                                });
+                                                            }}
+                                                            className="rounded border-input text-primary focus:ring-primary"
+                                                        />
+                                                    </th>
+                                                    <th className="px-2 py-2 text-center w-12">No</th>
+                                                    {hasNim && <th className="px-3 py-2 text-left w-32">NIM</th>}
+                                                    <th className="px-3 py-2 text-left">Nama</th>
+                                                    <th className="px-3 py-2 text-center w-16">Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {displayList.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={hasNim ? 5 : 4} className="px-3 py-6 text-center text-muted-foreground italic">
+                                                            Tidak ada mahasiswa yang cocok dengan pencarian &quot;{formStudentSearch}&quot;.
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    displayList.map((s) => {
+                                                        const isSelected = selectedFormStudentKeys.has(s.key);
+                                                        return (
+                                                            <tr
+                                                                key={s.key}
+                                                                className={`hover:bg-muted/40 transition-colors ${isSelected ? 'bg-primary/5' : ''}`}
+                                                            >
+                                                                <td className="px-3 py-1.5 text-center">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isSelected}
+                                                                        onChange={() => {
+                                                                            setSelectedFormStudentKeys(prev => {
+                                                                                const next = new Set(prev);
+                                                                                if (next.has(s.key)) next.delete(s.key);
+                                                                                else next.add(s.key);
+                                                                                return next;
+                                                                            });
+                                                                        }}
+                                                                        className="rounded border-input text-primary focus:ring-primary"
+                                                                    />
+                                                                </td>
+                                                                <td className="px-2 py-1.5 text-center text-muted-foreground">{s.no}</td>
+                                                                {hasNim && <td className="px-3 py-1.5 font-mono text-[11px]">{s.nim || "-"}</td>}
+                                                                <td className="px-3 py-1.5 font-medium">{s.nama}</td>
+                                                                <td className="px-3 py-1.5 text-center">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removeSingleStudent(s.nim || s.originalIdx)}
+                                                                        className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-destructive/10 transition-colors"
+                                                                        title="Hapus dari form"
+                                                                    >
+                                                                        <Trash2 size={13} />
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div className="px-3 py-2 bg-muted/30 border-t flex items-center justify-between text-[11px] text-muted-foreground">
+                                        <span>Menampilkan {displayList.length} dari {form.students.length} mahasiswa</span>
+                                        {selectedFormStudentKeys.size > 0 && (
+                                            <span>{selectedFormStudentKeys.size} dipilih</span>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                    </div>
+                )}
             </div>
 
             {/* Subjects & Columns */}
@@ -684,7 +878,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                         onChange={e => onRenameColumn(col.id, e.target.value)}
                         className="w-24 text-xs bg-transparent border-none focus:outline-none"
                     />
-                    {subject.columns.length > 2 && (
+                    {subject.columns.length > 1 && (
                         <button onClick={() => onRemoveColumn(col.id)} className="text-muted-foreground hover:text-destructive">
                             <X size={10} />
                         </button>
@@ -700,7 +894,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                 </button>
             )}
         </div>
-        <p className="text-[10px] text-muted-foreground mt-2">{subject.columns.length} kolom (min 2, max 16)</p>
+        <p className="text-[10px] text-muted-foreground mt-2">{subject.columns.length} kolom (min 1, max 16)</p>
 
         {/* Notes / Keterangan */}
         <div className="mt-3 pt-3 border-t">

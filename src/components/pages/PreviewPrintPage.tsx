@@ -1071,6 +1071,8 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                         }
                         .print-minggu-view tbody {
                             display: table-row-group !important;
+                            page-break-inside: avoid !important;
+                            break-inside: avoid !important;
                         }
                         .print-minggu-view tr {
                             page-break-inside: avoid !important;

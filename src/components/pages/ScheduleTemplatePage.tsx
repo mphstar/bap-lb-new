@@ -37,6 +37,74 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({
     const [isPrintMode, setIsPrintMode] = useState(false);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === template.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(template.map(t => t.id)));
+        }
+    };
+
+    const toggleSelectGroup = (items: { entry: ScheduleEntry }[]) => {
+        const groupIds = items.map(i => i.entry.id);
+        const allGroupSelected = groupIds.every(id => selectedIds.has(id));
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (allGroupSelected) {
+                groupIds.forEach(id => next.delete(id));
+            } else {
+                groupIds.forEach(id => next.add(id));
+            }
+            return next;
+        });
+    };
+
+    const toggleSelectOne = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const deleteSelected = async () => {
+        if (selectedIds.size === 0) return;
+        const isConfirmed = await showConfirm(
+            'Hapus Jadwal Terpilih',
+            `Apakah Anda yakin ingin menghapus ${selectedIds.size} jadwal yang dipilih?`
+        );
+        if (!isConfirmed) return;
+
+        const updated = template
+            .filter(e => !selectedIds.has(e.id))
+            .map((e, i) => ({ ...e, no: i + 1 }));
+
+        onTemplateChange(updated);
+        setSelectedIds(new Set());
+    };
+
+    const deleteDayGroup = async (day: string, items: { entry: ScheduleEntry }[]) => {
+        const isConfirmed = await showConfirm(
+            `Hapus Jadwal ${day}`,
+            `Apakah Anda yakin ingin menghapus semua jadwal (${items.length} sesi) di hari ${day}?`
+        );
+        if (!isConfirmed) return;
+
+        const idsToRemove = new Set(items.map(i => i.entry.id));
+        const updated = template
+            .filter(e => !idsToRemove.has(e.id))
+            .map((e, i) => ({ ...e, no: i + 1 }));
+
+        onTemplateChange(updated);
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            idsToRemove.forEach(id => next.delete(id));
+            return next;
+        });
+    };
 
     const handleAIScheduleImport = (entries: ScheduleEntry[], appendMode: boolean) => {
         let updated: ScheduleEntry[];
@@ -331,6 +399,36 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({
                 </div>
             )}
 
+            {/* Selection Bulk Action Bar */}
+            {template.length > 0 && selectedIds.size > 0 && (
+                <div className="sticky top-2 z-20 mb-4 flex items-center justify-between gap-3 rounded-panel border border-primary/20 bg-panel/95 p-3 shadow-md backdrop-blur-md print:hidden">
+                    <div className="flex items-center gap-2">
+                        <span className="inline-flex h-6 items-center justify-center rounded-full bg-primary/10 px-2.5 text-xs font-semibold text-primary">
+                            {selectedIds.size} dipilih
+                        </span>
+                        <span className="text-xs text-muted-foreground hidden sm:inline">
+                            dari total {template.length} jadwal
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedIds(new Set())}
+                            className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                            Batal
+                        </Button>
+                    </div>
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={deleteSelected}
+                        className="h-8 gap-1.5 text-xs font-semibold"
+                    >
+                        <Trash2 className="size-3.5" /> Hapus Terpilih ({selectedIds.size})
+                    </Button>
+                </div>
+            )}
+
             {/* Template Table */}
             {template.length === 0 ? (
                 <EmptyState
@@ -386,91 +484,116 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({
                         if (items.length === 0) return null;
                         return (
                             <div key={day} className="rounded-panel border border-rule bg-panel overflow-hidden">
-                                <div className="bg-muted/70 px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-rule flex items-center justify-between">
-                                    <span>{day}</span>
-                                    <span className="text-[11px] font-normal text-muted-foreground/80">{items.length} sesi</span>
+                                <div className="bg-muted/70 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-rule flex items-center justify-between">
+                                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={items.length > 0 && items.every(i => selectedIds.has(i.entry.id))}
+                                            onChange={() => toggleSelectGroup(items)}
+                                            className="size-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer"
+                                            title="Pilih semua sesi hari ini"
+                                        />
+                                        <span className="text-foreground font-semibold text-sm">{day}</span>
+                                        <span className="text-[11px] font-normal text-muted-foreground">({items.length} sesi)</span>
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => deleteDayGroup(day, items)}
+                                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-2 py-1 rounded transition-colors font-medium normal-case tracking-normal"
+                                        title={`Hapus semua jadwal hari ${day}`}
+                                    >
+                                        <Trash2 size={13} />
+                                        <span>Hapus Semua {day}</span>
+                                    </button>
                                 </div>
                                 {/* Mobile Card View per Day (md:hidden) */}
                                 <div className="md:hidden divide-y divide-rule">
-                                    {items.map(({ entry, originalIndex }) => (
+                                    {items.map(({ entry, originalIndex }) => {
+                                        const isSelected = selectedIds.has(entry.id);
+                                        return (
                                         <div
                                             key={entry.id}
-                                            className="p-4 flex flex-col gap-2.5 bg-panel hover:bg-panel-2/50 transition-colors"
+                                            className={`p-3.5 flex flex-col gap-2.5 transition-colors ${
+                                                isSelected ? 'bg-primary/5' : 'bg-panel hover:bg-panel-2/50'
+                                            }`}
                                         >
-                                            {/* Header: No, Time & Room */}
+                                            {/* Top Bar: Checkbox + No + Time + Badge */}
                                             <div className="flex items-center justify-between gap-2">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-mono font-bold text-muted-foreground bg-panel-2 px-1.5 py-0.5 rounded">
+                                                <label className="flex items-center gap-2 min-w-0 cursor-pointer select-none">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => toggleSelectOne(entry.id)}
+                                                        className="size-4 rounded border-input text-primary focus:ring-primary accent-primary shrink-0 cursor-pointer"
+                                                    />
+                                                    <span className="text-[11px] font-mono font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
                                                         #{entry.no}
                                                     </span>
-                                                    <span className="text-xs font-mono font-semibold text-foreground">
+                                                    <span className="text-xs font-mono font-semibold text-foreground truncate">
                                                         {entry.jam || '-'}
                                                     </span>
-                                                    <span className="text-xs text-muted-foreground font-medium">
-                                                        • {entry.tempat || '-'}
-                                                    </span>
-                                                </div>
-                                                <Badge variant="secondary" className="text-[10px] font-normal bg-primary/10 text-primary border-transparent">
+                                                </label>
+                                                <Badge variant="secondary" className="text-[10px] font-medium bg-primary/10 text-primary border-transparent shrink-0">
                                                     {entry.prodi || 'Sem ' + (entry.semester || '-')} ({entry.golongan || '-'})
                                                 </Badge>
                                             </div>
 
-                                            {/* Subject Title */}
-                                            <div>
-                                                <h4 className="font-semibold text-foreground text-sm leading-snug">
-                                                    {entry.mataKuliah}
+                                            {/* Subject Title & Details */}
+                                            <div className="pl-6">
+                                                <h4 className="font-semibold text-foreground text-sm leading-tight">
+                                                    {entry.mataKuliah || <span className="text-muted-foreground italic">(Belum ada mata kuliah)</span>}
                                                 </h4>
-                                                <p className="text-xs text-muted-foreground mt-0.5">
-                                                    Prodi {entry.prodi} · Semester {entry.semester}
+                                                <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                    {entry.tempat ? `Ruang: ${entry.tempat} · ` : ''}Prodi {entry.prodi || '-'} · Sem {entry.semester || '-'} · Gol {entry.golongan || '-'}
                                                 </p>
                                             </div>
 
                                             {/* Teacher & Technician */}
-                                            <div className="p-2.5 rounded-control bg-panel-2/70 border border-rule/60 flex flex-col gap-1 text-xs">
+                                            <div className="ml-6 p-2 rounded-control bg-panel-2/60 border border-rule/50 flex flex-col gap-1 text-[11px]">
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-muted-foreground">Pengajar:</span>
-                                                    <span className="font-medium text-foreground">{entry.defaultPengajar || '-'}</span>
+                                                    <span className="font-medium text-foreground truncate ml-2">{entry.defaultPengajar || '-'}</span>
                                                 </div>
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-muted-foreground">Teknisi:</span>
-                                                    <span className="font-medium text-foreground">{entry.defaultTeknisi || '-'}</span>
+                                                    <span className="font-medium text-foreground truncate ml-2">{entry.defaultTeknisi || '-'}</span>
                                                 </div>
                                             </div>
 
                                             {/* Actions */}
-                                            <div className="flex items-center justify-end gap-2 pt-1 border-t border-rule/40">
+                                            <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-rule/40 pl-6">
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() => startEdit(entry)}
-                                                    className="h-8 text-xs text-primary hover:text-primary flex-1 sm:flex-initial"
+                                                    className="h-7 text-xs text-primary hover:text-primary flex-1 sm:flex-initial"
                                                 >
-                                                    <Edit3 className="size-3.5 mr-1" />
-                                                    Edit Jadwal
+                                                    <Edit3 className="size-3 mr-1" />
+                                                    Edit
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => duplicateEntry(entry, originalIndex)}
-                                                    className="h-8 px-2.5 text-xs text-muted-foreground"
+                                                    className="h-7 px-2 text-xs text-muted-foreground"
                                                     title="Duplikat baris"
                                                 >
-                                                    <Copy className="size-3.5 mr-1" />
+                                                    <Copy className="size-3 mr-1" />
                                                     Duplikat
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => deleteEntry(entry.id)}
-                                                    className="h-8 px-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                    className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                                     title="Hapus jadwal"
                                                 >
-                                                    <Trash2 className="size-3.5 mr-1" />
+                                                    <Trash2 className="size-3 mr-1" />
                                                     Hapus
                                                 </Button>
                                             </div>
                                         </div>
-                                    ))}
+                                    )})}
                                 </div>
 
                                 {/* Desktop Table View (hidden md:block) */}
@@ -478,22 +601,32 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="bg-muted/30 text-left text-muted-foreground font-semibold border-b text-xs">
-                                                <th className="px-2 py-2 w-8"></th>
-                                                <th className="px-3 py-2 w-10">No</th>
-                                                <th className="px-3 py-2">Mata Kuliah</th>
-                                                <th className="px-3 py-2 w-24">Hari</th>
-                                                <th className="px-3 py-2">Jam</th>
-                                                <th className="px-3 py-2">Tempat</th>
-                                                <th className="px-3 py-2">Prodi</th>
-                                                <th className="px-3 py-2">Smt</th>
-                                                <th className="px-3 py-2">Gol</th>
-                                                <th className="px-3 py-2">Pengajar (Default)</th>
-                                                <th className="px-3 py-2 w-32">Teknisi (Default)</th>
-                                                <th className="px-3 py-2 w-28">Aksi</th>
+                                                <th className="px-3 py-2.5 text-center w-12">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={items.length > 0 && items.every(i => selectedIds.has(i.entry.id))}
+                                                        onChange={() => toggleSelectGroup(items)}
+                                                        className="size-3.5 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer"
+                                                        title="Pilih semua sesi hari ini"
+                                                    />
+                                                </th>
+                                                <th className="px-2 py-2.5 text-center w-10">No</th>
+                                                <th className="px-3 py-2.5">Mata Kuliah</th>
+                                                <th className="px-3 py-2.5 w-24">Hari</th>
+                                                <th className="px-3 py-2.5">Jam</th>
+                                                <th className="px-3 py-2.5">Tempat</th>
+                                                <th className="px-3 py-2.5">Prodi</th>
+                                                <th className="px-3 py-2.5">Smt</th>
+                                                <th className="px-3 py-2.5">Gol</th>
+                                                <th className="px-3 py-2.5">Pengajar (Default)</th>
+                                                <th className="px-3 py-2.5 w-32">Teknisi (Default)</th>
+                                                <th className="px-3 py-2.5 w-28 text-center">Aksi</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {items.map(({ entry, originalIndex }) => (
+                                            {items.map(({ entry, originalIndex }) => {
+                                                const isSelected = selectedIds.has(entry.id);
+                                                return (
                                                 <tr
                                                     key={entry.id}
                                                     draggable={editingId === null}
@@ -504,15 +637,22 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({
                                                     className={`border-b transition-all duration-150 ${
                                                         draggedIndex === originalIndex
                                                             ? 'opacity-40 bg-accent scale-[0.99]'
+                                                            : isSelected
+                                                            ? 'bg-primary/5'
                                                             : 'hover:bg-muted/30'
                                                     }`}
                                                 >
                                                     {editingId === entry.id ? (
                                                         <>
-                                                            <td className="px-2 py-2 text-center text-muted-foreground/40">
-                                                                <GripVertical size={15} />
+                                                            <td className="px-3 py-2 text-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isSelected}
+                                                                    onChange={() => toggleSelectOne(entry.id)}
+                                                                    className="size-3.5 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer"
+                                                                />
                                                             </td>
-                                                            <td className="px-3 py-2 text-center text-muted-foreground">{entry.no}</td>
+                                                            <td className="px-2 py-2 text-center text-muted-foreground font-mono text-xs">{entry.no}</td>
                                                             <td className="px-3 py-2"><input className="w-full border rounded px-2 py-1 text-sm bg-background" value={editForm.mataKuliah || ''} onChange={e => setEditForm({ ...editForm, mataKuliah: e.target.value })} placeholder="Mata Kuliah" /></td>
                                                             <td className="px-3 py-2">
                                                                 <select
@@ -543,29 +683,34 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({
                                                             </td>
                                                             <td className="px-3 py-2"><input className="w-full border rounded px-2 py-1 text-sm bg-background" value={editForm.defaultTeknisi || ''} onChange={e => setEditForm({ ...editForm, defaultTeknisi: e.target.value })} placeholder="Teknisi" /></td>
                                                             <td className="px-3 py-2">
-                                                                <div className="flex gap-1">
-                                                                    <button onClick={saveEdit} className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">OK</button>
+                                                                <div className="flex gap-1 justify-center">
+                                                                    <button onClick={saveEdit} className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 font-medium">OK</button>
                                                                     <Button variant="ghost" size="icon-xs" onClick={cancelEdit} aria-label="Batal edit"><X /></Button>
                                                                 </div>
                                                             </td>
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <td className="px-2 py-2 text-center text-muted-foreground/40 cursor-grab active:cursor-grabbing">
-                                                                <GripVertical size={15} />
+                                                            <td className="px-3 py-2 text-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isSelected}
+                                                                    onChange={() => toggleSelectOne(entry.id)}
+                                                                    className="size-3.5 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer"
+                                                                />
                                                             </td>
-                                                            <td className="px-3 py-2 text-center text-muted-foreground">{entry.no}</td>
+                                                            <td className="px-2 py-2 text-center text-muted-foreground font-mono text-xs">{entry.no}</td>
                                                             <td className="px-3 py-2 font-medium">{entry.mataKuliah}</td>
                                                             <td className="px-3 py-2">{entry.hari}</td>
-                                                            <td className="px-3 py-2">{entry.jam}</td>
+                                                            <td className="px-3 py-2 font-mono text-xs">{entry.jam}</td>
                                                             <td className="px-3 py-2">{entry.tempat}</td>
                                                             <td className="px-3 py-2">{entry.prodi}</td>
-                                                            <td className="px-3 py-2">{entry.semester}</td>
-                                                            <td className="px-3 py-2">{entry.golongan}</td>
+                                                            <td className="px-3 py-2 text-center">{entry.semester}</td>
+                                                            <td className="px-3 py-2 text-center">{entry.golongan}</td>
                                                             <td className="px-3 py-2">{entry.defaultPengajar}</td>
                                                             <td className="px-3 py-2">{entry.defaultTeknisi}</td>
                                                             <td className="px-3 py-2">
-                                                                <div className="flex items-center gap-1">
+                                                                <div className="flex items-center justify-center gap-1">
                                                                     <button onClick={() => startEdit(entry)} className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2 py-1 rounded hover:bg-blue-200">Edit</button>
                                                                     <button onClick={() => duplicateEntry(entry, originalIndex)} title="Duplikat baris" className="text-xs bg-muted text-foreground p-1 rounded hover:bg-accent"><Copy size={13} /></button>
                                                                     <button onClick={() => deleteEntry(entry.id)} title="Hapus jadwal" className="text-xs text-red-500 hover:text-red-700 p-1"><Trash2 size={14} /></button>
@@ -574,7 +719,7 @@ const ScheduleTemplatePage: React.FC<ScheduleTemplatePageProps> = ({
                                                         </>
                                                     )}
                                                 </tr>
-                                            ))}
+                                            )})}
                                         </tbody>
                                     </table>
                                 </div>
