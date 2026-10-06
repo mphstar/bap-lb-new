@@ -925,8 +925,6 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
     const [padding, setPadding] = useState(20);
     const [searchQuery, setSearchQuery] = useState('');
     const [printMode, setPrintMode] = useState<'filled' | 'blank'>('filled');
-    const [quickValue, setQuickValue] = useState('100');
-    const [quickCheckEnabled, setQuickCheckEnabled] = useState(false);
 
     const hasNim = studentsHaveNim(form.students);
 
@@ -1013,31 +1011,6 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
 
                 {/* Scale + Print controls */}
                 <div className="flex flex-wrap items-center gap-4 bg-panel p-3 rounded-panel border border-rule">
-                    {/* Quick Checkbox Toggle / Value */}
-                    <div className="flex items-center gap-2.5 border-r pr-4">
-                        <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer select-none">
-                            <input
-                                type="checkbox"
-                                checked={quickCheckEnabled}
-                                onChange={(e) => setQuickCheckEnabled(e.target.checked)}
-                                className="size-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer"
-                            />
-                            <span>Mode Centang</span>
-                        </label>
-                        {quickCheckEnabled && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <span>Nilai:</span>
-                                <input
-                                    type="text"
-                                    value={quickValue}
-                                    onChange={(e) => setQuickValue(e.target.value)}
-                                    className="w-12 px-1.5 py-0.5 border border-input rounded text-xs text-center font-medium bg-background"
-                                    title="Nilai yang otomatis terisi saat checkbox dicentang"
-                                />
-                            </div>
-                        )}
-                    </div>
-
                     {/* Scale Control */}
                     <div className="flex items-center gap-3 border-r pr-4">
                         <div className="flex flex-col">
@@ -1124,33 +1097,36 @@ const GradingTab: React.FC<GradingTabProps> = ({ form, updateForm }) => {
                                         <td className="px-3 py-2 font-medium">{student.nama}</td>
                                         {activeSubject.columns.map(col => {
                                             const currentGrade = getGrade(activeSubject.id, student.nim, col.id);
-                                            const isChecked = currentGrade.trim() !== '' && currentGrade.trim() !== '-';
+                                            const isChecked = currentGrade.trim() === '✓' || currentGrade.trim() === 'v' || currentGrade.trim() === 'V';
                                             return (
-                                            <td key={col.id} className="px-2 py-1 bg-primary/[0.02]">
-                                                {quickCheckEnabled ? (
-                                                    <div className="flex items-center justify-center py-1">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isChecked}
-                                                            onChange={(e) => {
-                                                                if (e.target.checked) {
-                                                                    setGrade(activeSubject.id, student.nim, col.id, quickValue.trim() || '100');
-                                                                } else {
-                                                                    setGrade(activeSubject.id, student.nim, col.id, '');
-                                                                }
-                                                            }}
-                                                            className="size-4 rounded border-input text-primary focus:ring-primary accent-primary cursor-pointer"
-                                                        />
-                                                    </div>
-                                                ) : (
+                                            <td key={col.id} className="px-1.5 py-1 bg-primary/[0.02]">
+                                                <div className="flex items-center gap-1">
                                                     <input
                                                         type="text"
                                                         value={currentGrade}
                                                         onChange={e => setGrade(activeSubject.id, student.nim, col.id, e.target.value)}
-                                                        className="w-full border border-input rounded-md px-2 py-1 text-sm text-center bg-background"
+                                                        className="w-full min-w-[50px] border border-input rounded-md px-2 py-1 text-sm text-center bg-background"
                                                         placeholder="—"
                                                     />
-                                                )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (isChecked) {
+                                                                setGrade(activeSubject.id, student.nim, col.id, '');
+                                                            } else {
+                                                                setGrade(activeSubject.id, student.nim, col.id, '✓');
+                                                            }
+                                                        }}
+                                                        className={`size-7 shrink-0 flex items-center justify-center rounded border transition-colors ${
+                                                            isChecked
+                                                                ? 'bg-primary text-primary-foreground border-primary'
+                                                                : 'bg-muted/40 hover:bg-muted text-muted-foreground border-input'
+                                                        }`}
+                                                        title={isChecked ? 'Hapus centang' : 'Isi centang (✓)'}
+                                                    >
+                                                        <Check size={14} className={isChecked ? 'stroke-[2.5]' : 'opacity-40'} />
+                                                    </button>
+                                                </div>
                                             </td>
                                         );})}
                                     </tr>
