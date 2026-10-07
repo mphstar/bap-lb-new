@@ -558,7 +558,7 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                     <Panel>
                         <PanelHeader
                             icon={<FileText />}
-                            title="Ukuran kertas"
+                            title="Ukuran Kertas"
                             meta={paperSize === 'a4' ? 'A4 (210 × 297 mm)' : 'F4 / Folio (215 × 330 mm)'}
                         />
                         <PanelBody className="space-y-3">
@@ -598,20 +598,12 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                 })}
                             </div>
 
-                            {/* Print margin hint — the dialog's own margin setting wins over
-                                our @page rule, and each mode needs a different value. */}
+                            {/* Print margin hint */}
                             <div className="flex gap-2 rounded-control border border-rule bg-brand-soft/60 px-3 py-2 text-xs leading-snug text-foreground">
                                 <Info className="mt-0.5 size-3.5 shrink-0 text-brand" />
-                                {printMode === 'minggu' ? (
-                                    <span>
-                                        Saat dialog cetak muncul, gunakan <strong>Margin: Default</strong> agar margin atas, bawah, kanan, dan kiri otomatis rapi di setiap halaman.
-                                    </span>
-                                ) : (
-                                    <span>
-                                        Saat dialog cetak muncul, setel <strong>Margin</strong> ke <strong>None / 0</strong> agar
-                                        hasil tidak terpotong dan pembagian dua dokumen per lembar rapi.
-                                    </span>
-                                )}
+                                <span>
+                                    Jika halaman terpotong, atur opsi <strong>Layout (Landscape/Portrait)</strong> dan <strong>Margins: Default / Minimal</strong> langsung pada jendela cetak browser.
+                                </span>
                             </div>
                         </PanelBody>
                     </Panel>
@@ -790,31 +782,41 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                             }
                         />
                     ) : printMode === 'minggu' ? (
-                        /* ═══ MODE: PRINT MINGGU ═══
-                           Screen and print render the SAME node, so the preview
-                           always matches the output. */
-                        <Panel className="overflow-hidden print:rounded-none print:border-0">
-                            <PanelHeader
-                                className="print:hidden"
-                                icon={<ClipboardList />}
-                                title={`Rekap Minggu ${selectedWeek}`}
-                                meta={`${filteredBapData.length} sesi · Format ${paperSize.toUpperCase()} · Orientasi lanskap`}
-                            />
-                            <div className="hm-scrollbar overflow-x-auto bg-white p-4 print:p-0 print:overflow-visible">
-                                {/* `zoom`, not `transform: scale` — zoom reflows the
-                                    box, so the frame tracks the preview instead of
-                                    leaving a phantom gap under it. */}
-                                <div className="print-minggu-view w-full" style={{ zoom: scale }}>
-                                    <div
-                                        className="w-full pb-4 pt-4 text-center text-xl font-bold uppercase tracking-widest text-black"
-                                        style={{ fontFamily: "'Times New Roman', Times, serif" }}
-                                    >
-                                        Berita Acara Perkuliahan Minggu {selectedWeek}
+                        /* ═══ MODE: PRINT MINGGU ═══ */
+                        <>
+                            <Panel className="overflow-hidden print:hidden">
+                                <PanelHeader
+                                    icon={<ClipboardList />}
+                                    title={`Rekap Minggu ${selectedWeek}`}
+                                    meta={`${filteredBapData.length} sesi · Format ${paperSize.toUpperCase()}`}
+                                />
+                                <div className="hm-scrollbar overflow-x-auto bg-white p-4">
+                                    {/* `zoom`, not `transform: scale` — zoom reflows the
+                                        box, so the frame tracks the preview instead of
+                                        leaving a phantom gap under it. */}
+                                    <div className="w-full" style={{ zoom: scale }}>
+                                        <div
+                                            className="w-full pb-3 pt-2 text-center text-lg md:text-xl font-bold uppercase tracking-wider text-black"
+                                            style={{ fontFamily: "'Times New Roman', Times, serif" }}
+                                        >
+                                            Berita Acara Perkuliahan Minggu {selectedWeek}
+                                        </div>
+                                        <RecapTable groups={groupedData} />
                                     </div>
-                                    <RecapTable groups={groupedData} />
                                 </div>
+                            </Panel>
+
+                            {/* Dedicated Print View for Recap Minggu (Clean, no panels/scrollbars) */}
+                            <div className="hidden print:block print-minggu-view w-full bg-white">
+                                <div
+                                    className="w-full pb-3 pt-2 text-center text-lg md:text-xl font-bold uppercase tracking-wider text-black"
+                                    style={{ fontFamily: "'Times New Roman', Times, serif" }}
+                                >
+                                    Berita Acara Perkuliahan Minggu {selectedWeek}
+                                </div>
+                                <RecapTable groups={groupedData} />
                             </div>
-                        </Panel>
+                        </>
                     ) : (
                         /* ═══ MODE: PRINT PER-SESI ═══ */
                         <>
@@ -1038,15 +1040,34 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                 <style>{`
                     @media print {
                         @page {
-                            size: ${paperSize === 'f4' ? '330mm 215mm' : 'A4 landscape'};
-                            margin: 10mm 10mm 10mm 10mm;
+                            size: auto;
+                            margin: 12mm 12mm 15mm 12mm;
                         }
                         html, body {
+                            margin: 0 !important;
+                            padding: 0 !important;
                             background-color: white !important;
                             overflow: visible !important;
+                            height: auto !important;
+                            min-height: 0 !important;
+                            max-height: none !important;
                             scrollbar-width: none !important;
                             -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
                             font-family: 'Times New Roman', Times, serif !important;
+                        }
+                        div[data-slot="page-shell"],
+                        main,
+                        .hm-page-transition,
+                        [data-sidebar="inset"],
+                        body > div {
+                            height: auto !important;
+                            min-height: 0 !important;
+                            max-height: none !important;
+                            overflow: visible !important;
+                            display: block !important;
+                            padding: 0 !important;
+                            margin: 0 !important;
                         }
                         ::-webkit-scrollbar {
                             display: none !important;
@@ -1060,29 +1081,28 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                             box-sizing: border-box !important;
                             padding: 0 !important;
                             margin: 0 !important;
+                            overflow: visible !important;
+                            display: block !important;
                         }
                         .print-minggu-view table {
                             width: 100% !important;
                             border-collapse: collapse !important;
-                            page-break-inside: auto !important;
+                            table-layout: auto !important;
                         }
                         .print-minggu-view thead {
                             display: table-header-group !important;
                         }
                         .print-minggu-view tbody {
-                            display: table-row-group !important;
-                            page-break-inside: avoid !important;
-                            break-inside: avoid !important;
+                            page-break-inside: auto !important;
+                            break-inside: auto !important;
                         }
                         .print-minggu-view tr {
                             page-break-inside: avoid !important;
                             break-inside: avoid !important;
-                            page-break-after: auto !important;
-                            break-after: auto !important;
                         }
                         .print-minggu-view td, .print-minggu-view th {
-                            page-break-inside: avoid !important;
-                            break-inside: avoid !important;
+                            page-break-inside: auto !important;
+                            break-inside: auto !important;
                         }
                         .print-persesi-view { display: none !important; }
                     }
