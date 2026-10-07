@@ -885,14 +885,13 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                                                     className="print-half-slot"
                                                     style={{
                                                         width: '100%',
-                                                        overflow: 'hidden',
                                                         borderBottom: itemIdx === 0 && itemsOnPage.length > 1 ? '1.5px dashed #000' : 'none',
                                                         boxSizing: 'border-box',
                                                         display: 'flex',
                                                         flexDirection: 'column',
                                                         justifyContent: 'flex-start',
-                                                        paddingTop: '8mm',
-                                                        paddingBottom: 0,
+                                                        paddingTop: '6mm',
+                                                        paddingBottom: '4mm',
                                                         paddingLeft: '12mm',
                                                         paddingRight: '12mm'
                                                     }}
@@ -1120,9 +1119,24 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                         html, body {
                             margin: 0 !important;
                             padding: 0 !important;
+                            height: auto !important;
+                            min-height: 0 !important;
                             background-color: white !important;
                             overflow: visible !important;
                             scrollbar-width: none !important;
+                        }
+                        div[data-slot="page-shell"],
+                        main,
+                        .hm-page-transition,
+                        [data-sidebar="inset"],
+                        body > div {
+                            height: auto !important;
+                            min-height: 0 !important;
+                            max-height: none !important;
+                            overflow: visible !important;
+                            display: block !important;
+                            padding: 0 !important;
+                            margin: 0 !important;
                         }
                         ::-webkit-scrollbar {
                             display: none !important;
@@ -1133,30 +1147,19 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                             scrollbar-width: none !important;
                         }
                         .print-minggu-view { display: none !important; }
-                        /* Using absolute mm height per half slot ensures the cut line is exactly at 50% physical height */
                         .print-persesi-view { margin: 0 !important; padding: 0 !important; overflow: visible !important; display: block !important; }
                         .print-sheet-page {
                             margin: 0 !important;
                             padding: 0 !important;
                             width: 100% !important;
-                            height: ${paperSize === 'f4' ? '330mm' : '297mm'} !important;
-                            max-height: ${paperSize === 'f4' ? '330mm' : '297mm'} !important;
+                            height: 100vh !important;
+                            max-height: 100vh !important;
                             page-break-inside: avoid !important;
                             break-inside: avoid !important;
                             box-sizing: border-box !important;
                             display: flex !important;
                             flex-direction: column !important;
-                        }
-                        .print-half-slot {
-                            flex: 1 1 50% !important;
-                            height: 50% !important;
-                            max-height: 50% !important;
                             overflow: hidden !important;
-                            box-sizing: border-box !important;
-                            padding-top: 8mm !important;
-                            padding-bottom: 6mm !important;
-                            padding-left: 12mm !important;
-                            padding-right: 12mm !important;
                         }
                         .print-sheet-page:not(:last-child) {
                             page-break-after: always !important;
@@ -1165,6 +1168,17 @@ const PreviewPrintPage: React.FC<PreviewPrintPageProps> = ({
                         .print-sheet-page:last-child {
                             page-break-after: avoid !important;
                             break-after: avoid !important;
+                            margin-bottom: 0 !important;
+                        }
+                        .print-half-slot {
+                            flex: 1 1 50% !important;
+                            height: 50% !important;
+                            max-height: 50% !important;
+                            box-sizing: border-box !important;
+                            padding-top: 6mm !important;
+                            padding-bottom: 4mm !important;
+                            padding-left: 12mm !important;
+                            padding-right: 12mm !important;
                         }
                     }
                 `}</style>
