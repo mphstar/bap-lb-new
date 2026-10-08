@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   Archive,
   Trash2,
@@ -15,30 +16,57 @@ import {
   History,
   FileArchive,
   ArrowRight,
+  Eye,
+  Check
 } from "lucide-react";
 import type { Archive as ArchiveType } from "@/types";
 import { useDialog } from "@/context/DialogContext";
+import { useAppDataContext } from "@/context/AppDataContext";
 import {
   PageShell,
   PageHeader,
   PanelHeader,
   StatTile,
 } from "@/components/shell";
+import { Button } from "@/components/ui/button";
 
 export default function ArchivesPage(props?: any) {
+  const router = useRouter();
   const { showConfirm } = useDialog();
+  const { activeArchive, enterArchiveMode, exitArchiveMode } = useAppDataContext();
+
   const [archives, setArchives] = useState<ArchiveType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [archiveName, setArchiveName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isArchiving, setIsArchiving] = useState(false);
-  const [actionId, setActionId] = useState<string | null>(null); // For loading state during delete/restore
+  const [actionId, setActionId] = useState<string | null>(null); // For loading state during delete/restore/open
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Fetch archives list on mount
   useEffect(() => {
     fetchArchives();
   }, []);
+
+  const handleOpenViewArchive = async (archive: ArchiveType) => {
+    try {
+      setActionId(archive.id);
+      setMessage(null);
+      const res = await fetch(`/api/archives/${archive.id}`);
+      if (res.ok) {
+        const fullArchive = await res.json();
+        enterArchiveMode(archive.id, archive.name, archive.createdAt, fullArchive.data);
+        router.push("/dashboard");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setMessage({ type: "error", text: err.error || "Gagal memuat arsip." });
+      }
+    } catch (err) {
+      setMessage({ type: "error", text: "Terjadi kesalahan saat memuat isi arsip." });
+    } finally {
+      setActionId(null);
+    }
+  };
 
   const fetchArchives = async () => {
     try {
@@ -356,11 +384,35 @@ export default function ArchivesPage(props?: any) {
 
                         {/* Actions */}
                         <div className="flex items-center justify-end gap-2 shrink-0 self-end sm:self-center">
+                          {activeArchive?.id === archive.id ? (
+                            <button
+                              onClick={exitArchiveMode}
+                              className="inline-flex items-center gap-1.5 text-xs bg-amber-600 hover:bg-amber-700 active:scale-95 text-white px-3.5 py-2 rounded-xl font-bold shadow-md shadow-amber-600/10 transition-colors"
+                              title="Sedang aktif dibuka. Klik untuk keluar dari mode arsip."
+                            >
+                              <Check size={13} />
+                              <span>Sedang Dibuka</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleOpenViewArchive(archive)}
+                              disabled={actionId !== null}
+                              className="inline-flex items-center gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white px-3.5 py-2 rounded-xl font-bold shadow-md shadow-indigo-600/10 transition-colors disabled:opacity-50"
+                              title="Buka arsip ini di navigasi/sidebar utama (Read-Only) tanpa mengubah database aktif"
+                            >
+                              {actionId === archive.id ? (
+                                <Loader2 className="size-3 animate-spin" />
+                              ) : (
+                                <Eye size={13} />
+                              )}
+                              <span>Buka Arsip</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => handleRestore(archive.id, archive.name)}
                             disabled={actionId !== null}
                             className="inline-flex items-center gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-3.5 py-2 rounded-xl font-bold shadow-md shadow-emerald-600/10 transition-colors disabled:opacity-50 disabled:scale-100"
-                            title="Pulihkan data dari arsip ini"
+                            title="Pulihkan data dari arsip ini ke database aktif"
                           >
                             {actionId === archive.id ? (
                               <Loader2 className="size-3 animate-spin" />

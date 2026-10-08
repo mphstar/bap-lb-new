@@ -13,6 +13,34 @@ const clean = (row: any) => {
   return c;
 };
 
+// GET: Retrieve a single archive data (for previewing/inspecting without restoring)
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const archive = await db.query.archives.findFirst({
+      where: and(eq(archives.id, id), eq(archives.userId, user.id)),
+    });
+
+    if (!archive) {
+      return NextResponse.json({ error: "Arsip tidak ditemukan" }, { status: 404 });
+    }
+
+    return NextResponse.json(archive);
+  } catch (error: any) {
+    console.error("GET /api/archives/[id] error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 // DELETE: Delete a specific archive
 export async function DELETE(
   req: Request,

@@ -16,7 +16,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { AppDataProvider, useAppDataContext } from "@/context/AppDataContext";
 import { exportWeeklyData } from "@/utils/excelExporter";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2, ArrowUp } from "lucide-react";
+import { AlertCircle, Loader2, ArrowUp, Archive, X, Eye } from "lucide-react";
 import { DialogProvider, useDialog } from "@/context/DialogContext";
 import { AIAssistantWidget } from "@/components/AIAssistantWidget";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
@@ -82,7 +82,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const { showAlert, showConfirm } = useDialog();
 
-    const { appData, saving, error, clearAll, assessmentSaving } =
+    const { appData, saving, error, clearAll, assessmentSaving, activeArchive, exitArchiveMode } =
         useAppDataContext();
 
     const handleClearAll = () => {
@@ -122,6 +122,30 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </div>
 
             <SidebarInset className="bg-ground flex flex-col min-h-screen overflow-x-hidden pb-20 md:pb-0">
+                {/* Active Archive Inspection Banner */}
+                {activeArchive && (
+                    <div className="sticky top-0 z-40 bg-amber-600 dark:bg-amber-700 text-white px-4 py-2.5 shadow-md flex items-center justify-between gap-3 text-xs font-medium print:hidden">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className="p-1 rounded bg-black/20 shrink-0">
+                                <Archive className="size-3.5 text-white" />
+                            </span>
+                            <span className="truncate">
+                                <strong>Mode Arsip (Read-Only):</strong> Menampilkan data arsip &ldquo;{activeArchive.name}&rdquo;. Data aktif utama Anda tetap aman.
+                            </span>
+                        </div>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={exitArchiveMode}
+                            className="h-7 text-xs px-2.5 shrink-0 bg-white text-black hover:bg-white/90 font-semibold shadow-xs"
+                        >
+                            <X className="size-3.5 mr-1" />
+                            Kembali ke Data Aktif
+                        </Button>
+                    </div>
+                )}
+
                 <main className="flex-1 overflow-x-hidden print:overflow-visible">
                     {error && (
                         <div className="w-full px-5 pt-7 sm:px-8 lg:px-10 print:hidden">
