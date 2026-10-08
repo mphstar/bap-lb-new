@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { Eraser, Upload, Pen, Maximize2, RotateCw, RotateCcw, Check, ZoomIn, ZoomOut } from "lucide-react";
+import { Eraser, Upload, Pen, Maximize2, RotateCw, RotateCcw, Check, ZoomIn, ZoomOut, Palette, Sliders } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SignaturePadProps {
@@ -10,7 +10,27 @@ interface SignaturePadProps {
   label?: string;
   width?: number;
   height?: number;
+  strokeWidth?: number;
 }
+
+interface Point {
+  x: number;
+  y: number;
+  pressure?: number;
+}
+
+const PEN_COLORS = [
+  { label: "Hitam", value: "#0f172a" },
+  { label: "Biru Tinta", value: "#1e3a8a" },
+  { label: "Biru Tua", value: "#0369a1" },
+  { label: "Gelap Metalik", value: "#334155" },
+];
+
+const STROKE_WIDTHS = [
+  { label: "Halus", value: 1.8 },
+  { label: "Sedang", value: 2.8 },
+  { label: "Tebal", value: 4.2 },
+];
 
 /** Crop empty whitespace (transparency/white) around drawn strokes to keep signature tight & sharp */
 function trimAndCropCanvas(sourceCanvas: HTMLCanvasElement, padding = 16): string | null {
@@ -77,6 +97,7 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
   label = "Tanda Tangan",
   width,
   height = 140,
+  strokeWidth: defaultStrokeWidth = 1.8,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -86,6 +107,14 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
   const [mode, setMode] = useState<"draw" | "image">(value ? "image" : "draw");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenSig, setFullscreenSig] = useState<string | null>(value);
+
+  // Custom stroke width & color customization
+  const [selectedWidth, setSelectedWidth] = useState<number>(defaultStrokeWidth);
+  const [selectedColor, setSelectedColor] = useState<string>("#0f172a");
+
+  // Smooth quadratic bezier curves state tracking
+  const pointsRef = useRef<Point[]>([]);
+  const fsPointsRef = useRef<Point[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastLoadedValueRef = useRef<string | null>(value);
@@ -201,18 +230,25 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
     ctx.scale(2, 2);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = "#000";
+    ctx.lineWidth = selectedWidth;
+    ctx.strokeStyle = selectedColor;
 
     if (value && mode === "draw") {
       const img = new Image();
       img.onload = () => {
+        // Draw preserving aspect ratio in center so it is not stretched/distorted
+        const scale = Math.min((displayWidth - 20) / img.width, (displayHeight - 20) / img.height, 1);
+        const dw = img.width * scale;
+        const dh = img.height * scale;
+        const dx = (displayWidth - dw) / 2;
+        const dy = (displayHeight - dh) / 2;
+
         ctx.clearRect(0, 0, displayWidth, displayHeight);
-        ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
+        ctx.drawImage(img, dx, dy, dw, dh);
       };
       img.src = value;
     }
-  }, [width, height, value, mode]);
+  }, [width, height, value, mode, selectedWidth, selectedColor]);
 
   useEffect(() => {
     initCanvas();
@@ -247,20 +283,24 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
     []
   );
 
-  // Normal Canvas drawing handlers
+  // Normal Canvas drawing handlers with smooth bezier curve interpolation
   const startDrawing = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
       if (mode !== "draw") return;
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext("2d");
-      if (!ctx) return;
+      if (!ctx || !canvas) return;
 
       setIsDrawing(true);
       const pos = getPos(e, canvas);
+      pointsRef.current = [pos];
+
       ctx.beginPath();
-      ctx.moveTo(pos.x, pos.y);
+      ctx.fillStyle = selectedColor;
+      ctx.arc(pos.x, pos.y, selectedWidth / 2, 0, Math.PI * 2);
+      ctx.fill();
     },
-    [mode, getPos]
+    [mode, getPos, selectedColor, selectedWidth]
   );
 
   const draw = useCallback(
@@ -268,25 +308,52 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
       if (!isDrawing || mode !== "draw") return;
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext("2d");
-      if (!ctx) return;
+      if (!ctx || !canvas) return;
 
       e.preventDefault();
       const pos = getPos(e, canvas);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
+      const points = pointsRef.current;
+      points.push(pos);
+
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = selectedWidth;
+      ctx.strokeStyle = selectedColor;
+
+      if (points.length >= 3) {
+        const p0 = points[points.length - 3];
+        const p1 = points[points.length - 2];
+        const p2 = points[points.length - 1];
+
+        // Smooth midpoint quadratic curve
+        const midPointPrev = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+        const midPointNext = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+
+        ctx.beginPath();
+        ctx.moveTo(midPointPrev.x, midPointPrev.y);
+        ctx.quadraticCurveTo(p1.x, p1.y, midPointNext.x, midPointNext.y);
+        ctx.stroke();
+      } else if (points.length === 2) {
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        ctx.lineTo(points[1].x, points[1].y);
+        ctx.stroke();
+      }
     },
-    [isDrawing, mode, getPos]
+    [isDrawing, mode, getPos, selectedWidth, selectedColor]
   );
 
   const stopDrawing = useCallback(() => {
     if (!isDrawing) return;
     setIsDrawing(false);
+    pointsRef.current = [];
     const canvas = canvasRef.current;
     if (canvas) {
       const cropped = trimAndCropCanvas(canvas, 10);
       const dataUrl = cropped || canvas.toDataURL("image/png");
       lastLoadedValueRef.current = dataUrl;
       onChange(dataUrl);
+      setMode("image");
     }
   }, [isDrawing, onChange]);
 
@@ -296,6 +363,7 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
     if (canvas && ctx) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
+    pointsRef.current = [];
     lastLoadedValueRef.current = null;
     onChange(null);
   }, [onChange]);
@@ -322,6 +390,7 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
     setMode("draw");
     lastLoadedValueRef.current = null;
     onChange(null);
+    pointsRef.current = [];
     setTimeout(() => {
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext("2d");
@@ -374,8 +443,8 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
       ctx.scale(2, 2);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      ctx.lineWidth = 3.5;
-      ctx.strokeStyle = "#000";
+      ctx.lineWidth = selectedWidth * 1.3;
+      ctx.strokeStyle = selectedColor;
 
       if (fullscreenSig) {
         const img = new Image();
@@ -395,7 +464,7 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
     }, 50);
 
     return () => clearTimeout(timer);
-  }, [isFullscreen, fullscreenSig]);
+  }, [isFullscreen, fullscreenSig, selectedWidth, selectedColor]);
 
   const [isFsDrawing, setIsFsDrawing] = useState(false);
 
@@ -403,14 +472,18 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
     (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
       const canvas = fullscreenCanvasRef.current;
       const ctx = canvas?.getContext("2d");
-      if (!ctx) return;
+      if (!ctx || !canvas) return;
 
       setIsFsDrawing(true);
       const pos = getPos(e, canvas);
+      fsPointsRef.current = [pos];
+
       ctx.beginPath();
-      ctx.moveTo(pos.x, pos.y);
+      ctx.fillStyle = selectedColor;
+      ctx.arc(pos.x, pos.y, (selectedWidth * 1.3) / 2, 0, Math.PI * 2);
+      ctx.fill();
     },
-    [getPos]
+    [getPos, selectedColor, selectedWidth]
   );
 
   const drawFs = useCallback(
@@ -418,19 +491,45 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
       if (!isFsDrawing) return;
       const canvas = fullscreenCanvasRef.current;
       const ctx = canvas?.getContext("2d");
-      if (!ctx) return;
+      if (!ctx || !canvas) return;
 
       e.preventDefault();
       const pos = getPos(e, canvas);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
+      const points = fsPointsRef.current;
+      points.push(pos);
+
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = selectedWidth * 1.3;
+      ctx.strokeStyle = selectedColor;
+
+      if (points.length >= 3) {
+        const p0 = points[points.length - 3];
+        const p1 = points[points.length - 2];
+        const p2 = points[points.length - 1];
+
+        // Smooth midpoint quadratic curve
+        const midPointPrev = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
+        const midPointNext = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+
+        ctx.beginPath();
+        ctx.moveTo(midPointPrev.x, midPointPrev.y);
+        ctx.quadraticCurveTo(p1.x, p1.y, midPointNext.x, midPointNext.y);
+        ctx.stroke();
+      } else if (points.length === 2) {
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        ctx.lineTo(points[1].x, points[1].y);
+        ctx.stroke();
+      }
     },
-    [isFsDrawing, getPos]
+    [isFsDrawing, getPos, selectedWidth, selectedColor]
   );
 
   const stopFsDrawing = useCallback(() => {
     if (!isFsDrawing) return;
     setIsFsDrawing(false);
+    fsPointsRef.current = [];
   }, [isFsDrawing]);
 
   const clearFsCanvas = useCallback(() => {
@@ -439,6 +538,7 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
     if (canvas && ctx) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
+    fsPointsRef.current = [];
     setFullscreenSig(null);
   }, []);
 
@@ -575,6 +675,57 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
         )}
       </div>
 
+      {/* Style & Pen Customizer (Ketebalan & Warna Tinta) */}
+      {mode === "draw" && (
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 py-2 rounded-control bg-panel-2/60 border border-rule/60 text-xs">
+          {/* Stroke Width Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+              <Sliders size={12} /> Tebal Garis:
+            </span>
+            <div className="flex items-center gap-1">
+              {STROKE_WIDTHS.map((sw) => (
+                <button
+                  key={sw.value}
+                  type="button"
+                  onClick={() => setSelectedWidth(sw.value)}
+                  className={`px-2 py-0.5 rounded-control text-[11px] font-medium transition-all ${
+                    selectedWidth === sw.value
+                      ? "bg-foreground text-background shadow-xs font-semibold"
+                      : "bg-panel-1 border border-rule text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {sw.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Color Palette Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+              <Palette size={12} /> Tinta:
+            </span>
+            <div className="flex items-center gap-1.5">
+              {PEN_COLORS.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setSelectedColor(c.value)}
+                  title={c.label}
+                  className={`size-4.5 rounded-full border transition-all ${
+                    selectedColor === c.value
+                      ? "ring-2 ring-primary ring-offset-1 scale-110 border-transparent shadow-xs"
+                      : "border-black/20 hover:scale-105"
+                  }`}
+                  style={{ backgroundColor: c.value }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Fullscreen Overlay Modal (Mobile Landscape Optimized) */}
       {isFullscreen && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-background p-3 sm:p-6 animate-in fade-in duration-200">
@@ -586,8 +737,43 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
                 <span>Area Tanda Tangan Fullscreen</span>
               </h3>
               <p className="text-xs text-muted-foreground">
-                Tanda tangani di area putih di bawah. Sistem otomatis meng-crop ruang kosong agar tanda tangan proporsional dan tidak gepeng.
+                Tanda tangani di area putih di bawah. Sistem otomatis memperhalus goresan (smooth curve) dan memotong tepi kosong.
               </p>
+            </div>
+
+            {/* In-Modal Stroke & Color Customizer */}
+            <div className="flex items-center gap-3 bg-panel-2 px-3 py-1.5 rounded-control border border-rule">
+              <div className="flex items-center gap-1">
+                {STROKE_WIDTHS.map((sw) => (
+                  <button
+                    key={sw.value}
+                    type="button"
+                    onClick={() => setSelectedWidth(sw.value)}
+                    className={`px-2 py-0.5 rounded-control text-[11px] transition-all ${
+                      selectedWidth === sw.value
+                        ? "bg-foreground text-background font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {sw.label}
+                  </button>
+                ))}
+              </div>
+              <div className="h-3 w-px bg-rule" />
+              <div className="flex items-center gap-1.5">
+                {PEN_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setSelectedColor(c.value)}
+                    title={c.label}
+                    className={`size-4 rounded-full transition-all ${
+                      selectedColor === c.value ? "ring-2 ring-primary ring-offset-1 scale-110" : "opacity-75 hover:opacity-100"
+                    }`}
+                    style={{ backgroundColor: c.value }}
+                  />
+                ))}
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
