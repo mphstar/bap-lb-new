@@ -40,6 +40,81 @@ function normalizeSchema(schema: any): any {
 }
 
 /**
+ * Reads a streaming [OI]-compatible SSE response chunk by chunk.
+ */
+async function streamCompletion(
+  res: Response,
+  onDelta?: (deltaText: string) => void
+): Promise<{ message: any }> {
+  if (!res.body) {
+    throw new Error("Respons stream tidak tersedia.");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let content = "";
+  const toolCalls: Record<number, any> = {};
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+      const payload = trimmed.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+
+      let chunk: any;
+      try {
+        chunk = JSON.parse(payload);
+      } catch {
+        continue;
+      }
+
+      const choice = chunk.choices?.[0];
+      if (!choice) continue;
+
+      if (choice.delta?.content) {
+        content += choice.delta.content;
+        if (onDelta) {
+          onDelta(choice.delta.content);
+        }
+      }
+
+      for (const tc of choice.delta?.tool_calls || []) {
+        const idx = tc.index ?? 0;
+        if (!toolCalls[idx]) {
+          toolCalls[idx] = {
+            id: "",
+            type: "function",
+            function: { name: "", arguments: "" },
+          };
+        }
+        if (tc.id) toolCalls[idx].id = tc.id;
+        if (tc.function?.name) toolCalls[idx].function.name += tc.function.name;
+        if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
+      }
+    }
+  }
+
+  const toolCallsList = Object.values(toolCalls).filter(Boolean);
+
+  return {
+    message: {
+      role: "assistant",
+      content,
+      ...(toolCallsList.length ? { tool_calls: toolCallsList } : {}),
+    },
+  };
+}
+
+/**
  * Reads an [OI]-compatible response. Handles both plain JSON and SSE
  * (`data: {...}`) streams, since some gateways stream regardless of `stream: false`.
  */
@@ -204,7 +279,7 @@ export async function chatWithAI(params: {
         tools: aiTools,
         tool_choice: "auto",
         temperature: 0.3,
-        stream: false,
+        stream: true,
       }),
     });
 
@@ -213,8 +288,7 @@ export async function chatWithAI(params: {
       throw new Error(`AI Chat API error (${res.status}): ${errText}`);
     }
 
-    const json = await readCompletion(res);
-    const message = json.choices?.[0]?.message;
+    const { message } = await streamCompletion(res, params.onDelta);
 
     if (!message) {
       throw new Error("Tidak ada respons yang diterima dari AI.");
@@ -224,11 +298,7 @@ export async function chatWithAI(params: {
 
     const toolCalls = message.tool_calls;
     if (!toolCalls || toolCalls.length === 0) {
-      const replyContent = message.content || "Tidak ada jawaban.";
-      if (params.onDelta) {
-        params.onDelta(replyContent);
-      }
-      return replyContent;
+      return message.content || "Tidak ada jawaban.";
     }
 
     // Execute tool calls

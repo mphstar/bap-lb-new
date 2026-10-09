@@ -116,13 +116,15 @@ export const AIAssistantWidget: React.FC = () => {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedContent = "";
+      let sseBuffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split("\n");
+        sseBuffer = lines.pop() || "";
 
         for (const line of lines) {
           const trimmed = line.trim();
@@ -135,8 +137,8 @@ export const AIAssistantWidget: React.FC = () => {
             if (parsed.error) {
               throw new Error(parsed.error);
             }
-            if (parsed.delta) {
-              accumulatedContent = parsed.delta;
+            if (typeof parsed.delta === "string") {
+              accumulatedContent += parsed.delta;
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === botId
@@ -155,7 +157,7 @@ export const AIAssistantWidget: React.FC = () => {
               );
             }
           } catch (e) {
-            // Ignore parse errors on stream boundaries
+            // Ignore partial parse boundaries
           }
         }
       }
