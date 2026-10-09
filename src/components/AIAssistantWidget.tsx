@@ -77,33 +77,88 @@ export const AIAssistantWidget: React.FC = () => {
     setLoading(true);
 
     try {
-      // Send conversation history to API
+      // Send conversation history to API with streaming support
       const conversation = [...messages, userMsg].map((m) => ({
         role: m.role,
         content: m.content,
       }));
 
-      const res = await fetch("/api/ai/chat", {
+      const botId = `bot-${Date.now()}`;
+      // Append initial placeholder bot message
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: botId,
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+        },
+      ]);
+
+      const res = await fetch("/api/ai/chat?stream=true", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+        },
         body: JSON.stringify({ messages: conversation }),
       });
 
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(
-          json.error || "Gagal mendapatkan respons dari AI Assistant."
-        );
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Gagal menghubungi AI Assistant.");
       }
 
-      const botMsg: ChatMessage = {
-        id: `bot-${Date.now()}`,
-        role: "assistant",
-        content: json.reply || "Tidak ada jawaban yang dihasilkan.",
-        timestamp: new Date(),
-      };
+      if (!res.body) {
+        throw new Error("Respons streaming tidak tersedia.");
+      }
 
-      setMessages((prev) => [...prev, botMsg]);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const payloadStr = trimmed.slice(5).trim();
+          if (!payloadStr) continue;
+
+          try {
+            const parsed = JSON.parse(payloadStr);
+            if (parsed.error) {
+              throw new Error(parsed.error);
+            }
+            if (parsed.delta) {
+              accumulatedContent = parsed.delta;
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === botId
+                    ? { ...msg, content: accumulatedContent }
+                    : msg
+                )
+              );
+            } else if (parsed.done && parsed.reply) {
+              accumulatedContent = parsed.reply;
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === botId
+                    ? { ...msg, content: accumulatedContent }
+                    : msg
+                )
+              );
+            }
+          } catch (e) {
+            // Ignore parse errors on stream boundaries
+          }
+        }
+      }
 
       // Automatically trigger real-time UI data refresh if AI inserted/modified any records
       if (typeof window !== "undefined") {
@@ -143,20 +198,164 @@ export const AIAssistantWidget: React.FC = () => {
     ]);
   };
 
-  // Format simple markdown (bold, lists, code, line breaks)
+  // Rich Markdown parser (supports tables, headers, lists, codeblocks, inline code, links, bold, italics)
   const renderFormattedText = (text: string) => {
-    const lines = text.split("\n");
-    return lines.map((line, i) => {
-      // Bold tags
-      const formatted = line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-      return (
-        <React.Fragment key={i}>
-          <span
-            dangerouslySetInnerHTML={{ __html: formatted }}
-            className={line.startsWith("- ") || line.startsWith("• ") ? "block pl-3 py-0.5" : "block"}
-          />
-        </React.Fragment>
-      );
+    if (!text) return null;
+
+    // Split code blocks first
+    const parts = text.split(/(```[\s\S]*?```)/g);
+
+    return parts.map((part, pIdx) => {
+      if (part.startsWith("```") && part.endsWith("```")) {
+        const codeLines = part.slice(3, -3).trim().split("\n");
+        const lang = codeLines[0].match(/^[a-zA-Z0-9_-]+$/) ? codeLines[0] : "";
+        const codeContent = lang ? codeLines.slice(1).join("\n") : codeLines.join("\n");
+        return (
+          <div key={pIdx} className="my-2 overflow-x-auto rounded-control bg-neutral-900 dark:bg-black p-3 text-xs text-neutral-100 font-mono">
+            {lang && <div className="text-[10px] text-neutral-400 font-bold uppercase mb-1">{lang}</div>}
+            <pre className="whitespace-pre">{codeContent}</pre>
+          </div>
+        );
+      }
+
+      // Process normal text block (tables, headers, lists, paragraphs)
+      const lines = part.split("\n");
+      const elements: React.ReactNode[] = [];
+      let inTable = false;
+      let tableRows: string[][] = [];
+
+      const flushTable = (tIdx: number) => {
+        if (tableRows.length === 0) return;
+        const [headerRow, ...bodyRows] = tableRows;
+        // Filter out markdown separator line (e.g. |---|---|)
+        const validBodyRows = bodyRows.filter((r) => !r.every((c) => /^[-:\s]+$/.test(c)));
+
+        elements.push(
+          <div key={`table-${tIdx}`} className="my-2.5 overflow-x-auto rounded-control border border-rule">
+            <table className="w-full text-xs text-left border-collapse">
+              <thead className="bg-muted/80 font-bold text-foreground border-b border-rule">
+                <tr>
+                  {headerRow.map((col, cIdx) => (
+                    <th key={cIdx} className="px-2.5 py-1.5 border-r border-rule last:border-r-0 whitespace-nowrap">
+                      {parseInlineMarkdown(col.trim())}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-rule bg-panel">
+                {validBodyRows.map((row, rIdx) => (
+                  <tr key={rIdx} className="hover:bg-muted/30">
+                    {row.map((cell, cIdx) => (
+                      <td key={cIdx} className="px-2.5 py-1.5 border-r border-rule last:border-r-0">
+                        {parseInlineMarkdown(cell.trim())}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        tableRows = [];
+        inTable = false;
+      };
+
+      lines.forEach((line, lIdx) => {
+        const trimmed = line.trim();
+
+        // Check if markdown table row (| col1 | col2 |)
+        if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+          inTable = true;
+          const cols = trimmed.slice(1, -1).split("|");
+          tableRows.push(cols);
+          return;
+        } else if (inTable) {
+          flushTable(lIdx);
+        }
+
+        // Headers (### Header)
+        if (trimmed.startsWith("### ")) {
+          elements.push(
+            <h4 key={lIdx} className="font-bold text-xs sm:text-sm text-foreground mt-2 mb-1">
+              {parseInlineMarkdown(trimmed.slice(4))}
+            </h4>
+          );
+          return;
+        }
+        if (trimmed.startsWith("## ")) {
+          elements.push(
+            <h3 key={lIdx} className="font-bold text-sm text-foreground mt-2.5 mb-1">
+              {parseInlineMarkdown(trimmed.slice(3))}
+            </h3>
+          );
+          return;
+        }
+
+        // Bullet lists
+        if (trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ")) {
+          elements.push(
+            <div key={lIdx} className="flex items-start gap-1.5 pl-2 py-0.5 text-xs sm:text-sm">
+              <span className="text-primary mt-1 select-none font-bold text-[10px]">•</span>
+              <span className="flex-1">{parseInlineMarkdown(trimmed.slice(2))}</span>
+            </div>
+          );
+          return;
+        }
+
+        // Numbered lists (1. Item)
+        const numMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+        if (numMatch) {
+          elements.push(
+            <div key={lIdx} className="flex items-start gap-1.5 pl-2 py-0.5 text-xs sm:text-sm">
+              <span className="font-semibold text-muted-foreground select-none min-w-[16px] text-xs">
+                {numMatch[1]}.
+              </span>
+              <span className="flex-1">{parseInlineMarkdown(numMatch[2])}</span>
+            </div>
+          );
+          return;
+        }
+
+        // Empty spacer
+        if (!trimmed) {
+          elements.push(<div key={lIdx} className="h-1.5" />);
+          return;
+        }
+
+        // Standard paragraph
+        elements.push(
+          <p key={lIdx} className="leading-relaxed py-0.5 text-xs sm:text-sm">
+            {parseInlineMarkdown(line)}
+          </p>
+        );
+      });
+
+      if (inTable) {
+        flushTable(lines.length);
+      }
+
+      return <React.Fragment key={pIdx}>{elements}</React.Fragment>;
+    });
+  };
+
+  // Helper for inline markdown: bold, italic, inline code `code`
+  const parseInlineMarkdown = (content: string) => {
+    const parts = content.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g);
+    return parts.map((seg, sIdx) => {
+      if (seg.startsWith("`") && seg.endsWith("`")) {
+        return (
+          <code key={sIdx} className="px-1 py-0.5 rounded bg-muted font-mono text-[11px] text-primary">
+            {seg.slice(1, -1)}
+          </code>
+        );
+      }
+      if (seg.startsWith("**") && seg.endsWith("**")) {
+        return <strong key={sIdx} className="font-bold text-foreground">{seg.slice(2, -2)}</strong>;
+      }
+      if (seg.startsWith("*") && seg.endsWith("*")) {
+        return <em key={sIdx} className="italic">{seg.slice(1, -1)}</em>;
+      }
+      return seg;
     });
   };
 

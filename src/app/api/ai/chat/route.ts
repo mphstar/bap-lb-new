@@ -1287,6 +1287,44 @@ PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
       );
     }
 
+    const isStream = req.headers.get("accept")?.includes("text/event-stream") || req.nextUrl.searchParams.get("stream") === "true";
+
+    if (isStream) {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            const onDelta = (chunk: string) => {
+              const data = JSON.stringify({ delta: chunk });
+              controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+            };
+
+            const finalReply = await chatWithAI({
+              messages,
+              systemInstruction,
+              tools: functionDeclarations,
+              executeFunction,
+              onDelta,
+            });
+
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, reply: finalReply })}\n\n`));
+            controller.close();
+          } catch (err: any) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err.message || "Error saat streaming" })}\n\n`));
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      });
+    }
+
     const reply = await chatWithAI({
       messages,
       systemInstruction,

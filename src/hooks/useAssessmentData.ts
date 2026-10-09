@@ -22,52 +22,61 @@ export const useAssessmentData = (userId: string | null) => {
     }, []);
 
     // Load when userId changes
-    useEffect(() => {
+    const load = useCallback(async () => {
         if (!userId) {
             setForms([]);
             setLoading(false);
             return;
         }
 
-        const load = async () => {
-            setLoading(true);
+        setLoading(true);
+        try {
+            // Try API first
             try {
-                // Try API first
-                try {
-                    const res = await fetch('/api/assessment');
-                    if (!res.ok) throw new Error('API load failed');
-                    const cloud = await res.json();
-                    
-                    setForms(cloud);
-                    saveAssessmentToLocalStorage(cloud, userId);
-                    setLoading(false);
-                    return;
-                } catch (e) {
-                    console.error('[useAssessmentData] API load failed:', e);
-                }
-
-                // Fallback to localStorage
-                const local = loadAssessmentFromLocalStorage(userId);
-                setForms(local);
-
-                // If user is logged in and has local data but no cloud data, push to cloud
-                if (local.length > 0) {
-                    fetch('/api/assessment', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(local),
-                    }).catch(console.error);
-                }
-            } catch (e) {
-                console.error('[useAssessmentData] load error:', e);
-                setForms(loadAssessmentFromLocalStorage(userId));
-            } finally {
+                const res = await fetch('/api/assessment');
+                if (!res.ok) throw new Error('API load failed');
+                const cloud = await res.json();
+                
+                setForms(cloud);
+                saveAssessmentToLocalStorage(cloud, userId);
                 setLoading(false);
+                return;
+            } catch (e) {
+                console.error('[useAssessmentData] API load failed:', e);
             }
-        };
 
-        load();
+            // Fallback to localStorage
+            const local = loadAssessmentFromLocalStorage(userId);
+            setForms(local);
+
+            // If user is logged in and has local data but no cloud data, push to cloud
+            if (local.length > 0) {
+                fetch('/api/assessment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(local),
+                }).catch(console.error);
+            }
+        } catch (e) {
+            console.error('[useAssessmentData] load error:', e);
+            setForms(loadAssessmentFromLocalStorage(userId));
+        } finally {
+            setLoading(false);
+        }
     }, [userId]);
+
+    useEffect(() => {
+        load();
+    }, [load]);
+
+    // Listen to real-time refresh events
+    useEffect(() => {
+        const handleRefreshEvent = () => {
+            load();
+        };
+        window.addEventListener('app-data-refresh', handleRefreshEvent);
+        return () => window.removeEventListener('app-data-refresh', handleRefreshEvent);
+    }, [load]);
 
     // Debounced API save
     const debouncedSave = useCallback((newForms: AssessmentForm[]) => {

@@ -165,6 +165,7 @@ export async function chatWithAI(params: {
   systemInstruction: string;
   tools: any[];
   executeFunction: (name: string, args: any) => Promise<any>;
+  onDelta?: (deltaText: string) => void;
 }) {
   const { apiKey, url, model } = getConfig();
 
@@ -186,7 +187,7 @@ export async function chatWithAI(params: {
   ];
 
   let turns = 0;
-  const maxTurns = 5;
+  const maxTurns = 8;
 
   while (turns < maxTurns) {
     turns++;
@@ -223,7 +224,11 @@ export async function chatWithAI(params: {
 
     const toolCalls = message.tool_calls;
     if (!toolCalls || toolCalls.length === 0) {
-      return message.content || "Tidak ada jawaban.";
+      const replyContent = message.content || "Tidak ada jawaban.";
+      if (params.onDelta) {
+        params.onDelta(replyContent);
+      }
+      return replyContent;
     }
 
     // Execute tool calls
@@ -245,5 +250,9 @@ export async function chatWithAI(params: {
     }
   }
 
-  return "Selesai memproses data.";
+  const finalMessage = "Selesai memproses data.";
+  if (params.onDelta) {
+    params.onDelta(finalMessage);
+  }
+  return finalMessage;
 }
