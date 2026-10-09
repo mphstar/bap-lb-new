@@ -122,7 +122,111 @@ const functionDeclarations: any[] = [
     description: "Mengambil daftar form penilaian mahasiswa yang telah dibuat oleh user.",
     parameters: {
       type: Type.OBJECT,
-      properties: {},
+      properties: {
+        formId: {
+          type: Type.STRING,
+          description: "ID form penilaian spesifik jika ingin melihat detail isinya (opsional)",
+        },
+      },
+    },
+  },
+  {
+    name: "saveAssessmentGrades",
+    description: "Menginputkan atau memperbarui nilai mahasiswa ke dalam form penilaian (Assessment Form). Bisa membuat form penilaian baru secara otomatis jika belum ada, atau memperbarui nilai/komponen/mata kuliah di form yang sudah ada.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        formName: {
+          type: Type.STRING,
+          description: "Nama form penilaian (contoh: 'Penilaian Jaringan Komputer', 'Nilai Praktikum Semester 4')",
+        },
+        formId: {
+          type: Type.STRING,
+          description: "ID form jika ingin memperbarui form yang sudah ada (opsional)",
+        },
+        subjects: {
+          type: Type.ARRAY,
+          description: "Daftar mata kuliah dan komponen penilaiannya",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: {
+                type: Type.STRING,
+                description: "Nama mata kuliah / modul (contoh: 'Workshop Jaringan Komputer')",
+              },
+              columns: {
+                type: Type.ARRAY,
+                description: "Daftar nama kolom penilaian (contoh: ['Tugas 1', 'UTS', 'UAS', 'Kuis'])",
+                items: {
+                  type: Type.STRING,
+                },
+              },
+              notes: {
+                type: Type.STRING,
+                description: "Catatan opsional di bawah tabel mata kuliah",
+              },
+            },
+            required: ["name", "columns"],
+          },
+        },
+        students: {
+          type: Type.ARRAY,
+          description: "Daftar mahasiswa yang dinilai",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              nim: { type: Type.STRING, description: "NIM mahasiswa" },
+              nama: { type: Type.STRING, description: "Nama lengkap mahasiswa" },
+            },
+            required: ["nim", "nama"],
+          },
+        },
+        grades: {
+          type: Type.ARRAY,
+          description: "Daftar nilai mahasiswa yang dimasukkan",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              nim: { type: Type.STRING, description: "NIM mahasiswa" },
+              subjectName: { type: Type.STRING, description: "Nama mata kuliah" },
+              columnName: { type: Type.STRING, description: "Nama kolom/komponen penilaian" },
+              value: { type: Type.STRING, description: "Nilai yang diberikan (angka atau huruf)" },
+            },
+            required: ["nim", "subjectName", "columnName", "value"],
+          },
+        },
+      },
+      required: ["formName", "subjects", "students", "grades"],
+    },
+  },
+  {
+    name: "executeAutonomousQuery",
+    description: "Tool eksplorasi mandiri query database PostgreSQL. Mengeksekusi query SELECT atau INSERT/UPDATE data secara fleksibel. CATATAN KEAMANAN: 1) Hanya boleh mengakses tabel operasional sistem (schedule_templates, student_master, dosen_list, weekly_entries, weekly_students, assessment_forms, notes, exam_schedules, exam_schedule_entries, archives). 2) WAJIB SELALU sertakan filter user_id = CURRENT_USER_ID di mana CURRENT_USER_ID akan diinjeksikan secara aman oleh sistem. 3) DILARANG KERAS menjalankan DROP, TRUNCATE, DELETE data massal yang fatal, atau mengubah tabel autentikasi (user, session, account).",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        operation: {
+          type: Type.STRING,
+          description: "Jenis operasi: 'select', 'insert', 'update'",
+        },
+        table: {
+          type: Type.STRING,
+          description: "Nama tabel yang dioperasikan: 'schedule_templates', 'student_master', 'dosen_list', 'weekly_entries', 'weekly_students', 'assessment_forms', 'notes', 'exam_schedules', 'exam_schedule_entries', 'archives'",
+        },
+        filters: {
+          type: Type.OBJECT,
+          description: "Filter pencarian data (key-value) untuk SELECT atau WHERE clause UPDATE",
+        },
+        data: {
+          type: Type.OBJECT,
+          description: "Data payload untuk INSERT atau UPDATE (key-value)",
+        },
+        limit: {
+          type: Type.INTEGER,
+          description: "Limit jumlah data yang dikembalikan pada query SELECT (default: 50)",
+        },
+      },
+      required: ["operation", "table"],
     },
   },
   {
@@ -292,24 +396,33 @@ export async function POST(req: NextRequest) {
     }
 
     // System instruction explaining role, concise response style, and boundaries
-    const systemInstruction = `Anda adalah asisten AI cerdas untuk Sistem Informasi Manajemen BAP & Jadwal Laboratorium.
+    const systemInstruction = `Anda adalah asisten AI cerdas & otonom untuk Sistem Informasi Manajemen BAP & Jadwal Laboratorium.
 Pengguna saat ini: ${user.name || user.email || "Pengguna"}.
 
-3. SINKRONISASI NAMA DOSEN/PENGAJAR:
+KAPABILITAS OTONOM & PENILAIAN MAHASISWA:
+1. INPUT NILAI & ASSESSMENT:
+   - Anda dapat secara mandiri mencari form penilaian atau menginputkan nilai mahasiswa ke dalam form penilaian menggunakan tool 'saveAssessmentGrades' atau 'executeAutonomousQuery'.
+   - Jika pengguna memberikan daftar nilai mahasiswa (contoh: "masukkan nilai mahasiswa berikut untuk matkul X..."), Anda dapat mengekstrak data nama, nim, komponen nilai (misal: Tugas, UTS, UAS, Praktik), dan langsung menyimpannya ke form penilaian.
+
+2. EKSPLORASI DATABASE MANDIRI ('executeAutonomousQuery'):
+   - Anda dapat melakukan query SELECT mandiri terhadap tabel operasional untuk mengumpulkan informasi yang dibutuhkan sebelum memproses data.
+   - Tabel yang diizinkan: 'schedule_templates', 'student_master', 'dosen_list', 'weekly_entries', 'weekly_students', 'assessment_forms', 'notes', 'exam_schedules', 'exam_schedule_entries', 'archives'.
+
+3. KEAMANAN & ISOLASI DATA (MUTLAK):
+   - Anda HANYA memiliki akses ke data akun pengguna saat ini (user.id). Sistem akan selalu mengisolasi data per user.
+   - DILARANG KERAS melakukan aksi penghapusan fatal atau data deletion massal (DROP, TRUNCATE, DELETE massal).
+   - Data akun pengguna lain 100% terisolasi dan tidak bisa diakses.
+
+4. SINKRONISASI NAMA DOSEN/PENGAJAR:
    - Ketika memperbarui entri mingguan ('updateWeeklyEntries') atau membuat jadwal baru ('createSchedule'), cocokkan nama singkat dosen (seperti 'Elly', 'Denny', 'Munih') dengan nama lengkap resmi dosen yang ada di master data dosen jika memungkinkan.
 
 PEDOMAN GAYA MENJAWAB (PENTING):
 1. RINGKAS & TO THE POINT UNTUK AKSI (MUTATION):
-   - Jika pengguna meminta melakukan suatu aksi (seperti menambah jadwal 'createSchedule', mengurutkan jadwal 'reorderScheduleTemplates', atau mengubah data mingguan 'updateWeeklyEntries'), CUKUP berikan pesan konfirmasi singkat bahwa aksi telah berhasil dijalankan di database.
+   - Jika pengguna meminta melakukan suatu aksi (seperti menginputkan nilai, menambah jadwal 'createSchedule', mengurutkan jadwal 'reorderScheduleTemplates', atau mengubah data mingguan 'updateWeeklyEntries'), CUKUP berikan pesan konfirmasi singkat bahwa aksi telah berhasil dijalankan di database.
    - JANGAN menampilkan atau mencantumkan tabel daftar data yang panjang kecuali jika pengguna secara eksplisit memintanya (contoh: "tampilkan daftarnya", "apa saja jadwalnya").
 2. HANYA TAMPILKAN DATA JIKA DIMINTA EKSPLISIT:
    - Tampilkan tabel atau rincian data hanya jika pengguna bertanya/meminta informasi (misal: "tampilkan jadwal hari Senin", "rekap BAP minggu 2", "apa saja arsip saya").
-3. JUJUR DAN TO THE POINT TENTANG BATASAN (JIKA TIDAK ADA TOOL):
-   - Jika pengguna meminta aksi yang TIDAK ADA tool/fungsinya di sistem (contoh: menghapus jadwal via chat, mengedit jadwal lama, menginput nilai form penilaian, atau mereset data), LANGSUNG jelaskan TO THE POINT dalam 1-2 kalimat bahwa aksi tersebut belum didukung via chat, dan arahkan ke menu halaman UI yang tepat.
-   - JANGAN berpura-pura atau berhalusinasi seolah-olah aksi sudah selesai jika tidak ada tool yang dieksekusi.
-4. ISOLASI DATA USER:
-   - Anda hanya memiliki akses ke data milik pengguna saat ini. Data pengguna lain 100% tidak bisa diakses.
-5. Gunakan Bahasa Indonesia yang baik, lugas, ramah, dan profesional.
+3. Gunakan Bahasa Indonesia yang baik, lugas, ramah, dan profesional.
 
 PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
 - Tujuan: mengisi kolom Materi dan Pengajar untuk minggu 1-16 pada jadwal DALAM CAKUPAN tertentu.
@@ -572,14 +685,312 @@ PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
             const forms = await db.query.assessmentForms.findMany({
               where: eq(assessmentForms.userId, user.id),
             });
+            let filtered = forms;
+            if (args.formId) {
+              filtered = filtered.filter((f) => f.formId === args.formId || f.id === args.formId);
+            }
             return {
-              count: forms.length,
-              forms: forms.map((f) => ({
-                id: f.formId,
-                name: f.name,
-                data: f.data,
-              })),
+              count: filtered.length,
+              forms: filtered.map((f) => {
+                const parsedData = typeof f.data === "string" ? JSON.parse(f.data) : f.data;
+                return {
+                  id: f.formId,
+                  name: f.name,
+                  studentsCount: parsedData?.students?.length || 0,
+                  subjectsCount: parsedData?.subjects?.length || 0,
+                  subjects: parsedData?.subjects || [],
+                  students: parsedData?.students || [],
+                  grades: parsedData?.grades || {},
+                };
+              }),
             };
+          }
+
+          case "saveAssessmentGrades": {
+            const formName = (args.formName || "Form Penilaian").trim();
+            const rawSubjects = Array.isArray(args.subjects) ? args.subjects : [];
+            const rawStudents = Array.isArray(args.students) ? args.students : [];
+            const rawGrades = Array.isArray(args.grades) ? args.grades : [];
+
+            if (rawSubjects.length === 0 || rawStudents.length === 0) {
+              return { success: false, error: "Daftar mata kuliah atau mahasiswa tidak boleh kosong." };
+            }
+
+            // Find existing form if formId or formName matches
+            let existingForm = null;
+            if (args.formId) {
+              existingForm = await db.query.assessmentForms.findFirst({
+                where: and(eq(assessmentForms.userId, user.id), eq(assessmentForms.formId, args.formId)),
+              });
+            }
+            if (!existingForm) {
+              existingForm = await db.query.assessmentForms.findFirst({
+                where: and(eq(assessmentForms.userId, user.id), eq(assessmentForms.name, formName)),
+              });
+            }
+
+            const existingData = existingForm
+              ? typeof existingForm.data === "string"
+                ? JSON.parse(existingForm.data)
+                : existingForm.data
+              : { students: [], subjects: [], grades: {} };
+
+            // 1. Build Subjects and Column Map
+            const subjectsList = [...(existingData.subjects || [])];
+            const subjectIdMap: Record<string, string> = {};
+
+            rawSubjects.forEach((sub: any) => {
+              let existingSub = subjectsList.find(
+                (s: any) => s.mataKuliah.toLowerCase().trim() === sub.name.toLowerCase().trim()
+              );
+              if (!existingSub) {
+                const subId = `subj-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+                const cols = (sub.columns || []).map((colName: string) => ({
+                  id: `col-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  name: colName,
+                }));
+                existingSub = {
+                  id: subId,
+                  mataKuliah: sub.name,
+                  columns: cols,
+                  notes: sub.notes || "",
+                };
+                subjectsList.push(existingSub);
+              } else {
+                // Merge new columns if not already present
+                (sub.columns || []).forEach((colName: string) => {
+                  const hasCol = existingSub.columns.some(
+                    (c: any) => c.name.toLowerCase().trim() === colName.toLowerCase().trim()
+                  );
+                  if (!hasCol) {
+                    existingSub.columns.push({
+                      id: `col-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                      name: colName,
+                    });
+                  }
+                });
+              }
+              subjectIdMap[sub.name.toLowerCase().trim()] = existingSub.id;
+            });
+
+            // 2. Build Students Map
+            const studentsList = [...(existingData.students || [])];
+            rawStudents.forEach((st: any) => {
+              const existingSt = studentsList.find(
+                (s: any) => s.nim.trim() === st.nim.trim()
+              );
+              if (!existingSt) {
+                studentsList.push({
+                  no: studentsList.length + 1,
+                  nim: st.nim.trim(),
+                  nama: st.nama.trim(),
+                });
+              }
+            });
+
+            // 3. Build & Apply Grades Map: subjectId -> nim -> columnId -> value
+            const gradesMap = { ...(existingData.grades || {}) };
+
+            let gradesInsertedCount = 0;
+            rawGrades.forEach((g: any) => {
+              const subObj = subjectsList.find(
+                (s: any) => s.mataKuliah.toLowerCase().trim() === g.subjectName.toLowerCase().trim()
+              );
+              if (!subObj) return;
+
+              const colObj = subObj.columns.find(
+                (c: any) => c.name.toLowerCase().trim() === g.columnName.toLowerCase().trim()
+              );
+              if (!colObj) return;
+
+              const nim = g.nim.trim();
+              if (!gradesMap[subObj.id]) gradesMap[subObj.id] = {};
+              if (!gradesMap[subObj.id][nim]) gradesMap[subObj.id][nim] = {};
+
+              gradesMap[subObj.id][nim][colObj.id] = String(g.value);
+              gradesInsertedCount++;
+            });
+
+            const targetFormId = existingForm ? existingForm.formId : `form-${Date.now()}`;
+            const updatedPayload = {
+              students: studentsList,
+              subjects: subjectsList,
+              grades: gradesMap,
+            };
+
+            if (existingForm) {
+              await db
+                .update(assessmentForms)
+                .set({
+                  name: formName,
+                  data: updatedPayload,
+                  updatedAt: new Date(),
+                })
+                .where(eq(assessmentForms.id, existingForm.id));
+            } else {
+              await db.insert(assessmentForms).values({
+                userId: user.id,
+                formId: targetFormId,
+                name: formName,
+                data: updatedPayload,
+                updatedAt: new Date(),
+              });
+            }
+
+            return {
+              success: true,
+              formId: targetFormId,
+              formName,
+              totalMahasiswa: studentsList.length,
+              totalMataKuliah: subjectsList.length,
+              gradesUpdated: gradesInsertedCount,
+              message: `Berhasil menginputkan ${gradesInsertedCount} nilai mahasiswa ke dalam form penilaian "${formName}".`,
+            };
+          }
+
+          case "executeAutonomousQuery": {
+            const operation = (args.operation || "").toLowerCase().trim();
+            const table = (args.table || "").toLowerCase().trim();
+
+            const ALLOWED_TABLES = [
+              "schedule_templates",
+              "student_master",
+              "dosen_list",
+              "weekly_entries",
+              "weekly_students",
+              "assessment_forms",
+              "notes",
+              "exam_schedules",
+              "exam_schedule_entries",
+              "archives",
+            ];
+
+            if (!ALLOWED_TABLES.includes(table)) {
+              return {
+                success: false,
+                error: `Tabel '${table}' tidak diizinkan untuk diakses langsung demi alasan keamanan.`,
+              };
+            }
+
+            if (operation === "select") {
+              const filters = args.filters && typeof args.filters === "object" ? args.filters : {};
+              const limit = Math.min(Math.max(Number(args.limit) || 50, 1), 100);
+
+              // Mapping table to drizzle schema
+              switch (table) {
+                case "schedule_templates": {
+                  const res = await db.query.scheduleTemplates.findMany({
+                    where: eq(scheduleTemplates.userId, user.id),
+                    limit,
+                  });
+                  return { success: true, count: res.length, data: res };
+                }
+                case "student_master": {
+                  const res = await db.query.studentMaster.findMany({
+                    where: eq(studentMaster.userId, user.id),
+                    limit,
+                  });
+                  return { success: true, count: res.length, data: res };
+                }
+                case "dosen_list": {
+                  const res = await db.query.dosenList.findMany({
+                    where: eq(dosenList.userId, user.id),
+                    limit,
+                  });
+                  return { success: true, count: res.length, data: res };
+                }
+                case "assessment_forms": {
+                  const res = await db.query.assessmentForms.findMany({
+                    where: eq(assessmentForms.userId, user.id),
+                    limit,
+                  });
+                  return { success: true, count: res.length, data: res };
+                }
+                case "notes": {
+                  const res = await db.query.notes.findMany({
+                    where: eq(notes.userId, user.id),
+                    limit,
+                  });
+                  return { success: true, count: res.length, data: res };
+                }
+                case "weekly_entries": {
+                  const res = await db.query.weeklyEntries.findMany({
+                    where: eq(weeklyEntries.userId, user.id),
+                    limit,
+                  });
+                  return { success: true, count: res.length, data: res };
+                }
+                case "exam_schedules": {
+                  const res = await db.query.examSchedules.findMany({
+                    where: eq(examSchedules.userId, user.id),
+                    limit,
+                  });
+                  return { success: true, count: res.length, data: res };
+                }
+                case "archives": {
+                  const res = await db.query.archives.findMany({
+                    where: eq(archives.userId, user.id),
+                    limit,
+                  });
+                  return { success: true, count: res.length, data: res };
+                }
+                default:
+                  return { success: false, error: `Tabel ${table} belum didukung untuk SELECT.` };
+              }
+            } else if (operation === "insert" || operation === "update") {
+              // Safe record mutation with strict userId injection
+              const payload = args.data && typeof args.data === "object" ? args.data : {};
+              if (Object.keys(payload).length === 0) {
+                return { success: false, error: "Payload data untuk operasi mutation tidak boleh kosong." };
+              }
+
+              if (table === "notes") {
+                if (operation === "insert") {
+                  const inserted = await db.insert(notes).values({
+                    userId: user.id,
+                    title: payload.title || "Catatan AI",
+                    content: payload.content || "",
+                    color: payload.color || "default",
+                    pinned: Boolean(payload.pinned),
+                  }).returning();
+                  return { success: true, message: "Catatan berhasil dibuat.", data: inserted };
+                } else if (operation === "update" && args.filters?.id) {
+                  const updated = await db.update(notes).set({
+                    ...payload,
+                    updatedAt: new Date(),
+                  }).where(and(eq(notes.userId, user.id), eq(notes.id, args.filters.id))).returning();
+                  return { success: true, message: "Catatan berhasil diperbarui.", data: updated };
+                }
+              } else if (table === "student_master") {
+                if (operation === "insert" && payload.nim && payload.name) {
+                  const inserted = await db.insert(studentMaster).values({
+                    userId: user.id,
+                    nim: payload.nim,
+                    name: payload.name,
+                    prodi: payload.prodi || "",
+                    semester: payload.semester || "",
+                    golongan: payload.golongan || "",
+                  }).returning();
+                  return { success: true, message: "Mahasiswa berhasil ditambahkan.", data: inserted };
+                }
+              } else if (table === "dosen_list") {
+                if (operation === "insert" && payload.name) {
+                  const inserted = await db.insert(dosenList).values({
+                    userId: user.id,
+                    name: payload.name,
+                    signature: payload.signature || null,
+                  }).returning();
+                  return { success: true, message: "Dosen berhasil ditambahkan.", data: inserted };
+                }
+              }
+
+              return {
+                success: false,
+                error: `Operasi ${operation} pada tabel ${table} membutuhkan parameter yang valid.`,
+              };
+            }
+
+            return { success: false, error: `Operasi '${operation}' tidak diizinkan.` };
           }
 
           case "getArchives": {
