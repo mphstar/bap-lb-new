@@ -7,3 +7,12 @@ export async function getSessionUser() {
   });
   return session?.user || null;
 }
+
+export async function requireSuperAdmin() {
+  const user = await getSessionUser();
+  if (!user || (user as any).role !== "superadmin") {
+    return null;
+  }
+  return user;
+}
+

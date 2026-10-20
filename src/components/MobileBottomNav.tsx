@@ -21,6 +21,10 @@ import {
   Sun,
   Moon,
   Plus,
+  Activity,
+  Users,
+  History,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
@@ -73,7 +77,14 @@ export function MobileBottomNav() {
     });
   };
 
-  const isMoreActive = MORE_NAV.some((item) => pathname === item.path) || customItems.some((item) => pathname === item.href);
+  const userRole = (session?.user as any)?.role || "teknisi";
+  const isSuperAdmin = userRole === "superadmin";
+
+  const isAdminActive = isSuperAdmin && pathname.startsWith("/admin");
+  const isMoreActive =
+    MORE_NAV.some((item) => pathname === item.path) ||
+    customItems.some((item) => pathname === item.href) ||
+    isAdminActive;
 
   return (
     <>
@@ -157,8 +168,74 @@ export function MobileBottomNav() {
             </div>
           )}
 
+          {/* Superadmin Quick Access */}
+          {isSuperAdmin && (
+            <div className="mt-4 pt-3 border-t border-rule">
+              <div className="flex items-center gap-1.5 px-1 mb-2">
+                <ShieldCheck className="size-3.5 text-brand" />
+                <span className="text-xs font-semibold text-brand">Portal Superadmin</span>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                <Link
+                  href="/admin/monitoring"
+                  onClick={() => setIsMoreOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 p-2.5 rounded-panel border text-left transition-colors active:scale-95",
+                    pathname === "/admin/monitoring"
+                      ? "bg-brand-soft border-brand/40 text-brand font-medium"
+                      : "bg-panel border-rule text-foreground hover:bg-panel-2"
+                  )}
+                >
+                  <Activity className="size-4 shrink-0 text-brand" />
+                  <span className="text-xs font-medium truncate">Pantau BAP & Lab</span>
+                </Link>
+                <Link
+                  href="/admin/users"
+                  onClick={() => setIsMoreOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 p-2.5 rounded-panel border text-left transition-colors active:scale-95",
+                    pathname === "/admin/users"
+                      ? "bg-brand-soft border-brand/40 text-brand font-medium"
+                      : "bg-panel border-rule text-foreground hover:bg-panel-2"
+                  )}
+                >
+                  <Users className="size-4 shrink-0 text-brand" />
+                  <span className="text-xs font-medium truncate">Kelola Teknisi</span>
+                </Link>
+                <Link
+                  href="/admin/audit-logs"
+                  onClick={() => setIsMoreOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 p-2.5 rounded-panel border text-left transition-colors active:scale-95",
+                    pathname === "/admin/audit-logs"
+                      ? "bg-brand-soft border-brand/40 text-brand font-medium"
+                      : "bg-panel border-rule text-foreground hover:bg-panel-2"
+                  )}
+                >
+                  <History className="size-4 shrink-0 text-brand" />
+                  <span className="text-xs font-medium truncate">Audit Log & Jejak</span>
+                </Link>
+                <Link
+                  href="/admin/settings"
+                  onClick={() => setIsMoreOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 p-2.5 rounded-panel border text-left transition-colors active:scale-95",
+                    pathname === "/admin/settings"
+                      ? "bg-brand-soft border-brand/40 text-brand font-medium"
+                      : "bg-panel border-rule text-foreground hover:bg-panel-2"
+                  )}
+                >
+                  <Settings className="size-4 shrink-0 text-brand" />
+                  <span className="text-xs font-medium truncate">Pengaturan Sistem & AI</span>
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* More Nav Links Grid */}
-          <div className="grid grid-cols-2 gap-2 mt-4">
+          <div className="mt-4 pt-3 border-t border-rule">
+            <p className="text-xs font-semibold text-muted-foreground px-1 mb-2">Menu Teknisi Lab</p>
+            <div className="grid grid-cols-2 gap-2">
             {MORE_NAV.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.path;
@@ -180,6 +257,7 @@ export function MobileBottomNav() {
                 </Link>
               );
             })}
+            </div>
           </div>
 
           {/* Custom Menu Items on Mobile */}

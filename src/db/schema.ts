@@ -12,6 +12,10 @@ export const user = pgTable("user", {
   image: text("image"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
+  role: text("role").default("teknisi").notNull(),
+  banned: boolean("banned").default(false),
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires"),
 });
 
 export const session = pgTable("session", {
@@ -23,6 +27,7 @@ export const session = pgTable("session", {
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  impersonatedBy: text("impersonated_by"),
 });
 
 export const account = pgTable("account", {
@@ -206,3 +211,26 @@ export const customSidebarItems = pgTable("custom_sidebar_items", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Audit Logs
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+  userName: text("user_name"),
+  userEmail: text("user_email"),
+  action: text("action").notNull(), // e.g. "USER_CREATE", "USER_ROLE_CHANGE", "DATA_CLEAR", "SCHEDULE_UPDATE"
+  target: text("target"),
+  details: jsonb("details"),
+  ipAddress: text("ip_address"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// System Settings (Global configurations like Custom AI Endpoint, etc.)
+export const systemSettings = pgTable("system_settings", {
+  key: text("key").primaryKey(), // e.g. "ai_config"
+  value: jsonb("value").notNull(), // { baseUrl, apiKey, model, temperature, ... }
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+});
+
+

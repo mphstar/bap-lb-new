@@ -44,6 +44,12 @@ import {
     PanelLeftClose,
     PanelLeftOpen,
     Plus,
+    Users,
+    ShieldCheck,
+    Activity,
+    History,
+    Layers,
+    ArrowLeftRight,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { BapLogo } from "@/components/BapLogo";
@@ -137,6 +143,35 @@ const NAV_GROUPS: NavGroup[] = [
     },
 ];
 
+const SUPERADMIN_NAV_GROUPS: NavGroup[] = [
+    {
+        label: "Portal Superadmin",
+        items: [
+            {
+                path: "/admin/monitoring",
+                label: "Monitoring",
+                icon: <Activity />,
+            },
+            {
+                path: "/admin/users",
+                label: "Kelola Teknisi",
+                icon: <Users />,
+            },
+            {
+                path: "/admin/audit-logs",
+                label: "Audit Log",
+                icon: <History />,
+            },
+        ],
+    },
+    {
+        label: "Konfigurasi",
+        items: [
+            { path: "/admin/settings", label: "Pengaturan Sistem", icon: <Settings /> },
+        ],
+    },
+];
+
 function useDarkMode() {
     const [isDark, setIsDark] = useState(() => {
         if (typeof window !== "undefined") {
@@ -175,6 +210,37 @@ export function AppSidebar({
     const { data: session } = authClient.useSession();
     const { items: customItems } = useCustomSidebar();
     const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
+
+    const userRole = (session?.user as any)?.role || "teknisi";
+    const isSuperAdmin = userRole === "superadmin";
+
+    // Independent sidebar mode for superadmin: "admin" vs "teknisi"
+    const [sidebarMode, setSidebarMode] = useState<"admin" | "teknisi">(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("bap_sidebar_mode");
+            if (saved === "admin" || saved === "teknisi") return saved;
+            return pathname.startsWith("/admin") ? "admin" : "teknisi";
+        }
+        return "teknisi";
+    });
+
+    useEffect(() => {
+        if (pathname.startsWith("/admin")) {
+            setSidebarMode("admin");
+        }
+    }, [pathname]);
+
+    const handleSwitchMode = (newMode: "admin" | "teknisi") => {
+        setSidebarMode(newMode);
+        if (typeof window !== "undefined") {
+            localStorage.setItem("bap_sidebar_mode", newMode);
+        }
+        if (newMode === "admin" && !pathname.startsWith("/admin")) {
+            router.push("/admin/monitoring");
+        } else if (newMode === "teknisi" && pathname.startsWith("/admin")) {
+            router.push("/dashboard");
+        }
+    };
 
     const userName = session?.user?.name?.trim() || "Akun";
     const userEmail = session?.user?.email ?? "";
@@ -234,13 +300,65 @@ export function AppSidebar({
                         </button>
                     </div>
                 </div>
+
+                {/* Mode Switcher for Superadmin */}
+                {isSuperAdmin && (
+                    <div className="pt-2 pb-1">
+                        {/* Expanded toggle */}
+                        <div className="flex items-center rounded-control bg-panel-2 p-1 border border-rule text-xs group-data-[collapsible=icon]:hidden">
+                            <button
+                                type="button"
+                                onClick={() => handleSwitchMode("admin")}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md transition-all text-xs ${sidebarMode === "admin"
+                                    ? "bg-panel text-brand shadow-xs border border-rule font-semibold"
+                                    : "text-muted-foreground hover:text-foreground"
+                                    }`}
+                            >
+                                <ShieldCheck className="size-3.5" />
+                                <span>Superadmin</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleSwitchMode("teknisi")}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md transition-all text-xs ${sidebarMode === "teknisi"
+                                    ? "bg-panel text-foreground shadow-xs border border-rule font-semibold"
+                                    : "text-muted-foreground hover:text-foreground"
+                                    }`}
+                            >
+                                <Layers className="size-3.5" />
+                                <span>Teknisi Lab</span>
+                            </button>
+                        </div>
+
+                        {/* Collapsed icon toggle */}
+                        <div className="hidden group-data-[collapsible=icon]:flex justify-center">
+                            <button
+                                type="button"
+                                onClick={() => handleSwitchMode(sidebarMode === "admin" ? "teknisi" : "admin")}
+                                title={`Mode saat ini: ${sidebarMode === "admin" ? "Superadmin" : "Teknisi Lab"}. Klik untuk beralih.`}
+                                className={`flex size-8 items-center justify-center rounded-control border transition-colors ${sidebarMode === "admin"
+                                    ? "bg-brand-soft text-brand border-brand/30"
+                                    : "bg-panel-2 text-foreground border-rule hover:bg-sidebar-accent"
+                                    }`}
+                            >
+                                {sidebarMode === "admin" ? (
+                                    <ShieldCheck className="size-4" />
+                                ) : (
+                                    <Layers className="size-4" />
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                )}
             </SidebarHeader>
 
-            {/* Navigation — groups separate by gap, no drawn rules */}
-            <SidebarContent className="hm-scroll gap-0 overflow-x-hidden px-3 pt-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:pt-3">
-                {NAV_GROUPS.map((group) => (
+            {/* Navigation — independent mode rendering */}
+            <SidebarContent className="hm-scroll gap-0 overflow-x-hidden px-3 pt-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:pt-3">
+                {(isSuperAdmin && sidebarMode === "admin" ? SUPERADMIN_NAV_GROUPS : NAV_GROUPS).map((group) => (
                     <SidebarGroup key={group.label} className="px-0 pb-3 pt-0">
-                        <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                        <SidebarGroupLabel className={isSuperAdmin && sidebarMode === "admin" ? "text-brand font-semibold" : ""}>
+                            {group.label}
+                        </SidebarGroupLabel>
                         <SidebarGroupContent>
                             <SidebarMenu className="gap-1.5">
                                 {group.items.map((item) => (
@@ -249,9 +367,10 @@ export function AppSidebar({
                                             isActive={pathname === item.path}
                                             tooltip={item.label}
                                             onClick={() => router.push(item.path)}
+                                            className={isSuperAdmin && sidebarMode === "admin" ? "hover:bg-brand-soft/60" : ""}
                                         >
                                             {item.icon}
-                                            <span>{item.label}</span>
+                                            <span className="font-medium">{item.label}</span>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
                                 ))}
@@ -260,53 +379,55 @@ export function AppSidebar({
                     </SidebarGroup>
                 ))}
 
-                {/* Custom Menu Section */}
-                <SidebarGroup className="px-0 pb-3 pt-0">
-                    <div className="flex items-center justify-between px-2 py-1 text-xs text-sidebar-foreground/70 font-semibold group-data-[collapsible=icon]:hidden">
-                        <span>Menu Kustom</span>
-                        <button
-                            type="button"
-                            onClick={() => setIsCustomModalOpen(true)}
-                            className="rounded p-0.5 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
-                            title="Tambah / Kelola Menu Kustom"
-                        >
-                            <Plus className="size-3.5" />
-                        </button>
-                    </div>
-                    <SidebarGroupContent>
-                        <SidebarMenu className="gap-1.5">
-                            {customItems.map((item) => (
-                                <SidebarMenuItem key={item.id}>
-                                    <SidebarMenuButton
-                                        isActive={pathname === item.href}
-                                        tooltip={item.title}
-                                        onClick={() => {
-                                            if (item.href.startsWith("http://") || item.href.startsWith("https://")) {
-                                                window.open(item.href, "_blank", "noopener,noreferrer");
-                                            } else {
-                                                router.push(item.href);
-                                            }
-                                        }}
-                                    >
-                                        {renderCustomIcon(item.icon)}
-                                        <span>{item.title}</span>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                            {customItems.length === 0 && (
-                                <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsCustomModalOpen(true)}
-                                        className="w-full text-left px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50 rounded-control transition-colors"
-                                    >
-                                        + Tambah menu kustom
-                                    </button>
-                                </SidebarMenuItem>
-                            )}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
+                {/* Custom Menu Section only in Teknisi mode */}
+                {(!isSuperAdmin || sidebarMode === "teknisi") && (
+                    <SidebarGroup className="px-0 pb-3 pt-0">
+                        <div className="flex items-center justify-between px-2 py-1 text-xs text-sidebar-foreground/70 font-semibold group-data-[collapsible=icon]:hidden">
+                            <span>Menu Kustom</span>
+                            <button
+                                type="button"
+                                onClick={() => setIsCustomModalOpen(true)}
+                                className="rounded p-0.5 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                                title="Tambah / Kelola Menu Kustom"
+                            >
+                                <Plus className="size-3.5" />
+                            </button>
+                        </div>
+                        <SidebarGroupContent>
+                            <SidebarMenu className="gap-1.5">
+                                {customItems.map((item) => (
+                                    <SidebarMenuItem key={item.id}>
+                                        <SidebarMenuButton
+                                            isActive={pathname === item.href}
+                                            tooltip={item.title}
+                                            onClick={() => {
+                                                if (item.href.startsWith("http://") || item.href.startsWith("https://")) {
+                                                    window.open(item.href, "_blank", "noopener,noreferrer");
+                                                } else {
+                                                    router.push(item.href);
+                                                }
+                                            }}
+                                        >
+                                            {renderCustomIcon(item.icon)}
+                                            <span>{item.title}</span>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                ))}
+                                {customItems.length === 0 && (
+                                    <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsCustomModalOpen(true)}
+                                            className="w-full text-left px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50 rounded-control transition-colors"
+                                        >
+                                            + Tambah menu kustom
+                                        </button>
+                                    </SidebarMenuItem>
+                                )}
+                            </SidebarMenu>
+                        </SidebarGroupContent>
+                    </SidebarGroup>
+                )}
 
                 {/* Ambient counts. Quiet metadata, not a card — the reference
                     has no equivalent, but this data earns its place here. */}
@@ -384,9 +505,41 @@ export function AppSidebar({
                                         {userEmail}
                                     </span>
                                 ) : null}
+                                <div className="mt-1.5 flex items-center gap-1.5">
+                                    <span
+                                        className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${isSuperAdmin
+                                            ? "bg-brand-soft text-brand border border-brand/20"
+                                            : "bg-tile text-muted-foreground border border-rule"
+                                            }`}
+                                    >
+                                        {isSuperAdmin && <ShieldCheck className="size-2.5 text-brand" />}
+                                        {isSuperAdmin ? "Super Admin" : "Teknisi Lab"}
+                                    </span>
+                                </div>
                             </DropdownMenuLabel>
 
                             <DropdownMenuSeparator />
+
+                            {isSuperAdmin && (
+                                <>
+                                    <DropdownMenuItem
+                                        onSelect={() =>
+                                            handleSwitchMode(
+                                                sidebarMode === "admin" ? "teknisi" : "admin"
+                                            )
+                                        }
+                                    >
+                                        <ArrowLeftRight className="size-4" />
+                                        <span>
+                                            Beralih ke Mode{" "}
+                                            {sidebarMode === "admin"
+                                                ? "Teknisi Lab"
+                                                : "Superadmin"}
+                                        </span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                </>
+                            )}
 
                             <DropdownMenuItem onSelect={onExportAll}>
                                 <Download />

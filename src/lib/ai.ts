@@ -1,17 +1,200 @@
-// [OI]-compatible AI client (works with 9router gateway and any compatible endpoint).
+// [OI]-compatible AI client (supports OpenAI, OpenRouter, Groq, Ollama, DeepSeek, LocalAI, etc.)
+import { db, systemSettings } from "@/db";
+import { eq } from "drizzle-orm";
 
-function getConfig() {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || !apiKey.trim()) {
-    throw new Error("OPENAI_API_KEY belum dikonfigurasi di .env");
-  }
-  const baseUrl = (process.env.OPENAI_BASE_URL || "https://api.9router.com/v1").replace(/\/+$/, "");
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
-  return { apiKey, url: `${baseUrl}/chat/completions`, model };
+export interface AIConfig {
+  apiKey: string;
+  baseUrl: string;
+  url: string; // ${baseUrl}/chat/completions
+  model: string;
+  source: "database" | "env" | "none";
 }
 
-export function isAIConfigured(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim());
+export interface OpenAIModelItem {
+  id: string;
+  name?: string;
+  created?: number;
+  owned_by?: string;
+}
+
+let cachedAIConfig: { config: AIConfig; timestamp: number } | null = null;
+const CACHE_TTL_MS = 10_000; // 10s cache to avoid querying db on every SSE delta
+
+export async function getAIConfig(forceRefresh = false): Promise<AIConfig> {
+  const now = Date.now();
+  if (!forceRefresh && cachedAIConfig && now - cachedAIConfig.timestamp < CACHE_TTL_MS) {
+    return cachedAIConfig.config;
+  }
+
+  try {
+    const [row] = await db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, "ai_config"))
+      .limit(1);
+
+    if (row && row.value && typeof row.value === "object") {
+      const val = row.value as { baseUrl?: string; apiKey?: string; model?: string };
+      if (val.apiKey && val.apiKey.trim()) {
+        const baseUrl = (val.baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+        const model = val.model?.trim() || "gpt-4o-mini";
+        const config: AIConfig = {
+          apiKey: val.apiKey.trim(),
+          baseUrl,
+          url: `${baseUrl}/chat/completions`,
+          model,
+          source: "database",
+        };
+        cachedAIConfig = { config, timestamp: now };
+        return config;
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to read systemSettings for AI config:", err);
+  }
+
+  // Fallback to environment variables
+  const envKey = process.env.OPENAI_API_KEY?.trim() || "";
+  const baseUrl = (process.env.OPENAI_BASE_URL || "https://api.9router.com/v1").replace(/\/+$/, "");
+  const model = process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
+
+  const config: AIConfig = {
+    apiKey: envKey,
+    baseUrl,
+    url: `${baseUrl}/chat/completions`,
+    model,
+    source: envKey ? "env" : "none",
+  };
+  cachedAIConfig = { config, timestamp: now };
+  return config;
+}
+
+export function clearAIConfigCache() {
+  cachedAIConfig = null;
+}
+
+export async function isAIConfigured(): Promise<boolean> {
+  const config = await getAIConfig();
+  return Boolean(config.apiKey && config.apiKey.length > 0);
+}
+
+/**
+ * Fetch available models from an OpenAI-compatible /models endpoint
+ */
+export async function fetchAvailableModels(
+  baseUrl: string,
+  apiKey: string
+): Promise<OpenAIModelItem[]> {
+  const cleanBase = baseUrl.trim().replace(/\/+$/, "");
+  const modelsUrl = `${cleanBase}/models`;
+
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+  if (apiKey && apiKey.trim()) {
+    headers["Authorization"] = `Bearer ${apiKey.trim()}`;
+  }
+
+  const res = await fetch(modelsUrl, {
+    method: "GET",
+    headers,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    let detail = errText.slice(0, 200);
+    try {
+      const parsed = JSON.parse(errText);
+      if (parsed?.error?.message) detail = parsed.error.message;
+    } catch {}
+    throw new Error(`Gagal mengambil daftar model (${res.status}): ${detail}`);
+  }
+
+  const json = await res.json();
+  let list: OpenAIModelItem[] = [];
+
+  // 1. Standard OpenAI format: { object: 'list', data: [{ id: '...', ... }] }
+  if (Array.isArray(json?.data)) {
+    list = json.data.map((m: any) => ({
+      id: m.id || m.name,
+      name: m.name || m.id,
+      created: m.created,
+      owned_by: m.owned_by,
+    }));
+  }
+  // 2. Ollama / custom format: { models: [{ name: '...', ... }] }
+  else if (Array.isArray(json?.models)) {
+    list = json.models.map((m: any) => ({
+      id: m.name || m.id,
+      name: m.name || m.id,
+      created: m.created_at ? new Date(m.created_at).getTime() / 1000 : undefined,
+    }));
+  }
+  // 3. Array root: [{ id: '...' }]
+  else if (Array.isArray(json)) {
+    list = json.map((m: any) => ({
+      id: typeof m === "string" ? m : m.id || m.name,
+      name: typeof m === "string" ? m : m.name || m.id,
+    }));
+  }
+
+  return list
+    .filter((m) => Boolean(m.id))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * Sends a minimal test ping to verify end-to-end OpenAI compatibility
+ */
+export async function testAIConnection(params: {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+}): Promise<{ ok: boolean; latencyMs: number; message: string; modelUsed: string }> {
+  const start = Date.now();
+  const cleanBase = params.baseUrl.trim().replace(/\/+$/, "");
+  const url = `${cleanBase}/chat/completions`;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (params.apiKey && params.apiKey.trim()) {
+    headers["Authorization"] = `Bearer ${params.apiKey.trim()}`;
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: params.model || "gpt-4o-mini",
+      messages: [
+        { role: "user", content: "Ping! Tolong respon dengan kata 'Connected'." },
+      ],
+      max_tokens: 20,
+      temperature: 0.1,
+    }),
+  });
+
+  const latencyMs = Date.now() - start;
+
+  if (!res.ok) {
+    const errText = await res.text();
+    let errMsg = errText.slice(0, 250);
+    try {
+      const errJson = JSON.parse(errText);
+      if (errJson?.error?.message) errMsg = errJson.error.message;
+    } catch {}
+    throw new Error(`Uji koneksi gagal (${res.status}): ${errMsg}`);
+  }
+
+  const json = await res.json();
+  const reply = json.choices?.[0]?.message?.content || "Connected!";
+  return {
+    ok: true,
+    latencyMs,
+    message: reply.trim(),
+    modelUsed: json.model || params.model,
+  };
 }
 
 /**
@@ -218,7 +401,7 @@ async function readCompletion(res: Response): Promise<any> {
 }
 
 export async function parseScheduleWithAI(rawText: string) {
-  const { apiKey, url, model } = getConfig();
+  const { apiKey, url, model } = await getAIConfig();
 
   const systemPrompt = `Anda adalah asisten data akademik profesional. Ekstrak data jadwal perkuliahan / praktikum dari teks tidak terstruktur menjadi JSON array murni tanpa markdown/penjelasan tambahan.
 Format JSON yang diharapkan adalah array dari objek:
@@ -285,7 +468,7 @@ export async function chatWithAI(params: {
   executeFunction: (name: string, args: any) => Promise<any>;
   onDelta?: (deltaText: string) => void;
 }) {
-  const { apiKey, url, model } = getConfig();
+  const { apiKey, url, model } = await getAIConfig();
 
   const aiTools = params.tools.map((t) => ({
     type: "function",

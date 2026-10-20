@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!isAIConfigured()) {
+    if (!(await isAIConfigured())) {
       throw new Error(
-        "Tidak ada AI provider yang aktif. Silakan atur OPENAI_API_KEY di file .env."
+        "Tidak ada AI provider yang aktif. Silakan atur Endpoint & API Key di Pengaturan Superadmin."
       );
     }
 
