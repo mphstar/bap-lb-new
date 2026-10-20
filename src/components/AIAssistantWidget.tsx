@@ -76,6 +76,8 @@ export const AIAssistantWidget: React.FC = () => {
     setInput("");
     setLoading(true);
 
+    const botId = `bot-${Date.now()}`;
+
     try {
       // Send conversation history to API with streaming support
       const conversation = [...messages, userMsg].map((m) => ({
@@ -83,7 +85,6 @@ export const AIAssistantWidget: React.FC = () => {
         content: m.content,
       }));
 
-      const botId = `bot-${Date.now()}`;
       // Append initial placeholder bot message
       setMessages((prev) => [
         ...prev,
@@ -105,8 +106,24 @@ export const AIAssistantWidget: React.FC = () => {
       });
 
       if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || "Gagal menghubungi AI Assistant.");
+        const errText = await res.text().catch(() => "");
+        let errMsg = "Gagal menghubungi AI Assistant.";
+        try {
+          const errJson = JSON.parse(errText);
+          errMsg = errJson.error || errMsg;
+        } catch {
+          if (errText.trimStart().startsWith("<")) {
+            errMsg = `Layanan AI sedang tidak dapat diakses (HTTP ${res.status}). Silakan coba beberapa saat lagi.`;
+          } else if (errText) {
+            errMsg = errText.slice(0, 150);
+          }
+        }
+        throw new Error(errMsg);
+      }
+
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("text/html")) {
+        throw new Error(`Respon server tidak valid (${res.status}). Silakan muat ulang halaman.`);
       }
 
       if (!res.body) {
@@ -132,32 +149,36 @@ export const AIAssistantWidget: React.FC = () => {
           const payloadStr = trimmed.slice(5).trim();
           if (!payloadStr) continue;
 
+          let parsed: any = null;
           try {
-            const parsed = JSON.parse(payloadStr);
-            if (parsed.error) {
-              throw new Error(parsed.error);
-            }
-            if (typeof parsed.delta === "string") {
-              accumulatedContent += parsed.delta;
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === botId
-                    ? { ...msg, content: accumulatedContent }
-                    : msg
-                )
-              );
-            } else if (parsed.done && parsed.reply) {
-              accumulatedContent = parsed.reply;
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === botId
-                    ? { ...msg, content: accumulatedContent }
-                    : msg
-                )
-              );
-            }
-          } catch (e) {
-            // Ignore partial parse boundaries
+            parsed = JSON.parse(payloadStr);
+          } catch {
+            // Ignore incomplete chunks across stream boundaries
+            continue;
+          }
+
+          if (parsed?.error) {
+            throw new Error(parsed.error);
+          }
+
+          if (typeof parsed?.delta === "string") {
+            accumulatedContent += parsed.delta;
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === botId
+                  ? { ...msg, content: accumulatedContent }
+                  : msg
+              )
+            );
+          } else if (parsed?.done && parsed?.reply) {
+            accumulatedContent = parsed.reply;
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === botId
+                  ? { ...msg, content: accumulatedContent }
+                  : msg
+              )
+            );
           }
         }
       }
@@ -168,15 +189,23 @@ export const AIAssistantWidget: React.FC = () => {
       }
     } catch (err: any) {
       console.error("AI Chat error:", err);
+      let rawMsg = err?.message || "Pastikan konfigurasi AI telah diatur di .env.";
+      if (rawMsg.includes("Unexpected token '<'") || rawMsg.trimStart().startsWith("<")) {
+        rawMsg = "Layanan AI mengalami kendala koneksi atau gateway timeout. Silakan coba sesaat lagi.";
+      }
       const errorMsg: ChatMessage = {
         id: `err-${Date.now()}`,
         role: "assistant",
-        content: `⚠️ Terjadi kendala: ${
-          err.message || "Pastikan OPENAI_API_KEY telah diatur di .env."
-        }`,
+        content: `⚠️ Terjadi kendala: ${rawMsg}`,
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, errorMsg]);
+      // If the placeholder bot message was empty, remove it and show error message
+      setMessages((prev) => {
+        const withoutEmptyPlaceholder = prev.filter(
+          (msg) => msg.id !== botId || msg.content.trim() !== ""
+        );
+        return [...withoutEmptyPlaceholder, errorMsg];
+      });
     } finally {
       setLoading(false);
     }

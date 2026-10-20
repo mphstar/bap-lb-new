@@ -50,6 +50,29 @@ async function streamCompletion(
     throw new Error("Respons stream tidak tersedia.");
   }
 
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("text/event-stream") && !contentType.includes("application/x-ndjson")) {
+    const text = await res.text();
+    if (text.trimStart().startsWith("<")) {
+      throw new Error("Layanan AI mengembalikan respons HTML (kemungkinan timeout atau gateway error). Silakan coba lagi.");
+    }
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(`Format respons AI tidak valid: ${text.slice(0, 150)}`);
+    }
+    if (data?.error) {
+      throw new Error(data.error.message || JSON.stringify(data.error));
+    }
+    const choice = data?.choices?.[0];
+    const msg = choice?.message || { role: "assistant", content: data?.reply || "" };
+    if (msg.content && onDelta) {
+      onDelta(msg.content);
+    }
+    return { message: msg };
+  }
+
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let content = "";
@@ -84,6 +107,11 @@ async function streamCompletion(
         content += choice.delta.content;
         if (onDelta) {
           onDelta(choice.delta.content);
+        }
+      } else if (choice.delta?.text) {
+        content += choice.delta.text;
+        if (onDelta) {
+          onDelta(choice.delta.text);
         }
       }
 
@@ -121,8 +149,16 @@ async function streamCompletion(
 async function readCompletion(res: Response): Promise<any> {
   const text = await res.text();
 
+  if (text.trimStart().startsWith("<")) {
+    throw new Error("Layanan AI mengembalikan halaman HTML. Silakan coba kembali sesaat lagi.");
+  }
+
   if (!text.trimStart().startsWith("data:")) {
-    return JSON.parse(text);
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(`Respons AI bukan JSON valid: ${text.slice(0, 100)}`);
+    }
   }
 
   let content = "";
@@ -220,7 +256,10 @@ Wajib hanya mengembalikan JSON array murni.`;
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`AI API error (${res.status}): ${errText}`);
+    const cleanErr = errText.trimStart().startsWith("<")
+      ? `Layanan AI mengalami kendala HTTP ${res.status}. Silakan coba sesaat lagi.`
+      : errText;
+    throw new Error(`AI API error (${res.status}): ${cleanErr}`);
   }
 
   const json = await readCompletion(res);
@@ -232,7 +271,11 @@ Wajib hanya mengembalikan JSON array murni.`;
     .replace(/\s*```$/i, "")
     .trim();
 
-  return JSON.parse(cleaned);
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    throw new Error(`AI mengembalikan format bukan JSON: ${cleaned.slice(0, 150)}`);
+  }
 }
 
 export async function chatWithAI(params: {
@@ -262,7 +305,7 @@ export async function chatWithAI(params: {
   ];
 
   let turns = 0;
-  const maxTurns = 8;
+  const maxTurns = 10;
 
   while (turns < maxTurns) {
     turns++;
@@ -285,7 +328,10 @@ export async function chatWithAI(params: {
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`AI Chat API error (${res.status}): ${errText}`);
+      const cleanErr = errText.trimStart().startsWith("<")
+        ? `Layanan AI mengalami kendala HTTP ${res.status}. Silakan coba sesaat lagi.`
+        : errText;
+      throw new Error(`AI Chat API error (${res.status}): ${cleanErr}`);
     }
 
     const { message } = await streamCompletion(res, params.onDelta);
@@ -320,7 +366,44 @@ export async function chatWithAI(params: {
     }
   }
 
-  const finalMessage = "Selesai memproses data.";
+  // If max turns reached but the last message was a tool execution,
+  // do ONE final turn without tools so the AI synthesizes and answers the user's question!
+  const lastMsg = conversation[conversation.length - 1];
+  if (lastMsg?.role === "tool" || (lastMsg?.role === "assistant" && lastMsg?.tool_calls?.length)) {
+    try {
+      const finalRes = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            ...conversation,
+            {
+              role: "user",
+              content:
+                "Berdasarkan seluruh data yang telah Anda kumpulkan dari fungsi/tool sebelumnya, berikan jawaban dan analisis lengkap serta terstruktur atas pertanyaan awal pengguna sekarang tanpa memanggil fungsi lagi.",
+            },
+          ],
+          temperature: 0.3,
+          stream: true,
+        }),
+      });
+
+      if (finalRes.ok) {
+        const { message: finalMsg } = await streamCompletion(finalRes, params.onDelta);
+        if (finalMsg?.content && finalMsg.content.trim()) {
+          return finalMsg.content;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to generate final synthesis answer:", e);
+    }
+  }
+
+  const finalMessage = "Data telah selesai dianalisis.";
   if (params.onDelta) {
     params.onDelta(finalMessage);
   }

@@ -41,7 +41,15 @@ const functionDeclarations: any[] = [
       properties: {
         weekNumber: {
           type: Type.INTEGER,
-          description: "Nomor minggu (1 s/d 16). Jika dikosongkan, akan mengambil semua minggu.",
+          description: "Nomor minggu (1 s/d 16). Jika dikosongkan, bisa menggunakan startWeek dan endWeek atau mengambil semua minggu.",
+        },
+        startWeek: {
+          type: Type.INTEGER,
+          description: "Minggu awal perkuliahan untuk filter rentang minggu (misal: 1)",
+        },
+        endWeek: {
+          type: Type.INTEGER,
+          description: "Minggu akhir perkuliahan untuk filter rentang minggu (misal: 7)",
         },
         scheduleId: {
           type: Type.STRING,
@@ -52,13 +60,21 @@ const functionDeclarations: any[] = [
   },
   {
     name: "getStudentAttendance",
-    description: "Mengambil data detail presensi/kehadiran mahasiswa pada minggu tertentu atau jadwal tertentu (termasuk daftar nama mahasiswa yang hadir, sakit, izin, atau alpa).",
+    description: "Mengambil data detail presensi/kehadiran mahasiswa pada minggu tertentu atau rentang minggu tertentu (termasuk daftar nama mahasiswa yang hadir, sakit, izin, atau alpa).",
     parameters: {
       type: Type.OBJECT,
       properties: {
         weekNumber: {
           type: Type.INTEGER,
-          description: "Nomor minggu perkuliahan (1 s/d 16)",
+          description: "Nomor minggu perkuliahan spesifik (1 s/d 16, opsional)",
+        },
+        startWeek: {
+          type: Type.INTEGER,
+          description: "Filter minggu awal jika ingin rentang minggu (misal: 1)",
+        },
+        endWeek: {
+          type: Type.INTEGER,
+          description: "Filter minggu akhir jika ingin rentang minggu (misal: 7)",
         },
         scheduleId: {
           type: Type.STRING,
@@ -66,7 +82,36 @@ const functionDeclarations: any[] = [
         },
         onlyAbsent: {
           type: Type.BOOLEAN,
-          description: "Jika true, hanya tampilkan mahasiswa yang tidak hadir (sakit, izin, alpa).",
+          description: "Jika true, hanya tampilkan entri yang memiliki mahasiswa tidak hadir (sakit, izin, alpa) untuk menghemat ukuran data.",
+        },
+      },
+    },
+  },
+  {
+    name: "getConsecutiveAbsences",
+    description: "Menganalisis dan mendeteksi mahasiswa yang tidak hadir (Alpha, Sakit, atau Izin) secara berturut-turut / terus-menerus dalam rentang minggu tertentu (contoh: 'jadwal mana yang ada mahasiswa tidak hadir terus-menerus dari minggu 1-7'). Mengembalikan nama mahasiswa, NIM, jadwal mata kuliah, golongan, hari, jam, serta rincian minggu ketidakhadirannya.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        startWeek: {
+          type: Type.INTEGER,
+          description: "Minggu perkuliahan awal (default: 1)",
+        },
+        endWeek: {
+          type: Type.INTEGER,
+          description: "Minggu perkuliahan akhir (default: 16)",
+        },
+        minConsecutiveWeeks: {
+          type: Type.INTEGER,
+          description: "Jumlah minimal minggu berturut-turut tidak hadir (default: 2)",
+        },
+        scheduleId: {
+          type: Type.STRING,
+          description: "Filter ID jadwal tertentu (opsional)",
+        },
+        status: {
+          type: Type.STRING,
+          description: "Filter status ketidakhadiran: 'ALPHA', 'SAKIT', 'IZIN', atau kosongkan untuk semua alasan (opsional)",
         },
       },
     },
@@ -482,6 +527,13 @@ PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
                 eq(weeklyEntries.userId, user.id),
                 eq(weeklyEntries.weekNumber, Number(args.weekNumber))
               )!;
+            } else if (args.startWeek || args.endWeek) {
+              const s = Math.min(Math.max(1, Number(args.startWeek) || 1), 16);
+              const e = Math.max(s, Math.min(16, Number(args.endWeek) || 16));
+              whereClause = and(
+                whereClause,
+                sql`${weeklyEntries.weekNumber} >= ${s} AND ${weeklyEntries.weekNumber} <= ${e}`
+              )!;
             }
             if (args.scheduleId) {
               whereClause = and(
@@ -538,6 +590,13 @@ PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
                 eq(weeklyEntries.userId, user.id),
                 eq(weeklyEntries.weekNumber, Number(args.weekNumber))
               )!;
+            } else if (args.startWeek || args.endWeek) {
+              const s = Math.min(Math.max(1, Number(args.startWeek) || 1), 16);
+              const e = Math.max(s, Math.min(16, Number(args.endWeek) || 16));
+              whereClause = and(
+                whereClause,
+                sql`${weeklyEntries.weekNumber} >= ${s} AND ${weeklyEntries.weekNumber} <= ${e}`
+              )!;
             }
             if (args.scheduleId) {
               whereClause = and(
@@ -546,10 +605,17 @@ PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
               )!;
             }
 
-            const entries = await db.query.weeklyEntries.findMany({
-              where: whereClause,
-              orderBy: (w, { asc }) => [asc(w.weekNumber)],
-            });
+            const [entries, schedules] = await Promise.all([
+              db.query.weeklyEntries.findMany({
+                where: whereClause,
+                orderBy: (w, { asc }) => [asc(w.weekNumber)],
+              }),
+              db.query.scheduleTemplates.findMany({
+                where: eq(scheduleTemplates.userId, user.id),
+              }),
+            ]);
+
+            const scheduleMap = new Map(schedules.map((s) => [s.scheduleId, s]));
 
             const entryIds = entries.map((e) => e.id);
             const allStudents = entryIds.length > 0
@@ -559,19 +625,22 @@ PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
                 })
               : [];
 
-            const result = entries.map((e) => {
+            let result = entries.map((e) => {
               let studentsList = allStudents.filter((s) => s.weeklyEntryId === e.id);
               if (args.onlyAbsent) {
                 studentsList = studentsList.filter(
                   (s) => s.remarks && s.remarks.toLowerCase() !== "hadir"
                 );
               }
+              const sched = scheduleMap.get(e.scheduleId);
               return {
                 weekNumber: e.weekNumber,
                 scheduleId: e.scheduleId,
+                mataKuliah: sched?.mataKuliah || "",
+                golongan: sched?.golongan || "",
+                hari: sched?.hari || "",
+                jam: sched?.jam || "",
                 materi: e.materi,
-                tanggal: e.tanggal,
-                pengajar: e.pengajar,
                 totalStudents: studentsList.length,
                 students: studentsList.map((s) => ({
                   no: s.studentNo,
@@ -582,9 +651,163 @@ PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
               };
             });
 
+            // If onlyAbsent is requested, filter out entries that have 0 absent students to keep payload small
+            if (args.onlyAbsent) {
+              result = result.filter((e) => e.students.length > 0);
+            }
+
             return {
               count: result.length,
               attendanceData: result,
+            };
+          }
+
+          case "getConsecutiveAbsences": {
+            const startWeek = Math.min(Math.max(1, Number(args.startWeek) || 1), 16);
+            const endWeek = Math.max(startWeek, Math.min(16, Number(args.endWeek) || 16));
+            const minConsecutive = Math.max(1, Number(args.minConsecutiveWeeks) || 2);
+            const filterStatus = (args.status || "").toLowerCase().trim();
+
+            let whereClause = and(
+              eq(weeklyEntries.userId, user.id),
+              sql`${weeklyEntries.weekNumber} >= ${startWeek} AND ${weeklyEntries.weekNumber} <= ${endWeek}`
+            )!;
+
+            if (args.scheduleId) {
+              whereClause = and(whereClause, eq(weeklyEntries.scheduleId, args.scheduleId))!;
+            }
+
+            const [entries, schedules] = await Promise.all([
+              db.query.weeklyEntries.findMany({
+                where: whereClause,
+                orderBy: (w, { asc }) => [asc(w.weekNumber)],
+              }),
+              db.query.scheduleTemplates.findMany({
+                where: eq(scheduleTemplates.userId, user.id),
+              }),
+            ]);
+
+            const scheduleMap = new Map(schedules.map((s) => [s.scheduleId, s]));
+            const entryIds = entries.map((e) => e.id);
+            const entryMap = new Map(entries.map((e) => [e.id, e]));
+
+            const allStudents = entryIds.length > 0
+              ? await db.query.weeklyStudents.findMany({
+                  where: inArray(weeklyStudents.weeklyEntryId, entryIds),
+                  orderBy: (s, { asc }) => [asc(s.studentNo)],
+                })
+              : [];
+
+            // Filter for absent students
+            const absentLogs = allStudents.filter((s) => {
+              const rem = (s.remarks || "").toLowerCase().trim();
+              if (!rem || rem === "hadir") return false;
+              if (filterStatus && !rem.includes(filterStatus)) return false;
+              return true;
+            });
+
+            // Group absences by student (NIM or Name) + scheduleId
+            type StudentAbsenceGroup = {
+              nim: string;
+              name: string;
+              scheduleId: string;
+              mataKuliah: string;
+              golongan: string;
+              hari: string;
+              jam: string;
+              absences: { weekNumber: number; reason: string }[];
+            };
+
+            const groups = new Map<string, StudentAbsenceGroup>();
+
+            for (const log of absentLogs) {
+              const entry = entryMap.get(log.weeklyEntryId);
+              if (!entry) continue;
+              const sched = scheduleMap.get(entry.scheduleId);
+              const key = `${entry.scheduleId}__${log.nim || log.name}`;
+
+              if (!groups.has(key)) {
+                groups.set(key, {
+                  nim: log.nim,
+                  name: log.name,
+                  scheduleId: entry.scheduleId,
+                  mataKuliah: sched?.mataKuliah || "",
+                  golongan: sched?.golongan || "",
+                  hari: sched?.hari || "",
+                  jam: sched?.jam || "",
+                  absences: [],
+                });
+              }
+
+              groups.get(key)!.absences.push({
+                weekNumber: entry.weekNumber,
+                reason: log.remarks,
+              });
+            }
+
+            const results = [];
+
+            for (const group of groups.values()) {
+              const weekMap = new Map<number, string>();
+              for (const a of group.absences) {
+                const prev = weekMap.get(a.weekNumber);
+                if (!prev || a.reason.toUpperCase().includes("ALPHA")) {
+                  weekMap.set(a.weekNumber, a.reason);
+                }
+              }
+              const sortedWeeks = Array.from(weekMap.keys()).sort((a, b) => a - b);
+
+              let maxConsecutiveRun = 0;
+              let currentRun = 0;
+              let currentRunWeeks: number[] = [];
+              let longestRunWeeks: number[] = [];
+              let prevWeek = -1;
+
+              for (const w of sortedWeeks) {
+                if (prevWeek === -1 || w === prevWeek + 1) {
+                  currentRun++;
+                  currentRunWeeks.push(w);
+                } else {
+                  currentRun = 1;
+                  currentRunWeeks = [w];
+                }
+                if (currentRun > maxConsecutiveRun) {
+                  maxConsecutiveRun = currentRun;
+                  longestRunWeeks = [...currentRunWeeks];
+                }
+                prevWeek = w;
+              }
+
+              if (maxConsecutiveRun >= minConsecutive) {
+                results.push({
+                  nim: group.nim,
+                  name: group.name,
+                  scheduleId: group.scheduleId,
+                  mataKuliah: group.mataKuliah,
+                  golongan: group.golongan,
+                  hari: group.hari,
+                  jam: group.jam,
+                  absentWeeks: sortedWeeks,
+                  consecutiveWeeks: longestRunWeeks,
+                  reasons: sortedWeeks.map((w) => `Mg ${w}: ${weekMap.get(w)}`),
+                  maxConsecutiveWeeks: maxConsecutiveRun,
+                  isFullRange: longestRunWeeks.length >= (endWeek - startWeek + 1),
+                });
+              }
+            }
+
+            // Sort by longest consecutive run descending
+            results.sort((a, b) => b.maxConsecutiveWeeks - a.maxConsecutiveWeeks);
+
+            return {
+              startWeek,
+              endWeek,
+              minConsecutiveWeeks: minConsecutive,
+              totalStudentsFound: results.length,
+              findings: results,
+              note: results.length === 0
+                ? `Tidak ditemukan mahasiswa yang tidak hadir minimal ${minConsecutive} minggu berturut-turut pada rentang minggu ${startWeek} s/d ${endWeek}.`
+                : `Ditemukan ${results.length} mahasiswa dengan ketidakhadiran berturut-turut pada rentang minggu ${startWeek} s/d ${endWeek}.`,
             };
           }
 
@@ -930,6 +1153,21 @@ PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
                 case "archives": {
                   const res = await db.query.archives.findMany({
                     where: eq(archives.userId, user.id),
+                    limit,
+                  });
+                  return { success: true, count: res.length, data: res };
+                }
+                case "weekly_students": {
+                  const userWeeklyEntries = await db.query.weeklyEntries.findMany({
+                    where: eq(weeklyEntries.userId, user.id),
+                    columns: { id: true },
+                  });
+                  const ids = userWeeklyEntries.map((e) => e.id);
+                  if (ids.length === 0) {
+                    return { success: true, count: 0, data: [] };
+                  }
+                  const res = await db.query.weeklyStudents.findMany({
+                    where: inArray(weeklyStudents.weeklyEntryId, ids),
                     limit,
                   });
                   return { success: true, count: res.length, data: res };
@@ -1310,7 +1548,11 @@ PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, reply: finalReply })}\n\n`));
             controller.close();
           } catch (err: any) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err.message || "Error saat streaming" })}\n\n`));
+            let errorMsg = err?.message || "Error saat streaming";
+            if (errorMsg.includes("Unexpected token '<'") || errorMsg.trimStart().startsWith("<")) {
+              errorMsg = "Layanan AI mengalami kendala gateway/timeout. Silakan coba sesaat lagi.";
+            }
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: errorMsg })}\n\n`));
             controller.close();
           }
         },
@@ -1339,11 +1581,13 @@ PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
     });
   } catch (error: any) {
     console.error("POST /api/ai/chat error:", error);
+    let errorMsg = error?.message || "Gagal memproses percakapan AI. Pastikan OPENAI_API_KEY valid.";
+    if (errorMsg.includes("Unexpected token '<'") || errorMsg.trimStart().startsWith("<")) {
+      errorMsg = "Layanan AI mengalami kendala gateway/timeout. Silakan coba sesaat lagi.";
+    }
     return NextResponse.json(
       {
-        error:
-          error.message ||
-          "Gagal memproses percakapan AI. Pastikan OPENAI_API_KEY valid.",
+        error: errorMsg,
       },
       { status: 500 }
     );
