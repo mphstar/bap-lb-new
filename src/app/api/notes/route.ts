@@ -58,18 +58,23 @@ export async function PUT(req: Request) {
     }
 
     const body = await req.json();
-    const { id, ...updates } = body;
+    const { id, title, content, color, pinned } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Note ID is required" }, { status: 400 });
     }
 
+    const updatePayload: Record<string, any> = {
+      updatedAt: new Date(),
+    };
+    if (typeof title === "string") updatePayload.title = title;
+    if (typeof content === "string") updatePayload.content = content;
+    if (typeof color === "string") updatePayload.color = color;
+    if (typeof pinned === "boolean") updatePayload.pinned = pinned;
+
     const [updatedNote] = await db
       .update(notes)
-      .set({
-        ...updates,
-        updatedAt: new Date(),
-      })
+      .set(updatePayload)
       .where(and(eq(notes.id, id), eq(notes.userId, user.id)))
       .returning();
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { db, examScheduleEntries } from "@/db";
-import { eq, and } from "drizzle-orm";
+import { db, examScheduleEntries, examSchedules } from "@/db";
+import { eq, and, inArray } from "drizzle-orm";
 import { getSessionUser } from "@/lib/session";
 
 export async function GET(req: Request) {
@@ -46,6 +46,16 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "scheduleId is required for all entries" }, { status: 400 });
       }
 
+      const scheduleIds = Array.from(new Set(body.map((item: any) => item.scheduleId)));
+      const userSchedules = await db.query.examSchedules.findMany({
+        where: and(inArray(examSchedules.id, scheduleIds), eq(examSchedules.userId, user.id)),
+        columns: { id: true },
+      });
+      const validScheduleIds = new Set(userSchedules.map((s) => s.id));
+      if (scheduleIds.some((id) => !validScheduleIds.has(id))) {
+        return NextResponse.json({ error: "Jadwal ujian tidak ditemukan atau bukan milik Anda." }, { status: 403 });
+      }
+
       const inserted = await db
         .insert(examScheduleEntries)
         .values(
@@ -72,6 +82,14 @@ export async function POST(req: Request) {
 
     if (!scheduleId) {
       return NextResponse.json({ error: "scheduleId is required" }, { status: 400 });
+    }
+
+    const userSchedule = await db.query.examSchedules.findFirst({
+      where: and(eq(examSchedules.id, scheduleId), eq(examSchedules.userId, user.id)),
+      columns: { id: true },
+    });
+    if (!userSchedule) {
+      return NextResponse.json({ error: "Jadwal ujian tidak ditemukan atau bukan milik Anda." }, { status: 403 });
     }
 
     const [newEntry] = await db

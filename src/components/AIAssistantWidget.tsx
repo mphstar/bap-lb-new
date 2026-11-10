@@ -36,6 +36,7 @@ export const AIAssistantWidget: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [activeBotId, setActiveBotId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
@@ -61,6 +62,15 @@ export const AIAssistantWidget: React.FC = () => {
     }
   }, [isOpen]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      const nextHeight = Math.min(inputRef.current.scrollHeight, 112);
+      inputRef.current.style.height = `${Math.max(nextHeight, 38)}px`;
+    }
+  };
+
   const handleSend = async (textToSend?: string) => {
     const query = (textToSend || input).trim();
     if (!query || loading) return;
@@ -72,11 +82,25 @@ export const AIAssistantWidget: React.FC = () => {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
+    const botId = `bot-${Date.now()}`;
+    setActiveBotId(botId);
     setLoading(true);
 
-    const botId = `bot-${Date.now()}`;
+    // Atomically append userMsg and placeholder bot message
+    setMessages((prev) => [
+      ...prev,
+      userMsg,
+      {
+        id: botId,
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+      },
+    ]);
+    setInput("");
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
 
     try {
       // Send conversation history to API with streaming support
@@ -84,17 +108,6 @@ export const AIAssistantWidget: React.FC = () => {
         role: m.role,
         content: m.content,
       }));
-
-      // Append initial placeholder bot message
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: botId,
-          role: "assistant",
-          content: "",
-          timestamp: new Date(),
-        },
-      ]);
 
       const res = await fetch("/api/ai/chat?stream=true", {
         method: "POST",
@@ -208,6 +221,7 @@ export const AIAssistantWidget: React.FC = () => {
       });
     } finally {
       setLoading(false);
+      setActiveBotId(null);
     }
   };
 
@@ -219,6 +233,8 @@ export const AIAssistantWidget: React.FC = () => {
   };
 
   const resetChat = () => {
+    setActiveBotId(null);
+    setLoading(false);
     setMessages([
       {
         id: "welcome-reset",
@@ -466,52 +482,66 @@ export const AIAssistantWidget: React.FC = () => {
 
           {/* Messages Body */}
           <div className="hm-scrollbar flex-1 overflow-y-auto p-4 space-y-3.5 bg-ground/50">
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className={cn(
-                  "flex gap-2.5 max-w-[90%]",
-                  m.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
-                )}
-              >
-                <div
-                  className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold mt-0.5",
-                    m.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground border border-rule"
-                  )}
-                >
-                  {m.role === "user" ? (
-                    <User className="size-3.5" />
-                  ) : (
-                    <Bot className="size-3.5 text-primary" />
-                  )}
-                </div>
-                <div
-                  className={cn(
-                    "rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed shadow-sm",
-                    m.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-tr-xs"
-                      : "bg-panel border border-rule text-foreground rounded-tl-xs"
-                  )}
-                >
-                  {renderFormattedText(m.content)}
-                </div>
-              </div>
-            ))}
+            {messages.map((m) => {
+              const isCurrentStreaming = loading && m.id === activeBotId;
+              const isPendingPlaceholder = m.role === "assistant" && !m.content;
 
-            {loading && (
-              <div className="flex gap-2.5 mr-auto max-w-[90%]">
-                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-foreground border border-rule mt-0.5">
-                  <Bot className="size-3.5 text-primary" />
+              // Do not render empty orphan assistant messages if not currently streaming
+              if (isPendingPlaceholder && !isCurrentStreaming) {
+                return null;
+              }
+
+              return (
+                <div
+                  key={m.id}
+                  className={cn(
+                    "flex gap-2.5 max-w-[90%]",
+                    m.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold mt-0.5",
+                      m.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground border border-rule"
+                    )}
+                  >
+                    {m.role === "user" ? (
+                      <User className="size-3.5" />
+                    ) : (
+                      <Bot className="size-3.5 text-primary" />
+                    )}
+                  </div>
+                  <div
+                    className={cn(
+                      "rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed shadow-xs",
+                      m.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-tr-xs"
+                        : "bg-panel border border-rule text-foreground rounded-tl-xs"
+                    )}
+                  >
+                    {isPendingPlaceholder ? (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground py-0.5">
+                        <Loader2 className="size-3.5 animate-spin text-primary shrink-0" />
+                        <span>Sedang memproses data...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {renderFormattedText(m.content)}
+                        {isCurrentStreaming && (
+                          <span
+                            aria-hidden
+                            className="inline-block w-1.5 h-3.5 ml-1 bg-primary/70 animate-pulse align-middle rounded-xs"
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 rounded-2xl rounded-tl-xs bg-panel border border-rule px-3.5 py-2 text-xs text-muted-foreground">
-                  <Loader2 className="size-3.5 animate-spin text-primary" />
-                  <span>Sedang memproses data...</span>
-                </div>
-              </div>
-            )}
+              );
+            })}
+
             <div ref={messagesEndRef} />
           </div>
 
@@ -548,17 +578,21 @@ export const AIAssistantWidget: React.FC = () => {
               <textarea
                 ref={inputRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Tanyakan jadwal, rekap BAP, atau data Anda... (Enter untuk kirim)"
+                placeholder="Tanyakan jadwal, materi, atau rekap BAP..."
                 rows={1}
-                className="hm-scrollbar max-h-24 min-h-[38px] flex-1 resize-none rounded-control border border-rule bg-background px-3 py-2 text-xs sm:text-sm placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                className="hm-scrollbar min-h-[38px] max-h-28 flex-1 resize-none rounded-control border border-rule bg-background px-3 py-2 text-xs sm:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1.5 focus-visible:ring-primary focus-visible:border-primary transition-[color,box-shadow,border-color] leading-normal"
+                style={{
+                  overflowY: input.split("\n").length > 3 ? "auto" : "hidden",
+                }}
               />
               <Button
                 type="submit"
                 size="icon"
                 disabled={loading || !input.trim()}
-                className="shrink-0 size-9"
+                className="shrink-0 size-9 rounded-control transition-all"
+                title="Kirim (Enter)"
               >
                 {loading ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -567,6 +601,9 @@ export const AIAssistantWidget: React.FC = () => {
                 )}
               </Button>
             </form>
+            <div className="hidden sm:flex items-center justify-between mt-1 px-1 text-[10px] text-muted-foreground/60 select-none">
+              <span>Tekan Enter untuk kirim, Shift+Enter untuk baris baru</span>
+            </div>
           </div>
         </div>
       )}

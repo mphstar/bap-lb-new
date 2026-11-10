@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/session";
 import { db, systemSettings, auditLogs } from "@/db";
 import { eq } from "drizzle-orm";
-import { clearAIConfigCache, getAIConfig } from "@/lib/ai";
+import { clearAIConfigCache, getAIConfig, validateAIBaseUrl } from "@/lib/ai";
 
 export async function GET(req: NextRequest) {
   try {
@@ -59,9 +59,10 @@ export async function POST(req: NextRequest) {
 
     const { baseUrl, apiKey, model } = body;
 
-    if (!baseUrl || typeof baseUrl !== "string" || !baseUrl.trim()) {
+    const validation = validateAIBaseUrl(baseUrl);
+    if (!validation.valid) {
       return NextResponse.json(
-        { error: "API Endpoint Base URL wajib diisi (contoh: https://openrouter.ai/api/v1 atau https://api.openai.com/v1)." },
+        { error: validation.error || "API Endpoint Base URL tidak valid." },
         { status: 400 }
       );
     }

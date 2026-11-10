@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/session";
 import { db } from "@/db";
 import { auditLogs } from "@/db/schema";
-import { desc, ilike, or, eq } from "drizzle-orm";
+import { desc, ilike, or, eq, and } from "drizzle-orm";
 
 export async function GET(req: Request) {
   const currentAdmin = await requireSuperAdmin();
@@ -15,8 +15,6 @@ export async function GET(req: Request) {
   const searchQuery = searchParams.get("search");
 
   try {
-    let query = db.select().from(auditLogs);
-
     const conditions: any[] = [];
 
     if (actionFilter && actionFilter !== "all") {
@@ -35,8 +33,15 @@ export async function GET(req: Request) {
       );
     }
 
+    const whereClause =
+      conditions.length === 0
+        ? undefined
+        : conditions.length === 1
+        ? conditions[0]
+        : and(...conditions);
+
     const logs = await db.query.auditLogs.findMany({
-      where: conditions.length > 0 ? (conditions.length === 1 ? conditions[0] : undefined) : undefined,
+      where: whereClause,
       orderBy: [desc(auditLogs.createdAt)],
       limit: 150,
     });

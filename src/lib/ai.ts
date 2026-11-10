@@ -79,12 +79,60 @@ export async function isAIConfigured(): Promise<boolean> {
 }
 
 /**
+ * Validates that an AI API Base URL uses safe protocols and does not target
+ * cloud metadata endpoints or dangerous ports (SSRF protection).
+ */
+export function validateAIBaseUrl(urlStr: string): { valid: boolean; error?: string } {
+  if (!urlStr || typeof urlStr !== "string" || !urlStr.trim()) {
+    return { valid: false, error: "Base URL endpoint wajib diisi." };
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(urlStr.trim());
+  } catch {
+    return { valid: false, error: "Format Base URL tidak valid." };
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return { valid: false, error: "Protokol Base URL harus http: atau https:." };
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+
+  // Block cloud instance metadata addresses and local internal cloud aliases
+  const blockedHostnames = [
+    "169.254.169.254",
+    "169.254.170.2",
+    "metadata.google.internal",
+    "metadata.packet.net",
+    "instance-data",
+  ];
+  if (blockedHostnames.includes(hostname) || hostname.endsWith(".internal")) {
+    return { valid: false, error: "Akses ke endpoint metadata cloud tidak diizinkan." };
+  }
+
+  // Block database and system service ports
+  const blockedPorts = ["5432", "3306", "6379", "27017", "22", "25", "23"];
+  if (parsed.port && blockedPorts.includes(parsed.port)) {
+    return { valid: false, error: `Port ${parsed.port} tidak diizinkan untuk endpoint AI.` };
+  }
+
+  return { valid: true };
+}
+
+/**
  * Fetch available models from an OpenAI-compatible /models endpoint
  */
 export async function fetchAvailableModels(
   baseUrl: string,
   apiKey: string
 ): Promise<OpenAIModelItem[]> {
+  const validation = validateAIBaseUrl(baseUrl);
+  if (!validation.valid) {
+    throw new Error(validation.error || "Base URL tidak valid.");
+  }
+
   const cleanBase = baseUrl.trim().replace(/\/+$/, "");
   const modelsUrl = `${cleanBase}/models`;
 
@@ -151,6 +199,11 @@ export async function testAIConnection(params: {
   apiKey: string;
   model: string;
 }): Promise<{ ok: boolean; latencyMs: number; message: string; modelUsed: string }> {
+  const validation = validateAIBaseUrl(params.baseUrl);
+  if (!validation.valid) {
+    throw new Error(validation.error || "Base URL tidak valid.");
+  }
+
   const start = Date.now();
   const cleanBase = params.baseUrl.trim().replace(/\/+$/, "");
   const url = `${cleanBase}/chat/completions`;
@@ -172,6 +225,7 @@ export async function testAIConnection(params: {
       ],
       max_tokens: 20,
       temperature: 0.1,
+      stream: false,
     }),
   });
 
@@ -187,8 +241,8 @@ export async function testAIConnection(params: {
     throw new Error(`Uji koneksi gagal (${res.status}): ${errMsg}`);
   }
 
-  const json = await res.json();
-  const reply = json.choices?.[0]?.message?.content || "Connected!";
+  const json = await readCompletion(res);
+  const reply = json.choices?.[0]?.message?.content || json.choices?.[0]?.text || "Connected!";
   return {
     ok: true,
     latencyMs,
@@ -368,7 +422,15 @@ async function readCompletion(res: Response): Promise<any> {
     const choice = chunk.choices?.[0];
     if (!choice) continue;
 
-    if (choice.delta?.content) content += choice.delta.content;
+    if (choice.delta?.content) {
+      content += choice.delta.content;
+    } else if (choice.delta?.text) {
+      content += choice.delta.text;
+    } else if (choice.text) {
+      content += choice.text;
+    } else if (choice.message?.content) {
+      content += choice.message.content;
+    }
     if (choice.finish_reason) finishReason = choice.finish_reason;
 
     for (const tc of choice.delta?.tool_calls || []) {

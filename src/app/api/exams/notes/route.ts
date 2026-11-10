@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, examScheduleNotes } from "@/db";
+import { db, examScheduleNotes, examScheduleEntries } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { getSessionUser } from "@/lib/session";
 
@@ -46,6 +46,14 @@ export async function POST(req: Request) {
     }
     if (!content) {
       return NextResponse.json({ error: "Content is required" }, { status: 400 });
+    }
+
+    const entry = await db.query.examScheduleEntries.findFirst({
+      where: and(eq(examScheduleEntries.id, entryId), eq(examScheduleEntries.userId, user.id)),
+      columns: { id: true },
+    });
+    if (!entry) {
+      return NextResponse.json({ error: "Entri ujian tidak ditemukan atau bukan milik Anda." }, { status: 403 });
     }
 
     const [newNote] = await db

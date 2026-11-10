@@ -403,7 +403,7 @@ export function AppSidebar({
                                             onClick={() => {
                                                 if (item.href.startsWith("http://") || item.href.startsWith("https://")) {
                                                     window.open(item.href, "_blank", "noopener,noreferrer");
-                                                } else {
+                                                } else if (item.href.startsWith("/") && !item.href.startsWith("//")) {
                                                     router.push(item.href);
                                                 }
                                             }}

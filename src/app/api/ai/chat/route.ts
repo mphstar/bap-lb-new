@@ -1193,10 +1193,15 @@ PANDUAN TOOL 'updateWeeklyEntries' (impor data mingguan dari Excel/tabel):
                   }).returning();
                   return { success: true, message: "Catatan berhasil dibuat.", data: inserted };
                 } else if (operation === "update" && args.filters?.id) {
-                  const updated = await db.update(notes).set({
-                    ...payload,
+                  const updatePayload: Record<string, any> = {
                     updatedAt: new Date(),
-                  }).where(and(eq(notes.userId, user.id), eq(notes.id, args.filters.id))).returning();
+                  };
+                  if (typeof payload.title === "string") updatePayload.title = payload.title;
+                  if (typeof payload.content === "string") updatePayload.content = payload.content;
+                  if (typeof payload.color === "string") updatePayload.color = payload.color;
+                  if (typeof payload.pinned === "boolean") updatePayload.pinned = payload.pinned;
+
+                  const updated = await db.update(notes).set(updatePayload).where(and(eq(notes.userId, user.id), eq(notes.id, args.filters.id))).returning();
                   return { success: true, message: "Catatan berhasil diperbarui.", data: updated };
                 }
               } else if (table === "student_master") {
